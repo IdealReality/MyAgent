@@ -7,6 +7,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -542,7 +543,10 @@ private fun MessagePartsBlock(
                                         // 流式期间关掉高度动画：内容每个 token 都在长，
                                         // 动画每帧都要重测+插值，和自动跟随滚动抢帧。
                                         modifier = if (loading) Modifier else Modifier.animateContentSize(),
-                                        shape = RoundedCornerShape(16.dp),
+                                        shape = RoundedCornerShape(
+                                            topStart = 18.dp, topEnd = 18.dp,
+                                            bottomEnd = 18.dp, bottomStart = 6.dp,
+                                        ),
                                         color = if (settings.displaySetting.showAssistantBubble) {
                                             MaterialTheme.colorScheme.surfaceContainerHigh.copy(
                                                 alpha = settings.displaySetting.bubbleOpacity,
@@ -550,6 +554,7 @@ private fun MessagePartsBlock(
                                         } else {
                                             MaterialTheme.colorScheme.surface.copy(alpha = PHOTO_TEXT_PLATE_ALPHA)
                                         },
+                                        border = if (settings.displaySetting.showAssistantBubble) BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)) else null,
                                     ) {
                                         Column(modifier = Modifier.padding(8.dp)) {
                                             MarkdownBlock(
@@ -811,8 +816,12 @@ private fun UserMessageBubble(
     val collapsed = showToggle && !expanded
     Surface(
         modifier = Modifier.animateContentSize(),
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(
+            topStart = 18.dp, topEnd = 18.dp,
+            bottomEnd = 6.dp, bottomStart = 18.dp,
+        ),
         color = bubbleColor,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.10f)),
         onClick = onClick,
     ) {
         Column(modifier = Modifier.padding(8.dp)) {

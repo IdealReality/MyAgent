@@ -262,9 +262,9 @@ fun ChatInput(
     // smaller, flatter 14dp card.
     val containerCorner by animateDpAsState(
         targetValue = when {
-            cleanLayout -> 14.dp
-            expanded -> 16.dp
-            else -> 28.dp
+            cleanLayout -> 18.dp
+            expanded -> 20.dp
+            else -> 30.dp
         },
         animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing),
         label = "chatInputCorner",
@@ -313,8 +313,8 @@ fun ChatInput(
                                 input = HazeInput.Sources(hazeState),
                                 style = rikkaGlassStyle(
                                     containerShape,
-                                    blurRadius = 12.dp,
-                                    depth = 0.4f,
+                                    blurRadius = 18.dp,
+                                    depth = 0.55f,
                                     tintStrength = cleanOpacity,
                                 ),
                             )
@@ -325,7 +325,7 @@ fun ChatInput(
                 shape = containerShape,
                 tonalElevation = 0.dp,
                 color = if (useGlass) Color.Transparent else cleanCardColor,
-                border = if (useGlass) null else BorderStroke(1.dp, cleanCardOutline),
+                border = if (useGlass) null else BorderStroke(1.dp, cleanCardOutline.copy(alpha = 0.75f)),
             ) {
                 Column(
                     // Extra inset so the round buttons stay clear of the capsule's edge; the
@@ -710,7 +710,7 @@ private fun SendButton(
         if (!showStop && !empty) {
             Box(
                 modifier = Modifier
-                    .size(26.dp)
+                    .size(30.dp)
                     .clip(CircleShape)
                     .background(accentBrush)
             )
@@ -726,7 +726,7 @@ private fun SendButton(
             imageVector = if (showStop) HugeIcons.Cancel01 else HugeIcons.ArrowUp02,
             contentDescription = stringResource(if (showStop) R.string.stop else R.string.send),
             tint = contentColor,
-            modifier = Modifier.size(16.dp)
+            modifier = Modifier.size(17.dp)
         )
     }
 }
