@@ -188,6 +188,7 @@ class SettingsStore(
         val FAST_MODEL_REASONING_LEVEL = stringPreferencesKey("fast_model_reasoning_level")
         val TRANSLATE_MODEL = stringPreferencesKey("translate_model")
         val ENABLE_SUGGESTION = booleanPreferencesKey("enable_suggestion")
+        val ERROR_CARD_AUTO_DISMISS = booleanPreferencesKey("error_card_auto_dismiss")
         val IMAGE_GENERATION_MODEL = stringPreferencesKey("image_generation_model")
         val VIDEO_GENERATION_MODEL = stringPreferencesKey("video_generation_model")
         val TITLE_PROMPT = stringPreferencesKey("title_prompt")
@@ -316,6 +317,7 @@ class SettingsStore(
                 preferences[FAST_MODEL_REASONING_LEVEL] = settings.fastModelReasoningLevel.name
                 preferences[TRANSLATE_MODEL] = settings.translateModeId.toString()
                 preferences[ENABLE_SUGGESTION] = settings.enableSuggestion
+                preferences[ERROR_CARD_AUTO_DISMISS] = settings.errorCardAutoDismiss
                 preferences[IMAGE_GENERATION_MODEL] = settings.imageGenerationModelId.toString()
                 preferences[VIDEO_GENERATION_MODEL] = settings.videoGenerationModelId.toString()
                 preferences[TITLE_PROMPT] = settings.titlePrompt
@@ -437,6 +439,7 @@ class SettingsStore(
                 translateModeId = preferences[TRANSLATE_MODEL]?.let { runCatching { Uuid.parse(it) }.getOrNull() }
                     ?: DEFAULT_AUTO_MODEL_ID,
                 enableSuggestion = preferences[ENABLE_SUGGESTION] != false,
+                errorCardAutoDismiss = preferences[ERROR_CARD_AUTO_DISMISS] == true,
                 imageGenerationModelId = preferences[IMAGE_GENERATION_MODEL]?.let { runCatching { Uuid.parse(it) }.getOrNull() } ?: Uuid.random(),
                 videoGenerationModelId = preferences[VIDEO_GENERATION_MODEL]?.let { runCatching { Uuid.parse(it) }.getOrNull() } ?: Uuid.random(),
                 titlePrompt = preferences[TITLE_PROMPT] ?: DEFAULT_TITLE_PROMPT,
@@ -519,8 +522,8 @@ class SettingsStore(
                         preferences[SUB_AGENT_DISPATCH_PROFILE] ?: ""
                     )
                 }.getOrDefault(SubAgentDispatchProfile.NEVER),
-                dynamicColor = preferences[DYNAMIC_COLOR] != false,
-                themeId = preferences[THEME_ID] ?: PresetThemes[0].id,
+                dynamicColor = preferences[DYNAMIC_COLOR] == true,
+                themeId = preferences[THEME_ID] ?: "myagent",
                 customThemes = preferences[CUSTOM_THEMES]?.let { raw ->
                     runCatching { JsonInstant.decodeFromString<List<CustomTheme>>(raw) }.getOrElse {
                         Log.w(TAG, "Failed to decode customThemes, using default", it)
@@ -787,6 +790,10 @@ class SettingsStore(
                         is ProviderSetting.GeminiOAuth -> provider.copy(
                             models = dropDeniedGeminiOAuthModels(provider.models)
                         )
+
+                        is ProviderSetting.AgentsAnywhere -> provider.copy(
+                            models = provider.models.distinctBy { model -> model.id }
+                        )
                     }
                 },
                 assistants = settings.assistants.distinctBy { it.id }.map { assistant ->
@@ -987,7 +994,7 @@ class SettingsStore(
 data class Settings(
     @Transient
     val init: Boolean = false,
-    val dynamicColor: Boolean = true,
+    val dynamicColor: Boolean = false,
     val themeId: String = PresetThemes[0].id,
     val customThemes: List<CustomTheme> = emptyList(),
     val developerMode: Boolean = false,
@@ -1128,6 +1135,11 @@ data class Settings(
     /** Round ball only: slim edge handle (default, as before) or the ball half off-screen. */
     val floatingBallTuckStyle: FloatingBallTuckStyle = FloatingBallTuckStyle.HANDLE,
     val aiLogLevel: AiLogLevel = AiLogLevel.INFO,
+    /**
+     * Hide error cards after 5 seconds. Off by default: the card carries the explanation a
+     * non-technical user needs, and 5s is not enough to read it.
+     */
+    val errorCardAutoDismiss: Boolean = false,
     val backupReminderConfig: BackupReminderConfig = BackupReminderConfig(),
     val launchCount: Int = 0,
 ) {
@@ -1219,7 +1231,7 @@ data class DisplaySetting(
     val cleanLayoutBottomOpacity: Float = 1f,
     // 简洁布局顶栏高度（dp）。默认 48，比 TopAppBar 的 64 矮一截；下限 40 保住两行文字，上限 72。
     val cleanLayoutTopHeight: Float = 48f,
-    // 简洁布局输入框上下内边距（dp）。默认 6，比原来的 8 矮一点；下限 4 不贴边，上限 10。
+    // 简洁布局输入框上下内边距（dp）。默认 6；0..24 由 CleanPanel 的常量给出，见那边的说明。
     val cleanLayoutBottomPadding: Float = 6f,
     // 抽屉上下功能区：开 = 没有底板，控件直接落在磨砂抽屉上，身份行/入口/文件夹/底部动作
     // 各自是小胶囊，列表在控件所在的那一段渐隐；关 = 原来的上下两张浮岛卡片。默认开。
@@ -1464,6 +1476,25 @@ internal val DEFAULT_ASSISTANT_ID = Uuid.parse("0950e2dc-9bd5-4801-afa3-aa887aa3
  */
 internal val DEFAULT_AUTO_ENABLED_SKILLS = setOf("autonomous-agent")
 
+/**
+ * Agents Anywhere 专属助手。
+ *
+ * 现在 AA 不是工具而是 provider：这个助手的作用只剩「一个已经清干净本地工具面的会话模板」。
+ * 它不绑死模型（远端目录随机器不同，无法预先固化 model id）：第一次使用时在
+ * 设置 → 服务商 → Agents Anywhere 里填连接信息并拉一次目录，然后在「模型」页选中远端模型即可。
+ */
+val AGENTS_ANYWHERE_ASSISTANT_ID = Uuid.parse("a7c1f0b4-6d2e-4c58-9b3a-1e5d8f2c7a90")
+
+internal val AGENTS_ANYWHERE_ASSISTANT = Assistant(
+    id = AGENTS_ANYWHERE_ASSISTANT_ID,
+    name = "远程助手",
+    chatModelId = null,
+    systemPrompt = "",
+    enabledSkills = emptySet(),
+    // 远端 agent 自带工具循环；本地再挂工具只会让两套工具面互相干扰。
+    localTools = emptyList(),
+)
+
 internal val DEFAULT_ASSISTANTS = listOf(
     Assistant(
         id = DEFAULT_ASSISTANT_ID,
@@ -1495,6 +1526,7 @@ internal val DEFAULT_ASSISTANTS = listOf(
         """.trimIndent(),
         enabledSkills = setOf("agent-core") + DEFAULT_AUTO_ENABLED_SKILLS,
     ),
+    AGENTS_ANYWHERE_ASSISTANT,
 )
 
 val DEFAULT_SYSTEM_TTS_ID = Uuid.parse("026a01a2-c3a0-4fd5-8075-80e03bdef200")

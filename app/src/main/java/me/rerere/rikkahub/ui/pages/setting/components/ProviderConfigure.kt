@@ -137,6 +137,7 @@ fun ProviderConfigure(
             is ProviderSetting.Codex -> Unit
             is ProviderSetting.Grok -> Unit
             is ProviderSetting.GeminiOAuth -> Unit
+            is ProviderSetting.AgentsAnywhere -> Unit
         }
     }
 }
@@ -154,6 +155,7 @@ fun ProviderSetting.convertTo(type: KClass<out ProviderSetting>): ProviderSettin
         is ProviderSetting.Codex -> "" // OAuth, no API key
         is ProviderSetting.Grok -> "" // OAuth, no API key
         is ProviderSetting.GeminiOAuth -> "" // OAuth, no API key
+        is ProviderSetting.AgentsAnywhere -> "" // 远端 agent，无 API key
     }
     val sourceBaseUrl = when (this) {
         is ProviderSetting.OpenAI -> this.baseUrl
@@ -165,6 +167,7 @@ fun ProviderSetting.convertTo(type: KClass<out ProviderSetting>): ProviderSettin
         is ProviderSetting.Codex -> "" // OAuth, no base URL
         is ProviderSetting.Grok -> "" // OAuth, no base URL
         is ProviderSetting.GeminiOAuth -> "" // OAuth, no base URL
+        is ProviderSetting.AgentsAnywhere -> "" // 远端 agent，无 base URL
     }
     val targetDefaultBaseUrl = when (type) {
         ProviderSetting.OpenAI::class -> ProviderSetting.OpenAI().baseUrl
@@ -223,6 +226,7 @@ internal fun ProviderSetting.defaultBaseUrlForReset(): String {
             is ProviderSetting.Codex -> return "" // OAuth, no base URL
             is ProviderSetting.Grok -> return "" // OAuth, no base URL
             is ProviderSetting.GeminiOAuth -> return "" // OAuth, no base URL
+            is ProviderSetting.AgentsAnywhere -> return "" // 远端 agent，无 base URL
         }
     }
     return when (this) {
@@ -235,6 +239,7 @@ internal fun ProviderSetting.defaultBaseUrlForReset(): String {
         is ProviderSetting.Codex -> ""
         is ProviderSetting.Grok -> ""
         is ProviderSetting.GeminiOAuth -> ""
+        is ProviderSetting.AgentsAnywhere -> ""
     }
 }
 
@@ -250,6 +255,7 @@ internal fun ProviderSetting.resetBaseUrlToDefault(): ProviderSetting {
         is ProviderSetting.Codex -> this // no base URL to reset
         is ProviderSetting.Grok -> this // no base URL to reset
         is ProviderSetting.GeminiOAuth -> this // no base URL to reset
+        is ProviderSetting.AgentsAnywhere -> this // no base URL to reset
     }
 }
 
@@ -264,6 +270,7 @@ internal fun ProviderSetting.isUsingDefaultBaseUrl(): Boolean {
         is ProviderSetting.Codex -> return true // no base URL concept
         is ProviderSetting.Grok -> return true // no base URL concept
         is ProviderSetting.GeminiOAuth -> return true // no base URL concept
+        is ProviderSetting.AgentsAnywhere -> return true // no base URL concept
     }
     return baseUrl == defaultBaseUrlForReset()
 }

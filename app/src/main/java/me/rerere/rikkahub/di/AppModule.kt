@@ -226,6 +226,8 @@ val appModule = module {
         )
     }
 
+    single { me.rerere.rikkahub.data.agentsanywhere.AgentsAnywhereSessionStore(get()) }
+
     single {
         UpdateChecker(
             client = get(),

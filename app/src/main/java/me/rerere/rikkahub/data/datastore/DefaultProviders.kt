@@ -22,6 +22,9 @@ val DEFAULT_CODEX_PROVIDER_ID = Uuid.parse("7ce7e322-b995-4b0c-9d48-42e08dcfcdda
 val DEFAULT_GROK_PROVIDER_ID = Uuid.parse("8f3e1d20-4b6a-4c9e-a1f2-9d5c7e0b3a44")
 val DEFAULT_GEMINI_OAUTH_PROVIDER_ID = Uuid.parse("2b6c1f84-73ad-4e35-b0c7-1a9e4d5f8c21")
 
+/** Agents Anywhere：把另一台机器上的 agent 直接当成一个模型来对话。 */
+val DEFAULT_AGENTS_ANYWHERE_PROVIDER_ID = Uuid.parse("9d3f5c71-8b24-4a6e-b0d5-3c7e91a24f68")
+
 val DEFAULT_PROVIDERS = listOf(
     ProviderSetting.AICore(
         // On-device provider sits at the top of the list so the agent's primary surface for
@@ -126,6 +129,22 @@ val DEFAULT_PROVIDERS = listOf(
         builtIn = true,
         shortDescription = {
             Text(stringResource(R.string.gemini_provider_short_description))
+        },
+    ),
+    ProviderSetting.AgentsAnywhere(
+        id = DEFAULT_AGENTS_ANYWHERE_PROVIDER_ID,
+        name = "Agents Anywhere",
+        enabled = false,
+        builtIn = true,
+        description = {
+            Text(
+                "把另一台机器上的完整 agent（AA 托管的 omp / codex / claude）当成一个模型直接对话。" +
+                    "填好服务器地址与 connector / project / runtime 后，在模型列表里选中远端模型即可——" +
+                    "远端的推理、工具调用与流式输出都原样出现在这里，不经过本地模型转述。"
+            )
+        },
+        shortDescription = {
+            Text("远端 agent · 直连对话")
         },
     ),
     ProviderSetting.Google(

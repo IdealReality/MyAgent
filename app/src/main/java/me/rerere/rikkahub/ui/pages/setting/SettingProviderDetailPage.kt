@@ -121,6 +121,7 @@ import me.rerere.rikkahub.ui.hooks.useEditState
 import me.rerere.rikkahub.ui.pages.assistant.detail.CustomBodies
 import me.rerere.rikkahub.ui.pages.assistant.detail.CustomHeaders
 import me.rerere.rikkahub.ui.pages.setting.components.ProviderConfigure
+import me.rerere.rikkahub.ui.pages.setting.components.AgentsAnywhereProviderConfigure
 import me.rerere.rikkahub.ui.pages.setting.components.CodexProviderConfigure
 import me.rerere.rikkahub.ui.pages.setting.components.GeminiProviderConfigure
 import me.rerere.rikkahub.ui.pages.setting.components.GrokProviderConfigure
@@ -307,6 +308,13 @@ private fun SettingProviderConfigPage(
         GeminiProviderConfigure(
             provider = provider,
             onEdit = onEdit,
+        )
+        return
+    }
+    if (provider is ProviderSetting.AgentsAnywhere) {
+        AgentsAnywhereProviderConfigure(
+            provider = provider,
+            onEdit = { onEdit(it) },
         )
         return
     }

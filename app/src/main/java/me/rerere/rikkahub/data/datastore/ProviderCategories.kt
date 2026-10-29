@@ -55,6 +55,7 @@ private val BUILT_IN_PROVIDER_CATEGORY: Map<Uuid, ProviderCategory> = buildMap {
     put(DEFAULT_CODEX_PROVIDER_ID, ProviderCategory.INTERNATIONAL) // Codex
     put(DEFAULT_GROK_PROVIDER_ID, ProviderCategory.INTERNATIONAL) // Grok
     put(DEFAULT_GEMINI_OAUTH_PROVIDER_ID, ProviderCategory.INTERNATIONAL) // Gemini OAuth
+    put(DEFAULT_AGENTS_ANYWHERE_PROVIDER_ID, ProviderCategory.LOCAL) // Agents Anywhere（自己的机器）
     put(Uuid.parse("6ab18148-c138-4394-a46f-1cd8c8ceaa6d"), ProviderCategory.INTERNATIONAL) // Gemini
     put(Uuid.parse("d5734028-d39b-4d41-9841-fd648d65440e"), ProviderCategory.INTERNATIONAL) // OpenRouter
     put(Uuid.parse("386e0f29-8228-4512-affe-8fd8add82d88"), ProviderCategory.INTERNATIONAL) // Vercel AI Gateway
