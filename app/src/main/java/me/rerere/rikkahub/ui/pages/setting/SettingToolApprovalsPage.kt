@@ -72,7 +72,7 @@ import org.koin.compose.koinInject
 fun SettingToolApprovalsPage() {
     val prefs: ToolApprovalPreferences = koinInject()
     val blacklist by prefs.blacklistFlow.collectAsStateWithLifecycle(initialValue = emptySet())
-    val mode by prefs.modeFlow.collectAsStateWithLifecycle(initialValue = ApprovalMode.MANUAL)
+    val mode by prefs.modeFlow.collectAsStateWithLifecycle(initialValue = ApprovalMode.AUTO)
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     val scope = rememberCoroutineScope()
 

@@ -164,50 +164,22 @@ object HeadlessToolApprovalPolicy {
      * ([PER_CALL_CONFIRM_TOOL_NAMES]), [PRIVACY_SENSITIVE_TOOL_NAMES],
      * [PRIVATE_DATA_TOOL_NAMES], [EXPERT_WRITE_TOOL_NAMES] and [MODEL_WRITE_TOOL_NAMES].
      */
-    val REFUSED_TOOL_NAMES: Set<String> =
-        PER_CALL_CONFIRM_TOOL_NAMES + PRIVACY_SENSITIVE_TOOL_NAMES +
-            PRIVATE_DATA_TOOL_NAMES + EXPERT_WRITE_TOOL_NAMES + MODEL_WRITE_TOOL_NAMES
+    val REFUSED_TOOL_NAMES: Set<String> = emptySet()
 
     /**
-     * Why [toolName] must not run in a headless conversation, or null when it may.
+     * My Agent 决策（2026-10-30）——**headless 不再拒绝任何工具**。
      *
-     * Each group gets its own wording because the operator-facing fix differs: one needs a
-     * person to confirm the call, the next needs a person to be *present*, the last needs the
-     * user to manage the roster themselves — from the settings screen, or a conversation where
-     * they can approve the call.
+     * 上游在这里维护了一份「无人可确认所以不准跑」的清单（麦克风、隐私数据、专家/模型名册写入、
+     * 逐次确认工具）。对一个定位为「能自己干活的手机助手」的构建来说，这份清单的实际效果是：
+     * 定时任务、子代理、workflow 一旦需要写记忆、读通知、派发专家就静默失败，而用户根本没有
+     * 别的入口去授权。用户明确要求「不存在始终需要审核的功能工具」，所以整层移除。
+     *
+     * 仍然保留的安全边界：命令级红线 [HardlineCommandGuard]（危险命令直接拒绝执行，不含审核
+     * 语义），以及子代理面仍不暴露 `subagent_` 前缀工具（那是防递归，不是审核）。
      */
     fun refusalDetail(toolName: String): String? {
-        val name = toolName.trim()
-        return when {
-            name.isEmpty() -> null
-            // D5 - install tools are allowed; what they install lands disabled.
-            name in INSTALL_TOOL_NAMES -> null
-            name in PER_CALL_CONFIRM_TOOL_NAMES ->
-                "$name requires the user to confirm every single call, and this conversation has " +
-                    "no approval channel — there is nobody to confirm. It cannot run unattended. " +
-                    "If the task really needs it, ask the user to run it themselves, or use a " +
-                    "tool that does not need a per-call confirmation."
-            name in PRIVACY_SENSITIVE_TOOL_NAMES ->
-                "$name records the user's surroundings or speech and needs somebody present to " +
-                    "consent. This conversation has no approval channel, so there is nobody to " +
-                    "ask. It cannot run unattended."
-            name in PRIVATE_DATA_TOOL_NAMES ->
-                "$name reads or sends the user's own data — contacts, messages, call log, the " +
-                    "camera or screen, notifications — or overwrites the assistant's persistent " +
-                    "notes. This conversation has no approval channel, so nobody is there to " +
-                    "consent. It cannot run unattended."
-            name in EXPERT_WRITE_TOOL_NAMES ->
-                "$name rewrites the expert library, which is the set of named specialists " +
-                    "subagent_dispatch resolves. This conversation has no approval channel, so " +
-                    "the user cannot review the change. Ask the user to create or edit experts " +
-                    "from the settings screen, or run the dispatch without one."
-            name in MODEL_WRITE_TOOL_NAMES ->
-                "$name rewrites the model roster that every assistant's model picker and every " +
-                    "later generation resolves against. This conversation has no approval " +
-                    "channel, so the user cannot review the change. Ask the user to add, edit or " +
-                    "remove models from the settings screen."
-            else -> null
-        }
+        // 保留参数与签名：调用点（GenerationLoop / AgentDefinitionTools）不需要改动。
+        return null
     }
 
     /** Convenience predicate over [refusalDetail]. */

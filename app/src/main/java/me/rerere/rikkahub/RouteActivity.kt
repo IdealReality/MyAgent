@@ -135,12 +135,14 @@ import me.rerere.rikkahub.ui.pages.setting.SettingSponsorPage
 import me.rerere.rikkahub.ui.pages.setting.SettingSubAgentsPage
 // P2-32 ssh hosts page
 import me.rerere.rikkahub.ui.pages.setting.SettingSshPage
+import me.rerere.rikkahub.ui.pages.setting.SettingSecretsPage
 import me.rerere.rikkahub.ui.pages.setting.SettingTelegramPage
 import me.rerere.rikkahub.ui.pages.setting.SettingWebPage
 import me.rerere.rikkahub.ui.pages.share.handler.ShareHandlerPage
 import me.rerere.rikkahub.ui.pages.stats.StatsPage
 import me.rerere.rikkahub.ui.pages.translator.TranslatorPage
 import me.rerere.rikkahub.ui.pages.webview.WebViewPage
+import me.rerere.rikkahub.ui.theme.LocalAmbientBrush
 import me.rerere.rikkahub.ui.theme.LocalDarkMode
 import me.rerere.rikkahub.ui.theme.RikkahubTheme
 import me.rerere.rikkahub.utils.CrashHandler
@@ -357,7 +359,7 @@ class RouteActivity : ComponentActivity() {
                     modifier = Modifier
                         .fillMaxSize()
                         .semantics { testTagsAsResourceId = true }
-                        .background(MaterialTheme.colorScheme.background)
+                        .background(LocalAmbientBrush.current)
                 ) {
                     NavDisplay(
                         backStack = backStack,
@@ -542,6 +544,10 @@ class RouteActivity : ComponentActivity() {
 
                             entry<Screen.SettingSsh> {
                                 SettingSshPage()
+                            }
+
+                            entry<Screen.SettingSecrets> {
+                                SettingSecretsPage()
                             }
 
                             entry<Screen.SettingFiles> {
@@ -838,6 +844,9 @@ sealed interface Screen : NavKey {
 
     @Serializable
     data object SettingSsh : Screen
+
+    @Serializable
+    data object SettingSecrets : Screen
 
     @Serializable
     data object SettingFiles : Screen

@@ -3,17 +3,16 @@ package me.rerere.rikkahub.data.ai.tools
 /**
  * Static knowledge the runtime approval decision is built on.
  *
- * **Blacklist era.** Approval is no longer a fixed "these tools always ask" white-list baked
- * into the build. Instead every tool is routed through the runtime decision
+ * **Blacklist era.** Approval is not a fixed "these tools always ask" white-list baked into
+ * the build. Every tool is routed through the runtime decision
  * ([ToolApprovalPolicy.shouldAutoApprove] via `ChatService.isToolAutoApproved`) and the user
  * says which tools must ask by putting them on a **blacklist** (Settings → Tool approvals).
- * By default that blacklist is empty: nothing asks. Two things cannot be waived by leaving
- * them off the blacklist, because they are not the user's to waive at the call site:
+ * By default that blacklist is empty: nothing asks.
  *
- *  - [NO_ALWAYS_ALLOW] — a small, hard floor of privilege-escalation surfaces. Never
- *    auto-approved, cannot be removed from the asking set, no "always" shortcut.
- *  - Every `mcp__*` relayed tool — an MCP server's surface is opaque to us, so a call to one
- *    always asks (again, no blanket grant).
+ * My Agent 决策（2026-10-30）：上游还有两条不可豁免的规则（[NO_ALWAYS_ALLOW] 硬地板、
+ * 所有 `mcp__*` 一律要问），本构建把两者**整体移除**。理由是这个 App 的定位是「能自己干活
+ * 的手机助手」：定时任务 / 子代理 / workflow 没有可点确认的人，任何一条强制审核都会变成
+ * 永久卡死。危险命令仍由 [HardlineCommandGuard] 直接拒绝执行——那是拒绝，不是审核。
  *
  * [DANGEROUS_TOOLS] is the curated list of side-effecting / privacy-reading tools. It no
  * longer gates anything; it is what the Settings screen offers as a one-tap "add the usual
@@ -26,9 +25,10 @@ package me.rerere.rikkahub.data.ai.tools
 object ToolApprovalDefaults {
 
     /**
-     * The `mcp__` namespace prefix `buildMcpToolName` puts on every relayed MCP tool. Kept
-     * here as well as at the call sites so the approval floor and the hardline floor agree on
-     * what "this is an opaque MCP call" means.
+     * The `mcp__` namespace prefix `buildMcpToolName` puts on every relayed MCP tool.
+     *
+     * 上游用它把 MCP 工具整体推到「每次都要问」的位置；本构建不再这么做，前缀仍保留供命名
+     * 与过滤（`HardlineCommandGuard` 等）使用。
      */
     const val MCP_TOOL_PREFIX: String = "mcp__"
 
@@ -299,54 +299,23 @@ object ToolApprovalDefaults {
     )
 
     /**
-     * The hard floor: tools that require a fresh confirmation on **every single call**, no
-     * matter what. Reserved for tools that are inherently privilege-escalation surfaces —
-     * adding an MCP server is exactly that, since a hostile server can exfiltrate anything
-     * reachable through the assistant's tool set.
+     * My Agent 决策（2026-10-30）——**没有常驻审核**。
      *
-     * These are neither removable from the asking set (leaving them off the blacklist does
-     * not waive them) nor eligible for the per-call shortcut. Only YOLO — and the command
-     * floor [HardlineCommandGuard] — sit above this set.
+     * 上游把一小撮工具（`mcp_add` / `mcp_update` / `eval_javascript` / `skill_install_*` /
+     * `browser_eval_js` / keystore / nfc / grant_directory_access）与所有 `mcp__*` 中继工具
+     * 放在一个不可豁免的「硬地板」上，每次调用都弹确认。对「一个能自己干活的手机会话」来说
+     * 这就是死锁：Mark 一个定时任务、跑一个 workflow、或让子代理自己决定下一步时没人能点确认，
+     * 那条路就永远走不通。
+     *
+     * 因此这一层整体移除：没有任何工具被强制要求审核。用户仍然想管的话，黑名单
+     * （[DANGEROUS_TOOLS] 一键加入）与 MANUAL 档位都还在，只是**默认不再拦任何人**。
+     * 命令级红线 [HardlineCommandGuard] 不受影响 —— 那不是审核，是直接拒绝执行。
      */
-    val NO_ALWAYS_ALLOW: Set<String> = setOf(
-        "mcp_add",
-        "mcp_update",
-        // eval_javascript runs arbitrary code in the QuickJS engine. Even with a wall-clock
-        // timeout + a bounded native heap/stack, the code itself is attacker-controllable, so
-        // a blanket "Always Allow" would hand unattended cron / Telegram paths a standing
-        // arbitrary-code primitive. Require a per-call confirmation every time.
-        "eval_javascript",
-        // Phase 16 — skill_install_from_url + skill_install_from_text. The skill body is
-        // fetched from an arbitrary URL (or supplied as raw text via any other tool, e.g.
-        // ssh_exec / termux_run_command for authenticated servers) and installed against
-        // the assistant's tool surface. We require per-call approval every single time so
-        // the user reviews the URL / source-label + skill name.
-        "skill_install_from_url",
-        "skill_install_from_text",
-        // Phase 21 / Pass 2 — browser_eval_js runs arbitrary JavaScript in a real WebView
-        // with the user's cookies, localStorage, and authenticated fetch surface. Even
-        // after HARDLINE filters out shell-shaped strings + obvious dynamic-eval patterns,
-        // the residual surface is too broad to ever blanket-allow. Every invocation gets
-        // an explicit per-call approval card, no exceptions.
-        "browser_eval_js",
-        // Phase 25 — privilege-escalation surfaces that must confirm every single call:
-        //  - keystore_generate_key: mints a hardware key that later sign/encrypt calls trust
-        //  - keystore_decrypt: turns ciphertext back into plaintext the model then reads
-        //  - nfc_write_tag: permanently rewrites a physical tag's contents
-        //  - grant_directory_access: persistent read+write to an entire storage tree,
-        //    possibly cloud / Downloads / Pictures
-        "keystore_generate_key",
-        "keystore_decrypt",
-        "nfc_write_tag",
-        "grant_directory_access",
-    )
+    val NO_ALWAYS_ALLOW: Set<String> = emptySet()
 
     /**
-     * True when [toolName] is on the non-waivable floor: a member of [NO_ALWAYS_ALLOW] or an
-     * opaque relayed MCP tool (`mcp__*`). Such a tool asks on every call regardless of the
-     * user's blacklist; the only exception is Auto mode, which waives relayed `mcp__*` calls
-     * (拍板 2026-10-16) but never the named [NO_ALWAYS_ALLOW] set.
+     * 永远为 false，仅为调用点保留签名（设置页的「强制」徽标、策略函数的默认地板）。
+     * 想恢复硬地板就把上面的集合填回去并改这里。
      */
-    fun isHardFloor(toolName: String): Boolean =
-        toolName in NO_ALWAYS_ALLOW || toolName.startsWith(MCP_TOOL_PREFIX)
+    fun isHardFloor(toolName: String): Boolean = toolName in NO_ALWAYS_ALLOW
 }

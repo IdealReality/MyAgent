@@ -464,7 +464,9 @@ private fun ChatPageContent(
     TTSAutoPlay(vm = vm, setting = setting, conversation = conversation)
 
     Surface(
-        color = MaterialTheme.colorScheme.background,
+        // 透明：让根容器上的红→紫→蓝底布渐变在这里也露出来（AssistantBackground 会继续
+        // 在其上叠壁纸或动态渐变，那是有图可显示时才有的事）。
+        color = Color.Transparent,
         modifier = Modifier.fillMaxSize()
     ) {
         AssistantBackground(

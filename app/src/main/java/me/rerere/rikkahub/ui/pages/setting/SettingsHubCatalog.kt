@@ -26,6 +26,7 @@ enum class SettingsHubItemId {
     WORKFLOWS,
     SCHEDULED,
     TOOL_APPROVALS,
+    AGENTS_ANYWHERE,
     ACCESSIBILITY,
     FLOATING_BALL,
     NOTIF_ACCESS,
@@ -33,6 +34,7 @@ enum class SettingsHubItemId {
     SHIZUKU,
     TERMUX,
     SSH,
+    SECRETS,
     WEB,
     TELEGRAM,
     BROWSER,
@@ -180,6 +182,14 @@ val settingsHubItems: Map<SettingsHubItemId, SettingsHubItemDef> = listOf(
         reorganized = SettingsHubItemCopy(R.string.setting_page_scheduled_jobs, R.string.setting_page_scheduled_jobs_desc),
     ),
     SettingsHubItemDef(
+        id = SettingsHubItemId.AGENTS_ANYWHERE,
+        // AA 现在是「服务商」里的一种接入方式（远端 agent 直接当模型用），所以这里直接
+        // 跳到服务商列表，而不是再维护一个平行的连接设置页。
+        route = Screen.SettingProvider,
+        classic = SettingsHubItemCopy(R.string.setting_page_agents_anywhere, R.string.setting_page_agents_anywhere_desc),
+        reorganized = SettingsHubItemCopy(R.string.setting_page_agents_anywhere, R.string.setting_page_agents_anywhere_desc),
+    ),
+    SettingsHubItemDef(
         id = SettingsHubItemId.TOOL_APPROVALS,
         route = Screen.SettingToolApprovals,
         classic = SettingsHubItemCopy(R.string.setting_page_tool_approvals, R.string.setting_page_tool_approvals_desc),
@@ -226,6 +236,12 @@ val settingsHubItems: Map<SettingsHubItemId, SettingsHubItemDef> = listOf(
         route = Screen.SettingSsh,
         classic = SettingsHubItemCopy(R.string.setting_page_ssh, R.string.setting_page_ssh_desc),
         reorganized = SettingsHubItemCopy(R.string.setting_page_ssh, R.string.setting_page_ssh_desc),
+    ),
+    SettingsHubItemDef(
+        id = SettingsHubItemId.SECRETS,
+        route = Screen.SettingSecrets,
+        classic = SettingsHubItemCopy(R.string.setting_page_secrets, R.string.setting_page_secrets_desc),
+        reorganized = SettingsHubItemCopy(R.string.setting_page_secrets, R.string.setting_page_secrets_desc),
     ),
     SettingsHubItemDef(
         id = SettingsHubItemId.WEB,
@@ -324,6 +340,7 @@ private val classicSections: List<SettingsHubSectionDef> = listOf(
             SettingsHubItemId.MCP,
             SettingsHubItemId.WORKFLOWS,
             SettingsHubItemId.SCHEDULED,
+            SettingsHubItemId.AGENTS_ANYWHERE,
             SettingsHubItemId.TOOL_APPROVALS,
         ),
     ),
@@ -346,6 +363,7 @@ private val classicSections: List<SettingsHubSectionDef> = listOf(
         reorganizedTitleRes = R.string.setting_page_group_connections,
         items = listOf(
             SettingsHubItemId.SSH,
+            SettingsHubItemId.SECRETS,
             SettingsHubItemId.WEB,
             SettingsHubItemId.TELEGRAM,
             SettingsHubItemId.BROWSER,
@@ -406,6 +424,7 @@ private val reorganizedSections: List<SettingsHubSectionDef> = listOf(
             SettingsHubItemId.MCP,
             SettingsHubItemId.WORKFLOWS,
             SettingsHubItemId.SCHEDULED,
+            SettingsHubItemId.AGENTS_ANYWHERE,
             SettingsHubItemId.TOOL_APPROVALS,
         ),
     ),
@@ -429,6 +448,7 @@ private val reorganizedSections: List<SettingsHubSectionDef> = listOf(
         items = listOf(
             SettingsHubItemId.NETWORK,
             SettingsHubItemId.SSH,
+            SettingsHubItemId.SECRETS,
             SettingsHubItemId.WEB,
             SettingsHubItemId.TELEGRAM,
             SettingsHubItemId.BROWSER,

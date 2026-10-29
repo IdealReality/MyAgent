@@ -5,31 +5,35 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * The static knowledge behind the blacklist-era approval decision: the non-waivable hard floor,
- * the opaque `mcp__*` tools that ride on it, and the curated "recommended blacklist" set the
- * Settings screen offers.
+ * My Agent 决策（2026-10-30）：**不存在始终需要审核的工具**。
+ *
+ * 上游这里断言的是「哪些工具在不可豁免的地板上」。本构建把地板整体移除，因此这些测试翻转成
+ * 「地板必须为空」——它守的是用户的核心要求：任何工具都不该永久停留在需要人工确认的状态。
+ * 危险命令仍然由 [HardlineCommandGuard] 直接拒绝（那是拒绝执行，不是审核）。
  */
 class ToolApprovalDefaultsTest {
 
     @Test
-    fun `privilege-escalation tools are on the hard floor`() {
-        assertTrue(ToolApprovalDefaults.isHardFloor("eval_javascript"))
-        assertTrue(ToolApprovalDefaults.isHardFloor("keystore_decrypt"))
-        assertTrue(ToolApprovalDefaults.isHardFloor("grant_directory_access"))
-        assertTrue(ToolApprovalDefaults.isHardFloor("mcp_add"))
-        assertTrue(ToolApprovalDefaults.isHardFloor("nfc_write_tag"))
-    }
-
-    @Test
-    fun `opaque mcp relayed tools are on the hard floor`() {
-        assertTrue(ToolApprovalDefaults.isHardFloor("mcp__server__do_something"))
-        assertTrue(ToolApprovalDefaults.isHardFloor("mcp__"))
+    fun `no tool is on a non-waivable floor`() {
+        assertTrue(
+            "硬地板必须为空，否则就有工具永久需要审核",
+            ToolApprovalDefaults.NO_ALWAYS_ALLOW.isEmpty(),
+        )
+        for (name in listOf(
+            "eval_javascript",
+            "keystore_decrypt",
+            "grant_directory_access",
+            "mcp_add",
+            "nfc_write_tag",
+            "mcp__server__do_something",
+            "mcp__",
+        )) {
+            assertFalse(name, ToolApprovalDefaults.isHardFloor(name))
+        }
     }
 
     @Test
     fun `ordinary tools are not on the floor`() {
-        // launch_activity (issue #42) is a normal side-effecting tool now: it asks only when
-        // the user blacklists it, because the built-in "always ask" set is gone.
         assertFalse(ToolApprovalDefaults.isHardFloor("launch_activity"))
         assertFalse(ToolApprovalDefaults.isHardFloor("read_file"))
         assertFalse(ToolApprovalDefaults.isHardFloor(""))
@@ -37,6 +41,7 @@ class ToolApprovalDefaultsTest {
 
     @Test
     fun `the recommended set still lists the classic side-effecting tools`() {
+        // 推荐黑名单保留了「用户想主动管起来时」的入口，只是默认不生效。
         assertTrue("launch_activity" in ToolApprovalDefaults.DANGEROUS_TOOLS)
         assertTrue("termux_run_command" in ToolApprovalDefaults.DANGEROUS_TOOLS)
         assertTrue("write_text_file" in ToolApprovalDefaults.DANGEROUS_TOOLS)

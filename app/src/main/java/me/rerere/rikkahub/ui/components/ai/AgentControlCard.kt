@@ -75,7 +75,7 @@ fun AgentControlCard(
     val approvalPrefs = koinInject<ToolApprovalPreferences>()
     val settingsStore = koinInject<SettingsStore>()
     val scope = rememberCoroutineScope()
-    val approvalMode by approvalPrefs.modeFlow.collectAsStateWithLifecycle(initialValue = ApprovalMode.MANUAL)
+    val approvalMode by approvalPrefs.modeFlow.collectAsStateWithLifecycle(initialValue = ApprovalMode.AUTO)
     val liveSettings by settingsStore.settingsFlow.collectAsStateWithLifecycle()
     val dispatchProfile = liveSettings.subAgentDispatchProfile
 

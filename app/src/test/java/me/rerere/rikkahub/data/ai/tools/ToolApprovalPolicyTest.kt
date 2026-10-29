@@ -6,12 +6,13 @@ import org.junit.Test
 
 /**
  * The mode-era approval decision, exercised as a pure function so the whole matrix runs on
- * a bare JVM. Ordering matters and each branch gets its own case.
+ * a bare JVM.
  *
- * ★拍板 (2026-10-16): Auto waives opaque relayed `mcp__*` tools — an agent build whose MCP
- * calls all ask is not autonomous. The named privilege-escalation floor
- * ([ToolApprovalDefaults.NO_ALWAYS_ALLOW]) is still checked before the mode, so Auto cannot
- * waive it.
+ * My Agent 决策（2026-10-30）：**不存在始终需要审核的工具**。上游的「硬地板」和「所有
+ * `mcp__*` 一律要问」两条规则已整体移除，所以这里断言的是「Auto 下没有任何工具会问」，
+ * 以及 Semi / MANUAL 仍然按用户自己的黑名单和档位工作（用户想要摩擦时依然拿得到）。
+ *
+ * `ask_user` / `request_secret` 不是审核，是「需要人回答」——它们照旧在有界面时停下来。
  */
 class ToolApprovalPolicyTest {
 
@@ -29,7 +30,7 @@ class ToolApprovalPolicyTest {
         allowedForChat = allowedForChat,
     )
 
-    // --- AUTO mode ---
+    // --- AUTO mode: 零摩擦 ---
 
     @Test
     fun `auto approves an ordinary tool`() {
@@ -41,15 +42,30 @@ class ToolApprovalPolicyTest {
         assertTrue(decide("termux_run_command", blacklist = setOf("termux_run_command"), mode = ApprovalMode.AUTO))
     }
 
+    /**
+     * 核心断言：上游会在这里问的每一个工具，Auto 都必须放行。逐个人名列出，避免集合演化后
+     * 静默漏掉某个工具又变回「永久审核」。
+     */
     @Test
-    fun `auto does NOT waive the floor`() {
-        assertFalse(decide("eval_javascript", mode = ApprovalMode.AUTO))
-        assertFalse(decide("grant_directory_access", mode = ApprovalMode.AUTO))
-        assertFalse(decide("mcp_add", mode = ApprovalMode.AUTO))
+    fun `auto never asks for any former hard-floor tool`() {
+        for (name in listOf(
+            "eval_javascript",
+            "grant_directory_access",
+            "mcp_add",
+            "mcp_update",
+            "skill_install_from_url",
+            "skill_install_from_text",
+            "browser_eval_js",
+            "keystore_generate_key",
+            "keystore_decrypt",
+            "nfc_write_tag",
+        )) {
+            assertTrue("$name must run without prompting in Auto", decide(name, mode = ApprovalMode.AUTO))
+        }
     }
 
     @Test
-    fun `auto waives relayed mcp tools`() {
+    fun `auto approves relayed mcp tools`() {
         assertTrue(decide("mcp__server__tool", mode = ApprovalMode.AUTO))
     }
 
@@ -72,6 +88,16 @@ class ToolApprovalPolicyTest {
         assertTrue(decide("ssh_exec", blacklist = blacklist, mode = ApprovalMode.SEMI))
     }
 
+    @Test
+    fun `semi auto-approves mcp tools that are not blacklisted`() {
+        assertTrue(decide("mcp__server__tool", mode = ApprovalMode.SEMI))
+    }
+
+    @Test
+    fun `semi asks for a blacklisted mcp tool`() {
+        assertFalse(decide("mcp__server__tool", blacklist = setOf("mcp__server__tool"), mode = ApprovalMode.SEMI))
+    }
+
     // --- MANUAL mode ---
 
     @Test
@@ -89,23 +115,9 @@ class ToolApprovalPolicyTest {
         assertTrue(decide("read_file", mode = ApprovalMode.MANUAL, allowedForChat = true))
     }
 
-    // --- floor (applies to every mode) ---
-
     @Test
-    fun `floor asks in semi even when not on blacklist`() {
-        assertFalse(decide("eval_javascript", mode = ApprovalMode.SEMI))
-        assertFalse(decide("grant_directory_access", mode = ApprovalMode.SEMI))
-    }
-
-    @Test
-    fun `floor asks in manual`() {
-        assertFalse(decide("eval_javascript", mode = ApprovalMode.MANUAL))
-    }
-
-    @Test
-    fun `opaque mcp tools still ask in semi and manual`() {
-        assertFalse(decide("mcp__server__tool", mode = ApprovalMode.SEMI))
-        assertFalse(decide("mcp__server__tool", mode = ApprovalMode.MANUAL))
+    fun `manual allows a chat-granted mcp tool`() {
+        assertTrue(decide("mcp__server__tool", mode = ApprovalMode.MANUAL, allowedForChat = true))
     }
 
     // --- "allow for this chat" ---
@@ -117,22 +129,10 @@ class ToolApprovalPolicyTest {
         )
     }
 
-    @Test
-    fun `a chat grant cannot waive the floor`() {
-        assertFalse(decide("eval_javascript", allowedForChat = true, mode = ApprovalMode.AUTO))
-        assertFalse(decide("mcp__server__tool", allowedForChat = true, mode = ApprovalMode.MANUAL))
-    }
-
-    @Test
-    fun `auto still refuses the named floor even for mcp management tools`() {
-        assertFalse(decide("mcp_add", mode = ApprovalMode.AUTO))
-        assertFalse(decide("mcp_update", mode = ApprovalMode.AUTO))
-    }
-
     // --- headless (no approval channel) ---
 
     @Test
-    fun `headless auto-approves everything including the floor`() {
+    fun `headless auto-approves everything`() {
         assertTrue(decide("eval_javascript", headless = true, mode = ApprovalMode.MANUAL))
         assertTrue(decide("mcp__server__tool", headless = true, mode = ApprovalMode.SEMI))
     }
@@ -142,7 +142,7 @@ class ToolApprovalPolicyTest {
         assertTrue(decide("read_file", headless = true, mode = ApprovalMode.MANUAL))
     }
 
-    // --- ask_user / request_secret (human-input tools) ---
+    // --- ask_user / request_secret (human-input tools, not approval gates) ---
 
     @Test
     fun `ask_user asks when not headless`() {

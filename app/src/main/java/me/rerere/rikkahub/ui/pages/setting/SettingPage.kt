@@ -58,6 +58,7 @@ import me.rerere.hugeicons.stroke.ImageUpload
 import me.rerere.hugeicons.stroke.InLove
 import me.rerere.hugeicons.stroke.Internet
 import me.rerere.hugeicons.stroke.Link01
+import me.rerere.hugeicons.stroke.Lock
 import me.rerere.hugeicons.stroke.LookTop
 import me.rerere.hugeicons.stroke.McpServer
 import me.rerere.hugeicons.stroke.Megaphone01
@@ -297,6 +298,7 @@ private fun hubItemIcon(id: SettingsHubItemId): ImageVector = when (id) {
     SettingsHubItemId.MCP -> HugeIcons.McpServer
     SettingsHubItemId.WORKFLOWS -> HugeIcons.Connect
     SettingsHubItemId.SCHEDULED -> HugeIcons.Clock02
+    SettingsHubItemId.AGENTS_ANYWHERE -> HugeIcons.Telegram
     SettingsHubItemId.TOOL_APPROVALS -> HugeIcons.Tick01
     SettingsHubItemId.ACCESSIBILITY -> HugeIcons.SmartPhone01
     SettingsHubItemId.FLOATING_BALL -> HugeIcons.Message01
@@ -305,6 +307,7 @@ private fun hubItemIcon(id: SettingsHubItemId): ImageVector = when (id) {
     SettingsHubItemId.SHIZUKU -> HugeIcons.Console
     SettingsHubItemId.TERMUX -> HugeIcons.ComputerTerminal01
     SettingsHubItemId.SSH -> HugeIcons.Link01
+    SettingsHubItemId.SECRETS -> HugeIcons.Lock
     SettingsHubItemId.WEB -> HugeIcons.ServerStack01
     SettingsHubItemId.TELEGRAM -> HugeIcons.Telegram
     SettingsHubItemId.BROWSER -> HugeIcons.Earth

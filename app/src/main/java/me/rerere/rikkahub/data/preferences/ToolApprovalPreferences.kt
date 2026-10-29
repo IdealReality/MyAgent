@@ -41,13 +41,13 @@ internal fun migrateWorkspaceToolsFrom(stored: Set<String>): Pair<Set<String>, S
  *
  * @property blacklist tools that require a fresh confirmation before running. In Semi mode
  *   these ask; in Auto they are ignored; in Manual every tool asks regardless.
- * @property mode the posture level ([ApprovalMode]). Default [ApprovalMode.MANUAL] on a fresh
- *   install or after upgrade from the old YOLO scheme — the safest posture, so the user opts
- *   *out* of friction deliberately rather than discovering it was off.
+ * @property mode the posture level ([ApprovalMode]). Default [ApprovalMode.AUTO] for My Agent
+ *   (2026-10-30): 这个构建的前提是「没有始终需要审核的工具」，所以默认零摩擦；想要摩擦的
+ *   用户去设置里切 Semi / MANUAL，或在黑名单里点名。
  */
 data class ToolApprovalSnapshot(
     val blacklist: Set<String> = emptySet(),
-    val mode: ApprovalMode = ApprovalMode.MANUAL,
+    val mode: ApprovalMode = ApprovalMode.AUTO,
 )
 
 /**
@@ -82,7 +82,7 @@ class ToolApprovalPreferences(private val context: Context) {
         migrateWorkspaceToolsFrom(it[K_BLACKLIST].orEmpty()).first
     }
 
-    /** Live flow of the current approval mode. Default [ApprovalMode.MANUAL]. */
+    /** Live flow of the current approval mode. Default [ApprovalMode.AUTO]. */
     val modeFlow: Flow<ApprovalMode> = store.data.map { snapshotMode(it[K_MODE]) }
 
     suspend fun currentBlacklist(): Set<String> =
@@ -128,7 +128,7 @@ class ToolApprovalPreferences(private val context: Context) {
         store.edit { prefs -> prefs[K_BLACKLIST] = prefs[K_BLACKLIST].orEmpty() + clean }
     }
 
-    /** Resolve a stored mode string to [ApprovalMode], defaulting to [ApprovalMode.MANUAL]. */
+    /** Resolve a stored mode string to [ApprovalMode], defaulting to [ApprovalMode.AUTO]. */
     private fun snapshotMode(stored: String?): ApprovalMode =
-        stored?.let { runCatching { ApprovalMode.valueOf(it) }.getOrNull() } ?: ApprovalMode.MANUAL
+        stored?.let { runCatching { ApprovalMode.valueOf(it) }.getOrNull() } ?: ApprovalMode.AUTO
 }

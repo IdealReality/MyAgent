@@ -2,6 +2,7 @@ package me.rerere.rikkahub.subagent
 
 import me.rerere.rikkahub.data.ai.tools.ToolApprovalDefaults
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -37,19 +38,20 @@ class SubAgentToolSurfaceTest {
     }
 
     @Test
-    fun `every NO_ALWAYS_ALLOW tool is denied`() {
-        assertTrue(ToolApprovalDefaults.NO_ALWAYS_ALLOW.isNotEmpty())
-        ToolApprovalDefaults.NO_ALWAYS_ALLOW.forEach { name ->
-            assertTrue(name, SubAgentToolSurface.isDenied(name))
-            // Two of them (nfc_write_tag / grant_directory_access) are also device-UI-bound, and
-            // the UI reason wins because "it cannot run headless at all" is the more useful thing
-            // to tell a dispatcher. Everything else reports the approval reason.
-            val expected = if (name in SubAgentToolSurface.UI_BOUND_TOOL_NAMES) {
-                "tool_unavailable_headless"
-            } else {
-                "tool_not_authorized"
-            }
-            assertEquals(name, expected, SubAgentToolSurface.denialReason(name))
+    fun `no tool is denied for approval reasons any more`() {
+        // My Agent 决策（2026-10-30）：硬地板已移除，所以子代理面不再因「需要逐次确认」而
+        // 砍掉任何工具。仍然被拒的只有 UI 绑定工具、隐私采集，以及 `subagent_` 前缀（防递归）。
+        assertTrue(ToolApprovalDefaults.NO_ALWAYS_ALLOW.isEmpty())
+        for (name in listOf(
+            "eval_javascript",
+            "browser_eval_js",
+            "keystore_decrypt",
+            "mcp_add",
+            "mcp_update",
+            "memory_write",
+            "subagent_create",
+        )) {
+            assertNotEquals("tool_not_authorized", SubAgentToolSurface.denialReason(name))
         }
     }
 

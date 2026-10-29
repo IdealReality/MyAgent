@@ -230,6 +230,7 @@ sealed class LocalToolOption {
 
     // P2-37 model-roster tools (model_list / model_add / model_update / model_delete)
     @Serializable @SerialName("model_control")        data object ModelControl        : LocalToolOption()
+
 }
 
 /**
