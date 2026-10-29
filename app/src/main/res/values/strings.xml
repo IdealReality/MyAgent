@@ -7,7 +7,7 @@
   <string name="about_page_version">Version</string>
   <string name="about_page_website">Project</string>
   <string name="add">Add</string>
-  <string name="app_name">RikkaHub Agent</string>
+  <string name="app_name">My Agent</string>
   <string name="asr_button_content_description">Speech Recognition</string>
   <string name="asr_button_stop">Stop</string>
   <string name="assistant_detail_basic_desc">Configure name, avatar, model, and parameters</string>
@@ -102,6 +102,7 @@
   <string name="chat_message_tool_request_secret_hide">Hide</string>
   <string name="chat_message_tool_request_secret_store">Store securely</string>
   <string name="chat_message_tool_request_secret_stored">Stored as %1$s (value not shown)</string>
+  <string name="chat_message_tool_request_secret_overwrite">will overwrite the existing value</string>
   <string name="assistant_page_local_tools_clipboard_desc">Read or write plain text from the device clipboard</string>
   <string name="assistant_page_local_tools_clipboard_title">Clipboard</string>
   <string name="assistant_page_local_tools_javascript_engine_desc">Execute JavaScript code with QuickJS engine for calculations and scripting</string>
@@ -405,6 +406,45 @@
   <string name="editing">Editing</string>
   <string name="emoji_picker_search_placeholder">Search emojis...</string>
   <string name="emoji_picker_select_skin_tone">Select Skin Tone</string>
+  <string name="error_explain_network_title">No internet connection</string>
+  <string name="error_explain_network_reason">The app couldn\'t look up the server address. Check Wi-Fi or mobile data, and whether a VPN or proxy is on.</string>
+  <string name="error_explain_connect_title">Can\'t reach the server</string>
+  <string name="error_explain_connect_reason">The server refused the connection. It may be down, or the address or port may be wrong.</string>
+  <string name="error_explain_timeout_title">The server is too slow</string>
+  <string name="error_explain_timeout_reason">The request timed out. Try again, or switch to another provider.</string>
+  <string name="error_explain_auth_title">API key was rejected</string>
+  <string name="error_explain_auth_reason">The key is wrong or expired, or it isn\'t allowed to use this model.</string>
+  <string name="error_explain_forbidden_title">No access</string>
+  <string name="error_explain_forbidden_reason">This account doesn\'t have permission for the resource.</string>
+  <string name="error_explain_quota_title">Out of quota</string>
+  <string name="error_explain_quota_reason">The account balance or rate quota is used up.</string>
+  <string name="error_explain_rate_limit_title">Too many requests</string>
+  <string name="error_explain_rate_limit_reason">The provider\'s rate limit was hit. Wait a moment and retry.</string>
+  <string name="error_explain_model_title">Model not found</string>
+  <string name="error_explain_model_reason">This provider doesn\'t have that model name, or it was removed.</string>
+  <string name="error_explain_server_title">The provider had a problem</string>
+  <string name="error_explain_server_reason">This is a server-side error, not your settings. Retry later.</string>
+  <string name="error_explain_context_title">Conversation is too long</string>
+  <string name="error_explain_context_reason">The model\'s context window is full. Compress the conversation or start a new one.</string>
+  <string name="error_explain_ssl_title">Secure connection failed</string>
+  <string name="error_explain_ssl_reason">The certificate check failed. A proxy or VPN may be intercepting the connection.</string>
+  <string name="error_explain_format_title">Unexpected reply</string>
+  <string name="error_explain_format_reason">The reply format didn\'t match. A relay or proxy provider may be incompatible.</string>
+  <string name="error_explain_tool_title">A tool didn\'t connect</string>
+  <string name="error_explain_tool_reason">An MCP server or tool is unavailable. Check the extension settings.</string>
+  <string name="error_explain_permission_title">Missing permission</string>
+  <string name="error_explain_permission_reason">A system permission this action needs was denied.</string>
+  <string name="error_explain_storage_title">Storage error</string>
+  <string name="error_explain_storage_reason">The app couldn\'t read or write a file. Storage may be full, or the file was moved.</string>
+  <string name="error_explain_unknown_title">Something went wrong</string>
+  <string name="error_explain_unknown_reason">No specific cause was recognized. Open the details and copy them for troubleshooting.</string>
+  <string name="error_explain_disclaimer">For reference only — providers define errors differently.</string>
+  <string name="error_action_open_model_settings">Open model settings</string>
+  <string name="error_action_view_logs">View logs</string>
+  <string name="error_action_details">Details</string>
+  <string name="error_action_hide_details">Hide details</string>
+  <string name="error_auto_dismiss_title">Auto-dismiss error cards</string>
+  <string name="error_auto_dismiss_desc">Hide error cards after 5 seconds. Off by default so nothing disappears before you finish reading.</string>
   <string name="error_title_compress_conversation">Conversation compression failed</string>
   <string name="error_title_generate_title">Auto title generation failed</string>
   <string name="error_title_generation">Message generation failed</string>
@@ -670,6 +710,14 @@
   <string name="rikkahub_provider_description">Official free AI service, using user sponsorship funds to provide some free models for new users as fallback, no API key required. Has strict rate limits, if you have purchased your own provider, please use your own provider as much as possible.</string>
   <string name="safe_mode_assistants">Assistants</string>
   <string name="safe_mode_copy">Copy</string>
+  <string name="safe_mode_crash_cause_internal">an internal app error</string>
+  <string name="safe_mode_crash_cause_memory">the phone ran out of memory</string>
+  <string name="safe_mode_crash_cause_storage">a problem with local data</string>
+  <string name="safe_mode_crash_cause_unknown">an error the app couldn\'t identify</string>
+  <string name="safe_mode_crash_details">Technical details</string>
+  <string name="safe_mode_crash_details_hint">For reference only — this is the raw technical log.</string>
+  <string name="safe_mode_crash_headline">The app closed unexpectedly last time</string>
+  <string name="safe_mode_crash_likely">Likely cause: %s</string>
   <string name="safe_mode_crash_report">Crash Report</string>
   <string name="safe_mode_current_assistant">Current assistant: %s</string>
   <string name="safe_mode_default_assistant">Default Assistant</string>
@@ -874,7 +922,7 @@
   <string name="setting_display_page_clean_layout_top_height_title">Header height</string>
   <string name="setting_display_page_clean_layout_top_height_desc">40 to 72 dp. Shorter leaves more of the wallpaper; the status bar stays clear either way</string>
   <string name="setting_display_page_clean_layout_bottom_padding_title">Input box padding</string>
-  <string name="setting_display_page_clean_layout_bottom_padding_desc">4 to 10 dp of space above and below the text. Smaller makes the box shorter</string>
+  <string name="setting_display_page_clean_layout_bottom_padding_desc">0 to 24 dp of space above and below the text. Smaller makes the box shorter</string>
   <string name="setting_display_page_drawer_capsules_title">Drawer capsules</string>
   <string name="setting_display_page_drawer_capsules_desc">Drop the two floating cards at the top and bottom of the drawer: identity, shortcuts, folders and bottom actions become small capsules sitting on the frosted panel. Turn off to get the two cards back</string>
   <string name="setting_display_page_show_user_avatar_title">Show User Avatar</string>
@@ -1410,6 +1458,7 @@
   <string name="theme_name_autumn">Autumn Yellow</string>
   <string name="theme_name_black">Neutral Black</string>
   <string name="theme_name_claude">Claude</string>
+  <string name="theme_name_myagent">My Agent</string>
   <string name="theme_name_minimal">Minimal White</string>
   <string name="theme_name_ocean">Ocean Blue</string>
   <string name="theme_name_sakura">Sakura Pink</string>
@@ -1492,7 +1541,7 @@
   <string name="setting_page_tool_approvals_revoke">Remove</string>
   <string name="setting_page_tool_approvals_revoke_all">Clear blacklist</string>
   <string name="setting_page_tool_approvals_switch_desc">Ask before running</string>
-  <string name="setting_page_tool_approvals_floor_badge">Always asks — this can\'t be turned off</string>
+  <string name="setting_page_tool_approvals_floor_badge">Always asks</string>
   <string name="setting_page_tool_approvals_mcp_note">Tools from MCP servers ask in General and Manual (Auto waives them). A few privilege-escalation tools always ask — those can never be switched off.</string>
   <string name="setting_page_tool_approvals_search">Search tools</string>
   <string name="setting_page_tool_approvals_add_recommended">Add common dangerous tools</string>
@@ -1566,7 +1615,7 @@
   <string name="setting_page_tool_approvals_mode_auto">Auto</string>
   <string name="setting_page_tool_approvals_mode_semi">General</string>
   <string name="setting_page_tool_approvals_mode_manual">Manual</string>
-  <string name="setting_page_tool_approvals_auto_desc">Every tool runs without asking — including tools from MCP servers. Only privilege-escalation surfaces (adding MCP servers, skill installs, code eval, keystore, NFC writes) still ask every time.</string>
+  <string name="setting_page_tool_approvals_auto_desc">Every tool runs without asking — local shell, SSH, file writes, screen automation, MCP server tools. Nothing is pinned to a per-call confirmation in this build.</string>
   <string name="setting_page_tool_approvals_semi_desc">Only tools on your blacklist below ask before running.</string>
   <string name="setting_page_tool_approvals_manual_desc">Every tool call asks for confirmation. Tap "Allow for this chat" on a prompt to reduce friction for trusted tools.</string>
   <string name="setting_page_tool_approvals_blacklist_ignored">The blacklist is ignored in Auto mode — every tool runs without asking (except the floor).</string>
@@ -1661,6 +1710,9 @@ HARDLINE protections still apply: rm -rf /, mkfs, shutdown / reboot, dd to block
   <string name="assistant_page_local_tools_mcp_control_title">MCP control</string>
   <string name="assistant_page_local_tools_mcp_control_desc">Let the assistant add, edit, and remove MCP servers. The assistant can install an MCP in Termux or on a remote SSH host, then wire it into the app — without you opening Settings.</string>
   <string name="assistant_page_local_tools_model_control_title">Model management</string>
+  <string name="setting_page_agents_anywhere">Agents Anywhere</string>
+  <string name="setting_page_agents_anywhere_desc">把另一台机器上的 agent 直接当成一个模型来对话</string>
+
   <string name="assistant_page_local_tools_virtual_display_title">Virtual display</string>
   <string name="assistant_page_local_tools_model_control_desc">Let the assistant list, add, edit and remove the models under your configured providers (model_list / model_add / model_update / model_delete). Writes change Settings directly, so every write is approval-gated and recorded in the run ledger; a headless run (cron, sub-agent) may list but not write.</string>
   <string name="assistant_page_local_tools_external_automation_title">External automation</string>
@@ -2268,6 +2320,7 @@ HARDLINE protections still apply: rm -rf /, mkfs, shutdown / reboot, dd to block
   <string name="tool_ui_file">file</string>
   <string name="workspace_page_name_duplicate">Name already exists</string>
   <string name="setting_mcp_page_name_invalid">Name can only contain English letters and numbers</string>
+  <string name="log_page_copy_all">Copy all logs</string>
   <string name="log_page_record_requests">Record requests</string>
   <string name="log_page_record_requests_desc">Capture request headers, bodies, and response metadata</string>
   <string name="codex_provider_description">Uses the OpenAI Codex OAuth and Responses API flow. This integration depends on Codex service compatibility.</string>
@@ -3035,6 +3088,19 @@ HARDLINE protections still apply: rm -rf /, mkfs, shutdown / reboot, dd to block
   <!-- P2-32 ssh hosts page -->
   <string name="setting_page_ssh">SSH hosts</string>
   <string name="setting_page_ssh_desc">Manage the saved hosts used by ssh_exec_saved, ssh_upload and ssh_download.</string>
+  <string name="setting_page_secrets">Secure secrets</string>
+  <string name="setting_page_secrets_desc">On-device vault behind request_secret / password_secret. Values never leave this device.</string>
+  <string name="setting_secrets_page_title">Secure secrets</string>
+  <string name="setting_secrets_page_list">Vault entries</string>
+  <string name="setting_secrets_page_empty">No secrets stored yet</string>
+  <string name="setting_secrets_page_empty_hint">Secrets are added via the in-chat secure input card (request_secret).</string>
+  <string name="setting_secrets_page_value_hidden">Value hidden — stored encrypted on this device only</string>
+  <string name="setting_secrets_page_delete">Delete</string>
+  <string name="setting_secrets_page_deleted">Secret deleted</string>
+  <string name="setting_secrets_page_delete_confirm_title">Delete “%1$s”?</string>
+  <string name="setting_secrets_page_delete_confirm_body">The stored value will be removed from this device. Tools referencing it will fail until you re-enter the secret.</string>
+  <string name="setting_secrets_page_about_title">How this works</string>
+  <string name="setting_secrets_page_about_body">Secrets are encrypted with the Android Keystore and never appear in chat history or leave the device. The assistant references them by name (password_secret / stdin_secret / …) and they are resolved locally at execution time.</string>
   <string name="setting_ssh_page_title">SSH hosts</string>
   <string name="setting_ssh_page_hosts">Saved hosts</string>
   <string name="setting_ssh_page_empty">No saved hosts yet</string>
@@ -3181,4 +3247,5 @@ HARDLINE protections still apply: rm -rf /, mkfs, shutdown / reboot, dd to block
   <string name="floating_ball_capsule_status_done">Done · %1$s</string>
   <string name="floating_ball_capsule_hide">Hide to edge</string>
   <string name="chat_interject_unavailable">Generation already finished — send it as a normal message</string>
+  <string name="chat_interjection_label">Interjection</string>
 </resources>

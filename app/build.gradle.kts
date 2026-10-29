@@ -26,11 +26,11 @@ android {
     compileSdk = 37
 
     defaultConfig {
-        applicationId = "excp.rikkahub"
+        applicationId = "com.myagent.app"
         minSdk = 26
         targetSdk = 37
-        versionCode = 214
-        versionName = "2.5.5-pure.3"
+        versionCode = 1
+        versionName = "1.0.0-my.1"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 

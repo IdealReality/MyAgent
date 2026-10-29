@@ -7,7 +7,7 @@
   <string name="about_page_version">Версия</string>
   <string name="about_page_website">Проект</string>
   <string name="add">Добавить</string>
-  <string name="app_name">RikkaHub Agent</string>
+  <string name="app_name">My Agent</string>
   <string name="asr_button_content_description">Распознавание речи</string>
   <string name="asr_button_stop">Стоп</string>
   <string name="assistant_detail_basic_desc">Настройте имя, аватар, модель и параметры</string>
@@ -1088,6 +1088,7 @@
   <string name="text_area_save">Сохранить</string>
   <string name="theme_name_autumn">Осенний жёлтый</string>
   <string name="theme_name_black">Нейтральный чёрный</string>
+  <string name="theme_name_myagent">My Agent</string>
   <string name="theme_name_minimal">Минималистичный белый</string>
   <string name="theme_name_ocean">Океанический синий</string>
   <string name="theme_name_sakura">Сакура Розовый</string>

@@ -172,12 +172,24 @@ fun darkExtendColors(): ExtendColors = ExtendColors(
 object CustomColors {
     var black = false
 
+    /** 页面底色的不透明度：留 45% 给底下的三色渐变。 */
+    private const val PAGE_VEIL_ALPHA = 0.55f
+
+    /**
+     * 页面/顶栏底色。
+     *
+     * My Agent 决策（2026-10-30）：这里原本是不透明的 `surfaceContainer`，67 个页面都用它做
+     * Scaffold 的 `containerColor`，于是根容器上那层红→紫→蓝的底布渐变被整体盖掉，界面看起来
+     * 只剩一种颜色。现在改成半透明：卡片仍然是实色（`cardColors` 未动），页面底布透出渐变，
+     * 滚动中的内容也自然沉到渐变下面。
+     */
     val topBarColors: TopAppBarColors
         @Composable get() {
-            return if (!LocalDarkMode.current) TopAppBarDefaults.topAppBarColors(
-                containerColor = colorScheme.surfaceContainer,
-                scrolledContainerColor = colorScheme.surfaceContainer
-            ) else TopAppBarDefaults.topAppBarColors()
+            val veil = colorScheme.surfaceContainer.copy(alpha = PAGE_VEIL_ALPHA)
+            return TopAppBarDefaults.topAppBarColors(
+                containerColor = veil,
+                scrolledContainerColor = veil,
+            )
         }
 
     val cardColors: CardColors

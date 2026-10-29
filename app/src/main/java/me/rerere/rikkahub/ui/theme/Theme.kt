@@ -102,12 +102,20 @@ fun RikkahubTheme(
     val typography = rememberAppTypography(settings.displaySetting)
     val (appDensity, baseFontScale) = rememberAppDensity(settings.displaySetting)
 
+    // My Agent 的「整体三色渐变」从这里注入。主题本身（ColorScheme）只能是纯色，所以
+    // 底布与主操作面的渐变以 Brush 形式下发，由根容器 / 发送键 / 主 CTA 消费；ColorScheme
+    // 这一侧则在 MyAgentTheme 里把 surface 阶梯按红→紫→蓝分配，二者叠起来才是整体效果。
+    val accentBrush = remember(darkTheme) { MyAgentGradient.accent(darkTheme) }
+    val ambientBrush = remember(darkTheme) { MyAgentGradient.ambient(darkTheme) }
+
     CompositionLocalProvider(
         LocalDarkMode provides darkTheme,
         LocalExtendColors provides extendColors,
         LocalOverscrollFactory provides null,
         LocalDensity provides appDensity,
         LocalBaseFontScale provides baseFontScale,
+        LocalAccentBrush provides accentBrush,
+        LocalAmbientBrush provides ambientBrush,
     ) {
         MaterialExpressiveTheme(
             colorScheme = colorSchemeConverted,

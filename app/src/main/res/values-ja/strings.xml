@@ -7,7 +7,7 @@
   <string name="about_page_version">バージョン</string>
   <string name="about_page_website">プロジェクト</string>
   <string name="add">追加</string>
-  <string name="app_name">RikkaHub Agent</string>
+  <string name="app_name">My Agent</string>
   <string name="asr_button_content_description">音声認識</string>
   <string name="asr_button_stop">停止</string>
   <string name="assistant_detail_basic_desc">名前、アバター、モデル、パラメータを設定</string>
@@ -1088,6 +1088,7 @@ mDNSアドレス: .localホスト名を使用し、IPを知らなくても同じ
   <string name="text_area_save">保存</string>
   <string name="theme_name_autumn">秋の黄色</string>
   <string name="theme_name_black">ニュートラルブラック</string>
+  <string name="theme_name_myagent">My Agent</string>
   <string name="theme_name_minimal">ミニマルホワイト</string>
   <string name="theme_name_ocean">オーシャンブルー</string>
   <string name="theme_name_sakura">サクラピンク</string>
