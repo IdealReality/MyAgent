@@ -96,7 +96,8 @@ object EpisodeCodec {
 
     fun parseFile(file: File): List<EpisodeSegment> {
         if (!file.exists()) return emptyList()
-        return file.readLines().mapNotNull { line ->
+        // 显式 UTF-8：Windows JVM 默认平台字符集（GBK），不指定会把 jsonl 读坏。
+        return file.readLines(Charsets.UTF_8).mapNotNull { line ->
             val t = line.trim()
             if (t.isEmpty()) null else decode(t)
         }

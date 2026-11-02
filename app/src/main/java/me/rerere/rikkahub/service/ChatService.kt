@@ -76,6 +76,7 @@ import me.rerere.rikkahub.data.ai.GenerationChunk
 import me.rerere.rikkahub.data.ai.GenerationLoop
 import me.rerere.rikkahub.data.ai.ModelRouter
 import me.rerere.rikkahub.data.ai.ContextBudgetPlanner
+import me.rerere.rikkahub.data.memory.TaskBoundary
 import me.rerere.rikkahub.data.ai.ContextCompactionPlanner
 import me.rerere.rikkahub.data.ai.ContextCompactionPresentation
 import me.rerere.rikkahub.data.ai.CompactedMessageView
@@ -1854,6 +1855,49 @@ class ChatService(
             } else {
                 compactedMessageView!!.messages
             }
+            // 记忆引擎 v1（P4）：任务边界静默折叠判定。仅当最后一条消息是新任务、
+            // 上一答复已收尾、折叠前上下文够大时，把边界前消息折成三层摘要随请求注入。
+            // 折叠是 request-only：不落盘、不写 compaction 条目、界面完全不动。
+            val contextDigest = if (assistant.enableMemory && messageRange == null) {
+                runCatching {
+                    val msgs = messagesForGeneration
+                    val lastMsg = msgs.lastOrNull()
+                    val newText = lastMsg?.parts
+                        ?.filterIsInstance<UIMessagePart.Text>()
+                        ?.joinToString("\n") { it.text } ?: ""
+                    if (lastMsg?.role == MessageRole.USER && TaskBoundary.looksLikeNewTask(newText)) {
+                        val priorUsers = msgs.mapNotNull { m ->
+                            if (m.role == MessageRole.USER && !m.isSynthetic) {
+                                m.parts.filterIsInstance<UIMessagePart.Text>()
+                                    .joinToString("\n") { it.text }.takeIf { it.isNotBlank() }
+                            } else null
+                        }
+                        val lastReply = msgs.lastOrNull { it.role == MessageRole.ASSISTANT }
+                            ?.parts?.filterIsInstance<UIMessagePart.Text>()
+                            ?.joinToString("\n") { it.text } ?: ""
+                        val estimate = ContextBudgetPlanner.plan(
+                            messages = msgs,
+                            contextLength = model.contextLength ?: 16_000,
+                            thresholdPercent = 100,
+                        ).estimatedInputTokens
+                        val fold = TaskBoundary.shouldFold(
+                            priorUserPrompts = priorUsers,
+                            lastReply = lastReply,
+                            newTaskPrompt = newText,
+                            priorTokensEstimate = estimate,
+                        )
+                        if (fold.shouldFold) {
+                            // 折叠范围：除最后一条新任务消息外的全部
+                            Log.i(TAG, "task boundary fold: ${fold.reason}, digest injected (request-only)")
+                            TaskBoundary.buildDigest(
+                                priorUserPrompts = priorUsers,
+                                lastReply = lastReply,
+                                conversationId = conversationId.toString(),
+                            )
+                        } else ""
+                    } else ""
+                }.getOrElse { "" }
+            } else ""
             generationLoop.generateText(
                 settings = settings,
                 model = model,

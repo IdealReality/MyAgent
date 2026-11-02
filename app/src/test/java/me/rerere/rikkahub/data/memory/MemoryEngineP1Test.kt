@@ -109,16 +109,18 @@ class MemoryEngineP1Test {
 
     @Test
     fun `episode parse skips corrupted lines`() {
-        val store = newStore()
-        val dir = File(tmp.newFolder("memory"), "a-2/episodes")
-        dir.mkdirs()
+        // 用同一个 store 根（tmp.newFolder 每次生成新目录，手写路径会指错根）
+        val root = tmp.newFolder("mem-root")
+        val store = AssistantMemoryStore(root)
+        val dir = File(root, "a-9/episodes")
+        check(dir.mkdirs() || dir.exists()) { "cannot create $dir" }
         File(dir, "2026-10.jsonl").writeText(
             "{\"id\":\"e1\",\"startTs\":1,\"endTs\":2,\"turns\":1,\"month\":\"2026-10\"}\n" +
                 "not a json line\n" +
                 "\n" +
                 "{\"id\":\"e2\",\"startTs\":3,\"endTs\":4,\"turns\":2,\"month\":\"2026-10\"}\n"
         )
-        val all = store.readAllEpisodes("a-2")
+        val all = store.readAllEpisodes("a-9")
         assertEquals(2, all.size)
         assertEquals(listOf("e1", "e2"), all.map { it.id })
     }

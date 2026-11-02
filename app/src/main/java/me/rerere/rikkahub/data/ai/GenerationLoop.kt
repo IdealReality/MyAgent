@@ -65,6 +65,7 @@ import me.rerere.rikkahub.data.ai.transformers.visualTransforms
 import me.rerere.rikkahub.data.ai.limits.ToolRuntimeLimits
 import me.rerere.rikkahub.data.ai.tools.ToolExecutionRetryPolicy
 import me.rerere.rikkahub.data.ai.tools.truncateToolResult
+import me.rerere.rikkahub.data.memory.ToolOutputPool
 import me.rerere.rikkahub.data.datastore.NetworkSetting
 import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.data.datastore.findProvider
@@ -659,6 +660,10 @@ class GenerationLoop(
         // 由 ChatService 经 AssistantMemoryEngine.injectL1Prompt 生成；空串 = 不注入。
         // 旧 memories: List<AssistantMemory> 参数已删除（热记录停用，数据不迁移）。
         memoryPrompt: String = "",
+        // 记忆引擎 v1（P4）：任务边界折叠摘要。非空时作为 request-only 合成用户消息
+        // 注入到对话消息之前（existing injectedNotices 机制），不落盘、不写 compaction
+        // 条目、界面不动。由 ChatService 组装请求时经 TaskBoundary.shouldFold 判定生成。
+        contextDigest: String = "",
         tools: List<Tool> = emptyList(),
         // Read live from the runtime holder, not captured once: the default expression is
         // evaluated per call, so a settings change takes effect on the next turn.
@@ -849,6 +854,7 @@ class GenerationLoop(
                         provider = provider,
                         tools = toolsInternal,
                         memoryPrompt = memoryPrompt,
+                        contextDigest = contextDigest,
                         stream = assistant.streamOutput,
                         processingStatus = processingStatus,
                         conversationSystemPrompt = conversationSystemPrompt,
@@ -1534,6 +1540,8 @@ class GenerationLoop(
         tools: List<Tool>,
         // 记忆引擎 v1（P1）：预组装的 L1 注入段（空串 = 不注入）。
         memoryPrompt: String,
+        // 记忆引擎 v1（P4）：任务边界折叠摘要（request-only 合成消息，空串 = 不注入）。
+        contextDigest: String = "",
         stream: Boolean,
         processingStatus: MutableStateFlow<String?> = MutableStateFlow(null),
         conversationSystemPrompt: String? = null,
@@ -1602,6 +1610,15 @@ class GenerationLoop(
             // TemplateTransformer) and its stepped truncation (which now preserves
             // prompt caching instead of trimming one message at a time).
             addAll(messages.limitContext(assistant.contextMessageLimit).ageOldToolImages())
+            // 记忆引擎 v1（P4）：任务边界折叠摘要。放在对话消息最前（request-only），
+            // 让模型在折叠后仍持有上任务线索；后续消息不变。
+            if (contextDigest.isNotBlank()) {
+                add(UIMessage(
+                    role = MessageRole.USER,
+                    parts = listOf(UIMessagePart.Text(contextDigest)),
+                    isSynthetic = true,
+                ))
+            }
             // Cross-model continuation: when the previous model's generation failed
             // mid-stream and routing switched to this model, append a synthetic user
             // instruction so the new model continues from the partial assistant text
@@ -2020,6 +2037,44 @@ class GenerationLoop(
         // to clear the character gate.
         if (maxTokens != null) {
             val fullText = textParts.joinToString("\n") { it.text }
+            // 记忆引擎 v1（P4）：CCR 工具输出原文池。超预算时按内容类型路由压缩，
+            // 原文按 sha256 内容寻址落盘（cache/tool-output/<handle>.txt，同内容去重），
+            // 请求内保留智能头尾预览 + handle/sed 行号取回提示。
+            // CCR 落盘失败时降级旧 truncateToolResult 管线（绝不因池故障丢工具结果）。
+            val ccrHandled: List<UIMessagePart>? = maxTokens?.let { budget ->
+                runCatching {
+                    val kind = ToolOutputPool.detectKind(fullText)
+                    val originalTokens = ContextCompactionPlanner.estimateTokens(fullText)
+                    if (originalTokens <= budget) return@let null
+                    val headBudgetTokens = (budget * 0.6).toInt()
+                    val tailBudgetTokens = budget - headBudgetTokens
+                    val CHARS_PER_TOKEN = 3
+                    val preview = ToolOutputPool.smartPreview(
+                        fullText = fullText,
+                        headChars = headBudgetTokens * CHARS_PER_TOKEN,
+                        tailChars = tailBudgetTokens * CHARS_PER_TOKEN,
+                        kind = kind,
+                    )
+                    val handle = ToolOutputPool.handleOf(fullText)
+                    // 与 spillToolOutput 同一目录契约：filesDir/tool_outputs ↔ /tool_outputs/
+                    val poolDir = File(context.filesDir, FileFolders.TOOL_OUTPUTS).apply { mkdirs() }
+                    val poolFile = File(poolDir, "ccr-$handle.txt")
+                    if (!poolFile.exists()) poolFile.writeText(fullText)
+                    val totalLines = fullText.lines().size
+                    val notice = buildString {
+                        appendLine("[Tool output compressed to the ${budget}-token budget]")
+                        appendLine("[Original: $totalChars characters / $totalLines lines, kind=$kind]")
+                        appendLine(ToolOutputPool.handleNotice(handle, "/tool_outputs/ccr-$handle.txt", totalLines, totalChars, kind))
+                        appendLine()
+                        append(preview)
+                    }
+                    Log.i(TAG, "maybeTruncateToolOutput: CCR pool tool $toolCallId ($totalChars chars, kind=$kind, handle=$handle)")
+                    return@let listOf(
+                        UIMessagePart.Text(notice)
+                    ) + nonTextParts
+                }.getOrNull()
+            }
+            if (ccrHandled != null) return ccrHandled
             val outcome = truncateToolResult(text = fullText, maxTokens = maxTokens)
             if (outcome.truncated) {
                 Log.i(
