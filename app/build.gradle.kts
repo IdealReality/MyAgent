@@ -87,6 +87,12 @@ android {
     }
 
     buildTypes {
+        // 【MyAgent 提示】UPDATE_API_URL 留空：应用层的上游版本检查已停用
+        // （ChatVM.updateState 恒为 Loading，UpdateCard 不再显示，UpdateChecker 不参与 DI）。
+        // UpdateChecker.kt / GitHubReleaseChecker.kt 暂时保留，仅供 agent 的
+        // check_app_updates 工具（ReliabilityTools）手动查询上游版本。
+        // 如要恢复应用层自动更新，需同时还原 ChatVM.updateState 与 AppModule 的
+        // UpdateChecker 注入，并把 UPDATE_API_URL 指向自建 update API。
         release {
             signingConfig = signingConfigs.getByName("release")
             optimization {

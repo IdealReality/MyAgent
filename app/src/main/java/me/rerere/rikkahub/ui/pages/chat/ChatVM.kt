@@ -21,8 +21,8 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flow
-import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.datetime.TimeZone
@@ -55,7 +55,7 @@ import me.rerere.rikkahub.service.ChatService
 import me.rerere.rikkahub.ui.hooks.writeStringPreference
 import me.rerere.rikkahub.ui.hooks.ChatInputState
 import me.rerere.rikkahub.utils.UiState
-import me.rerere.rikkahub.utils.UpdateChecker
+import me.rerere.rikkahub.utils.UpdateInfo
 import java.util.Locale
 import kotlin.uuid.Uuid
 
@@ -70,7 +70,6 @@ class ChatVM(
     private val settingsStore: SettingsStore,
     private val conversationRepo: ConversationRepository,
     private val chatService: ChatService,
-    val updateChecker: UpdateChecker,
     private val filesManager: FilesManager,
     private val favoriteRepository: FavoriteRepository,
     private val usageLedger: UsageLedger,
@@ -274,21 +273,12 @@ class ChatVM(
         }
     }
 
-    // Update checker
-    val updateState = settingsStore.settingsFlow
-        .map { settings ->
-            !settings.init &&
-                settings.displaySetting.updateCheckDisabledUntilEpochMillis <= System.currentTimeMillis()
-        }
-        .distinctUntilChanged()
-        .flatMapLatest { enabled ->
-            if (enabled) updateChecker.updateState else flowOf(UiState.Loading)
-        }
-        .stateIn(
-            viewModelScope,
-            SharingStarted.WhileSubscribed(stopTimeoutMillis = 5_000),
-            UiState.Loading,
-        )
+    // Update checker — 已停用：应用层不再向上游（自建 UPDATE_API_URL / GitHub Releases）
+    // 发起版本检查请求。保持 updateState 恒为 Loading，UpdateCard 的 Loading 分支不渲染，
+    // 卡片因此永远不显示。保留该属性是为了不破坏 UpdateCard/ChatDrawer 的现有调用面。
+    // 如需手动了解上游版本，交给 agent 的 check_app_updates 工具（ReliabilityTools）。
+    val updateState: StateFlow<UiState<UpdateInfo>> =
+        MutableStateFlow(UiState.Loading)
 
     /**
      * 处理消息发送
