@@ -1,4 +1,4 @@
-<?xml version='1.0' encoding='UTF-8'?>
+﻿<?xml version='1.0' encoding='UTF-8'?>
 <resources>
   <string name="about_page_github">Github</string>
   <string name="about_page_license">الترخيص</string>
@@ -546,14 +546,8 @@
   <string name="permission_desc_require_permission">لتوفير تجربة مستخدم أفضل، يتطلب التطبيق الأذونات التالية:</string>
   <string name="permission_diaog_title">طلب الإذن</string>
   <string name="permission_go_to_settings">الانتقال إلى الإعدادات</string>
-  <string name="permission_local_network">الشبكة المحلية</string>
-  <string name="permission_local_network_desc">مطلوب للاتصال بالخدمات المستضافة ذاتيًا على الشبكة المحلية، وللسماح للأجهزة الأخرى بالوصول إلى خادم الويب</string>
-  <string name="permission_microphone">الميكروفون</string>
-  <string name="permission_microphone_desc">إذن الميكروفون مطلوب للتعرف على الكلام</string>
-  <string name="permission_notification">الإشعارات</string>
-  <string name="permission_notification_desc">إرسال الإشعارات</string>
-  <string name="permission_local_network">الشبكة المحلية</string>
-  <string name="permission_local_network_desc">مطلوب على Android 17+ لـ SSH وخادم ويب الشبكة المحلية</string>
+  <string name="permission_local_network">丕賱卮亘賰丞 丕賱賲丨賱賷丞</string>
+  <string name="permission_local_network_desc">賲胤賱賵亘 賱賱丕鬲氐丕賱 亘丕賱禺丿賲丕鬲 丕賱賲爻鬲囟丕賮丞 匕丕鬲賷丕 毓賱賶 卮亘賰鬲賰 丕賱賲丨賱賷丞貙 賵賱賱爻賲丕丨 賱賱兀噩賴夭丞 丕賱兀禺乇賶 亘丕賱賵氐賵賱 廿賱賶 禺丕丿賲 丕賱賵賷亘</string>
   <string name="permission_permanently_denied">مرفوض نهائيًا</string>
   <string name="permission_required">مطلوب</string>
   <string name="photo">صورة</string>
