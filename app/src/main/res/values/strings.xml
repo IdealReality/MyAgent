@@ -1,4 +1,4 @@
-<?xml version='1.0' encoding='UTF-8'?>
+﻿<?xml version='1.0' encoding='UTF-8'?>
 <resources>
   <string name="about_page_github">Github</string>
   <string name="about_page_license">License</string>
@@ -3250,4 +3250,16 @@ HARDLINE protections still apply: rm -rf /, mkfs, shutdown / reboot, dd to block
   <string name="floating_ball_capsule_hide">Hide to edge</string>
   <string name="chat_interject_unavailable">Generation already finished — send it as a normal message</string>
   <string name="chat_interjection_label">Interjection</string>
+  <string name="memory_tab_overview">Overview</string>
+  <string name="memory_tab_episodes">Episodes</string>
+  <string name="memory_tab_docs">Knowledge</string>
+  <string name="memory_tab_snapshots">Snapshots</string>
+  <string name="memory_tab_settings">Settings</string>
+  <string name="memory_engine_enable_desc">Four-layer memory: L1 summary auto-injected; episodes/knowledge/sessions retrieved on demand via memory_recall / memory_guide / memory_write</string>
+  <string name="memory_engine_autolearn_title">Autolearn</string>
+  <string name="memory_engine_autolearn_desc">Rewrites L1 from unlearned episodes (>=10 segments or 7 days), snapshots first; original episodes are never deleted</string>
+  <string name="memory_engine_boundary_title">Task boundary folding</string>
+  <string name="memory_engine_boundary_desc">When a new task starts, folds the finished prior task into a request-only digest; nothing is written to the conversation</string>
+  <string name="memory_engine_ccr_title">Tool output pool (CCR)</string>
+  <string name="memory_engine_ccr_desc">Oversized tool outputs are content-addressed to disk with a smart preview and a handle for on-demand retrieval</string>
 </resources>

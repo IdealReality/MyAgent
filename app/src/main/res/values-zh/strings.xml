@@ -1,4 +1,4 @@
-<?xml version='1.0' encoding='UTF-8'?>
+﻿<?xml version='1.0' encoding='UTF-8'?>
 <resources>
   <string name="about_page_github">Github</string>
   <string name="about_page_license">License</string>
@@ -2963,4 +2963,16 @@ HARDLINE 保护仍然生效：rm -rf /、mkfs、shutdown / reboot、向块设备
   <string name="floating_ball_capsule_hide">收起到边缘</string>
   <string name="chat_interject_unavailable">生成已结束，请重新发送</string>
   <string name="chat_interjection_label">插话</string>
+  <string name="memory_tab_overview">总览</string>
+  <string name="memory_tab_episodes">原话流</string>
+  <string name="memory_tab_docs">知识库</string>
+  <string name="memory_tab_snapshots">快照</string>
+  <string name="memory_tab_settings">设置</string>
+  <string name="memory_engine_enable_desc">四层记忆：L1 摘要自动注入，原话流/知识库/会话目录经 memory_recall / memory_guide / memory_write 按需检索</string>
+  <string name="memory_engine_autolearn_title">自动整理（autolearn）</string>
+  <string name="memory_engine_autolearn_desc">未整理段满 10 段或距上次 7 天时用记忆模型重写 L1 摘要；重写前自动快照，原话永不删除</string>
+  <string name="memory_engine_boundary_title">任务边界折叠</string>
+  <string name="memory_engine_boundary_desc">新任务开始时把已收尾的上一任务折叠成随请求注入的摘要，不落盘、界面不动</string>
+  <string name="memory_engine_ccr_title">工具输出原文池（CCR）</string>
+  <string name="memory_engine_ccr_desc">超长工具输出按内容寻址落盘，请求内保留智能预览与取回句柄，需要时按行号取回</string>
 </resources>
