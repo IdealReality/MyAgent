@@ -24,6 +24,9 @@ object EpisodeSegmenter {
     /** 话题相似度阈值：低于该值视为新话题。 */
     const val TOPIC_SIMILARITY_THRESHOLD: Double = 0.18
 
+    /** 逐字锚点：共享的 latin 词达到该长度即视为同话题（平移 omp 锚点思想）。 */
+    const val ANCHOR_MIN_CHARS: Int = 4
+
     /** 新消息最小长度：太短的输入（"嗯"、"好"）不足以判话题。 */
     const val TOPIC_MIN_CHARS: Int = 8
 
@@ -75,14 +78,21 @@ object EpisodeSegmenter {
         return out
     }
 
-    /** Jaccard 相似度。 */
+    /**
+     * 话题相似度：Jaccard 与 containment 取较大者。
+     * containment = 交集 / min(|A|,|B|)：追问（"BM25的k1怎么调"）只共享首问的 bm25
+     * 一个词，Jaccard 会被并集稀释误判换话题；containment 看的是「当前消息的词
+     * 有多少落在首问里」，对追问友好，对真正换话题（交集为 0）同样敏感。
+     */
     fun similarity(a: String, b: String): Double {
         val sa = tokenizeForOverlap(a)
         val sb = tokenizeForOverlap(b)
         if (sa.isEmpty() || sb.isEmpty()) return 0.0
         val inter = sa.intersect(sb).size.toDouble()
         val union = sa.union(sb).size.toDouble()
-        return inter / union
+        val jaccard = inter / union
+        val containment = inter / minOf(sa.size, sb.size).toDouble()
+        return maxOf(jaccard, containment)
     }
 
     /**
@@ -112,7 +122,9 @@ object EpisodeSegmenter {
         val trimmed = text.trim()
         if (trimmed.length >= TOPIC_MIN_CHARS && !isContinuationMessage(trimmed)) {
             val sim = similarity(cursor.firstQuery, trimmed)
-            if (sim < TOPIC_SIMILARITY_THRESHOLD) {
+            val hasAnchor = tokenizeForOverlap(cursor.firstQuery)
+                .any { it.length >= ANCHOR_MIN_CHARS && tokenizeForOverlap(trimmed).contains(it) }
+            if (sim < TOPIC_SIMILARITY_THRESHOLD && !hasAnchor) {
                 return Decision.CloseAndStart("topic-change(sim=%.2f)".format(sim))
             }
         }
