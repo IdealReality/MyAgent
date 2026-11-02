@@ -436,6 +436,8 @@ class RikkaHubApp : Application() {
                 } else {
                     me.rerere.rikkahub.service.TelegramBotHealthWorker.cancel(this@RikkaHubApp)
                 }
+                // 记忆引擎 v1（P3）：autolearn 每小时检查（幂等 KEEP，未触发时自退出）。
+                me.rerere.rikkahub.data.memory.AutoLearnWorker.schedule(this@RikkaHubApp)
             }.onFailure {
                 Log.e(TAG, "startTelegramBotIfEnabled failed", it)
             }

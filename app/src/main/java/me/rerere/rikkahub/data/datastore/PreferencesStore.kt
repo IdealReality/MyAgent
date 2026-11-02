@@ -186,6 +186,8 @@ class SettingsStore(
         val SELECT_MODEL = stringPreferencesKey("chat_model")
         val FAST_MODEL = stringPreferencesKey("fast_model")
         val FAST_MODEL_REASONING_LEVEL = stringPreferencesKey("fast_model_reasoning_level")
+        // 记忆引擎 v1（P3）：autolearn memory 模型角色。
+        val MEMORY_MODEL = stringPreferencesKey("memory_model")
         val TRANSLATE_MODEL = stringPreferencesKey("translate_model")
         val ENABLE_SUGGESTION = booleanPreferencesKey("enable_suggestion")
         val ERROR_CARD_AUTO_DISMISS = booleanPreferencesKey("error_card_auto_dismiss")
@@ -315,6 +317,7 @@ class SettingsStore(
                 preferences[SELECT_MODEL] = settings.chatModelId.toString()
                 preferences[FAST_MODEL] = settings.fastModelId.toString()
                 preferences[FAST_MODEL_REASONING_LEVEL] = settings.fastModelReasoningLevel.name
+                preferences[MEMORY_MODEL] = settings.memoryModelId?.toString() ?: ""
                 preferences[TRANSLATE_MODEL] = settings.translateModeId.toString()
                 preferences[ENABLE_SUGGESTION] = settings.enableSuggestion
                 preferences[ERROR_CARD_AUTO_DISMISS] = settings.errorCardAutoDismiss
@@ -436,6 +439,9 @@ class SettingsStore(
                 fastModelReasoningLevel = preferences[FAST_MODEL_REASONING_LEVEL]
                     ?.let { value -> ReasoningLevel.entries.find { it.name == value } }
                     ?: ReasoningLevel.AUTO,
+                memoryModelId = preferences[MEMORY_MODEL]
+                    ?.takeIf { it.isNotBlank() }
+                    ?.let { runCatching { Uuid.parse(it) }.getOrNull() },
                 translateModeId = preferences[TRANSLATE_MODEL]?.let { runCatching { Uuid.parse(it) }.getOrNull() }
                     ?: DEFAULT_AUTO_MODEL_ID,
                 enableSuggestion = preferences[ENABLE_SUGGESTION] != false,
@@ -1004,6 +1010,9 @@ data class Settings(
     val chatModelId: Uuid = Uuid.random(),
     val fastModelId: Uuid = Uuid.random(),
     val fastModelReasoningLevel: ReasoningLevel = ReasoningLevel.AUTO,
+    // 记忆引擎 v1（P3）：autolearn 用的 memory 模型角色（全局默认）。
+    // null = 跟随 fastModelId（标题/建议生成的同款兜底链）。
+    val memoryModelId: Uuid? = null,
     val imageGenerationModelId: Uuid = Uuid.random(),
     val videoGenerationModelId: Uuid = Uuid.random(),
     val titlePrompt: String = DEFAULT_TITLE_PROMPT,

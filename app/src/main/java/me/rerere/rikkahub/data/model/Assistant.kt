@@ -31,6 +31,8 @@ data class Assistant(
     val streamOutput: Boolean = true,
     val enableMemory: Boolean = false,
     val useGlobalMemory: Boolean = false, // 使用全局共享记忆而非助手隔离记忆
+    // 记忆引擎 v1（P3）：本助手 autolearn 用的 memory 模型角色；null = 回退全局 settings.memoryModelId。
+    val memoryModelId: Uuid? = null,
     val enableRecentChatsReference: Boolean = false,
     val messageTemplate: String = "{{ message }}",
     val presetMessages: List<UIMessage> = emptyList(),
