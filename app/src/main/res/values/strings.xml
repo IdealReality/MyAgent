@@ -1715,6 +1715,7 @@ HARDLINE protections still apply: rm -rf /, mkfs, shutdown / reboot, dd to block
   <string name="setting_page_agents_anywhere_desc">把另一台机器上的 agent 直接当成一个模型来对话</string>
 
   <string name="assistant_page_local_tools_virtual_display_title">Virtual display</string>
+  <string name="assistant_page_local_tools_assistant_config_title">Assistant config</string>
   <string name="assistant_page_local_tools_model_control_desc">Let the assistant list, add, edit and remove the models under your configured providers (model_list / model_add / model_update / model_delete). Writes change Settings directly, so every write is approval-gated and recorded in the run ledger; a headless run (cron, sub-agent) may list but not write.</string>
   <string name="assistant_page_local_tools_external_automation_title">External automation</string>
   <string name="assistant_page_local_tools_external_automation_desc">Let the assistant manage the External Automation Intent API — the path that lets Tasker / MacroDroid / Locale / ADB fire RUN_TASK intents at the assistant. Defaults to OFF; the assistant can flip it on, add trusted caller packages, and audit the recent invocation log.</string>

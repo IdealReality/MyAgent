@@ -231,6 +231,10 @@ sealed class LocalToolOption {
     // P2-37 model-roster tools (model_list / model_add / model_update / model_delete)
     @Serializable @SerialName("model_control")        data object ModelControl        : LocalToolOption()
 
+    // 助手配置自管理：LLM 读取/修改自己助手的 systemPrompt、技能开关、模式注入与世界书
+    // （实现见 AssistantConfigTools）。
+    @Serializable @SerialName("assistant_config")     data object AssistantConfig     : LocalToolOption()
+
 }
 
 /**
@@ -1216,6 +1220,15 @@ class LocalTools(
             tools.add(me.rerere.rikkahub.data.ai.model.modelAddTool(settingsStore, agentRunRepository))
             tools.add(me.rerere.rikkahub.data.ai.model.modelUpdateTool(settingsStore, agentRunRepository))
             tools.add(me.rerere.rikkahub.data.ai.model.modelDeleteTool(settingsStore, agentRunRepository))
+        }
+        // 助手配置自管理：让模型读取/修改自己助手的 systemPrompt、技能开关与全局的模式注入/世界书。
+        // assistantId 来自调用方注入的 ToolInvocationContext；createTools 对 null 上下文一律拒绝。
+        if (options.contains(LocalToolOption.AssistantConfig)) {
+            tools.addAll(AssistantConfigTools.createTools(
+                settingsStore = settingsStore,
+                skillManager = skillManager,
+                assistantId = invocationContext.callerAssistantId,
+            ))
         }
         // Blacklist era: every tool is routed through the runtime approval decision
         // (ChatService.isToolAutoApproved → ToolApprovalPolicy), so `needsApproval` is true

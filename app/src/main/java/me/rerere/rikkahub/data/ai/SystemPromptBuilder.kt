@@ -29,6 +29,9 @@ class SystemPromptBuilder {
         toolPrompts: List<String> = emptyList(),
         systemAddendum: String? = null,
         policyPrompt: String = "",
+        // 助手配置自管理说明（启用 AssistantConfig 组时由 GenerationLoop 传入）。
+        // 归入 stable 段：同一助手逐字节稳定，不破坏 prompt 缓存。
+        assistantConfigHint: String = "",
     ): Pair<String, String> {
         val stable = buildString {
             if (assistantPrompt.isNotBlank()) append(assistantPrompt)
@@ -39,6 +42,10 @@ class SystemPromptBuilder {
                     if (index > 0) appendLine()
                     append(toolPrompt)
                 }
+            }
+            if (assistantConfigHint.isNotBlank()) {
+                if (isNotEmpty()) appendLine()
+                append(assistantConfigHint)
             }
         }.trim()
 

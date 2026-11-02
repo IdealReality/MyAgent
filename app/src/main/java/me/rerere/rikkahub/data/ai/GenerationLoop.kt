@@ -54,6 +54,7 @@ import me.rerere.ai.util.redactSecrets
 import me.rerere.rikkahub.data.repository.ConversationRepository
 import me.rerere.rikkahub.data.ai.limits.ConversationReasoningOverrides
 import me.rerere.rikkahub.data.ai.tools.ConversationInjections
+import me.rerere.rikkahub.data.ai.tools.assistantConfigPromptHint
 import me.rerere.rikkahub.data.ai.transformers.InputMessageTransformer
 import me.rerere.rikkahub.data.ai.transformers.MessageTransformer
 import me.rerere.rikkahub.data.ai.transformers.OutputMessageTransformer
@@ -1588,6 +1589,12 @@ class GenerationLoop(
                 buildRecentChatsPrompt(assistant, conversationRepo)
             } else ""
             val toolPrompts = tools.map { tool -> tool.systemPrompt(model, messages) }
+            // 助手配置自管理：当助手启用 AssistantConfig 组时，在系统提示词里告知模型可以
+            // 查看/修改自身配置。归入 STABLE 段（同一助手逐字节稳定），不影响 prompt 缓存。
+            val assistantConfigHint =
+                if (assistant.localTools.contains(me.rerere.rikkahub.data.ai.tools.LocalToolOption.AssistantConfig)) {
+                    assistantConfigPromptHint()
+                } else ""
             // Split into stable (assistant + tools) and volatile (memory + recent chats +
             // addendum) so prompt caching survives memory injection: the stable part is the
             // cached prefix, the volatile part sits after it. See SystemPromptBuilder.
@@ -1597,6 +1604,7 @@ class GenerationLoop(
                 recentChatsPrompt = recentChatsPrompt,
                 toolPrompts = toolPrompts,
                 systemAddendum = systemAddendum,
+                assistantConfigHint = assistantConfigHint,
             )
             val systemParts = buildList {
                 if (stableSystem.isNotBlank()) add(UIMessagePart.Text(stableSystem))
