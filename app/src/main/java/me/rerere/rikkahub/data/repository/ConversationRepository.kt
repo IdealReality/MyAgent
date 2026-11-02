@@ -434,6 +434,39 @@ class ConversationRepository(
         }
     }
 
+    /**
+     * Reassign every conversation of [fromAssistantId] to [toAssistantId] in one UPDATE.
+     * Used when an assistant is deleted: its conversations stay, but belong to the
+     * default assistant instead of dangling on a removed id.
+     */
+    suspend fun reassignConversationsOfAssistant(fromAssistantId: Uuid, toAssistantId: Uuid) {
+        database.withTransaction {
+            conversationDAO.updateAssistantId(
+                fromAssistantId = fromAssistantId.toString(),
+                toAssistantId = toAssistantId.toString()
+            )
+        }
+    }
+
+    /**
+     * 删除助手时的对话清理：把 [assistantId] 名下所有会话的 folder_id 置空。
+     *
+     * 为什么必须做：对话改派到默认助手后 assistant_id 变了，但 folder_id 仍指向被删助手的
+     * 文件夹；而会话列表对「未归类」视图的查询是 `folder_id = ''`，这些对话既不在任何
+     * 可见文件夹里、也不在未归类列表里 —— 用户看到的就是对话凭空消失。
+     *
+     * 与 [reassignConversationsOfAssistant] 放在同一个事务里，保证「改派 + 解绑」原子完成。
+     */
+    suspend fun reassignAndUnfileConversationsOfAssistant(fromAssistantId: Uuid, toAssistantId: Uuid) {
+        database.withTransaction {
+            conversationDAO.updateAssistantId(
+                fromAssistantId = fromAssistantId.toString(),
+                toAssistantId = toAssistantId.toString()
+            )
+            conversationDAO.clearFolderOfAssistant(fromAssistantId.toString())
+        }
+    }
+
     fun conversationToConversationEntity(conversation: Conversation): ConversationEntity {
         require(conversation.messageNodes.none { it.messages.any { message -> message.hasBase64Part() } })
         return ConversationEntity(

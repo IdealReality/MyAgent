@@ -19,6 +19,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
@@ -422,6 +424,7 @@ private fun AssistantCreationSheet(
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun AssistantItem(
     assistant: Assistant,
@@ -431,9 +434,17 @@ private fun AssistantItem(
     onEdit: () -> Unit,
     onShowActions: () -> Unit,
 ) {
+    // 长按 = 打开同一个操作面板（MoreVertical 的等价入口）。仓里没有长按菜单惯例，
+    // 这里用「长按打开既有 BottomSheet」而不是另造一套菜单，交互只有一个去向。
+    // 注意：clickable 由 combinedClickable 提供，Card 不能再传 onClick（否则双击语义冲突，
+    // 且 Material3 的 clickable Card 内部已有自己的 clickable modifier）。
     Card(
-        modifier = modifier.fillMaxWidth(),
-        onClick = onEdit,
+        modifier = modifier
+            .fillMaxWidth()
+            .combinedClickable(
+                onClick = onEdit,
+                onLongClick = onShowActions,
+            ),
         colors = CardDefaults.cardColors(
             containerColor = CustomColors.listItemColors.containerColor
         )
@@ -565,26 +576,46 @@ private fun AssistantActionSheet(
                 colors = ListItemDefaults.colors(containerColor = Color.Transparent)
             )
 
-            // 删除选项（仅非默认助手显示）
-            if (assistant.id !in DEFAULT_ASSISTANTS_IDS) {
-                ListItem(
-                    headlineContent = {
-                        Text(
-                            stringResource(R.string.assistant_page_delete),
-                            color = MaterialTheme.colorScheme.error
-                        )
-                    },
-                    leadingContent = {
-                        Icon(
-                            imageVector = HugeIcons.Delete01,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.error
-                        )
-                    },
-                    modifier = Modifier.onClick { showDeleteDialog = true },
-                    colors = ListItemDefaults.colors(containerColor = Color.Transparent)
-                )
-            }
+            // 删除选项。内置默认助手不可删（删掉会让 DEFAULT_ASSISTANT_ID 悬空，
+            // 且新一轮启动会被 PreferencesStore 的 re-seed 重新加回来，形成「删了又出现」），
+            // 所以对它们显示禁用态 + 原因，而不是让入口凭空消失。
+            val deletable = assistant.id !in DEFAULT_ASSISTANTS_IDS
+            ListItem(
+                headlineContent = {
+                    Text(
+                        stringResource(R.string.assistant_page_delete),
+                        color = if (deletable) {
+                            MaterialTheme.colorScheme.error
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        }
+                    )
+                },
+                supportingContent = if (deletable) {
+                    null
+                } else {
+                    {
+                        Text(stringResource(R.string.assistant_page_delete_builtin_hint))
+                    }
+                },
+                leadingContent = {
+                    Icon(
+                        imageVector = HugeIcons.Delete01,
+                        contentDescription = null,
+                        tint = if (deletable) {
+                            MaterialTheme.colorScheme.error
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        }
+                    )
+                },
+                modifier = if (deletable) {
+                    Modifier.onClick { showDeleteDialog = true }
+                } else {
+                    Modifier
+                },
+                colors = ListItemDefaults.colors(containerColor = Color.Transparent)
+            )
         }
     }
 

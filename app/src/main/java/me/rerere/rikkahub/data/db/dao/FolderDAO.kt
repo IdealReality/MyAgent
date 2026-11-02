@@ -31,4 +31,11 @@ interface FolderDAO {
 
     @Query("DELETE FROM conversation_folder WHERE id = :id")
     suspend fun deleteById(id: String)
+
+    /**
+     * 删除某助手名下的全部文件夹。删除助手时调用：文件夹是助手私有配置，
+     * 助手没了就该一起清掉（会话本身不会被删，见 ConversationRepository.clearFolderOfAssistant）。
+     */
+    @Query("DELETE FROM conversation_folder WHERE assistant_id = :assistantId")
+    suspend fun deleteByAssistant(assistantId: String)
 }

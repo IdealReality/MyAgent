@@ -85,6 +85,10 @@ interface ConversationDAO {
     @Query("UPDATE conversationentity SET is_pinned = NOT is_pinned WHERE id = :id")
     suspend fun togglePinStatus(id: String)
 
+    /** Reassign every conversation of one assistant to another (used when deleting an assistant). */
+    @Query("UPDATE conversationentity SET assistant_id = :toAssistantId WHERE assistant_id = :fromAssistantId")
+    suspend fun updateAssistantId(fromAssistantId: String, toAssistantId: String)
+
     @Query("UPDATE conversationentity SET folder_id = :folderId WHERE id = :id")
     suspend fun updateFolderId(id: String, folderId: String)
 
@@ -97,6 +101,14 @@ interface ConversationDAO {
 
     @Query("UPDATE conversationentity SET folder_id = '' WHERE folder_id = :folderId")
     suspend fun clearFolder(folderId: String)
+
+    /**
+     * 把某助手名下所有会话的 folder_id 清空（删除助手时用）。
+     * 必须先于 FolderDAO.deleteByAssistant 执行：会话换了 assistant_id 之后仍然带着旧
+     * folder_id，而新助手的列表查询只取 folder_id = '' 的会话，不清就会「对话消失」。
+     */
+    @Query("UPDATE conversationentity SET folder_id = '' WHERE assistant_id = :assistantId")
+    suspend fun clearFolderOfAssistant(assistantId: String)
 
     /** Number of conversations filed in [folderId] — the input to the folder delete guard. */
     @Query("SELECT COUNT(*) FROM conversationentity WHERE folder_id = :folderId")

@@ -41,6 +41,15 @@ class FolderRepository(
         conversationDAO.countInFolder(folderId.toString())
 
     /**
+     * 删除 [assistantId] 名下的全部文件夹（删除助手时用）。
+     * 调用方必须先把这些文件夹里的会话解绑（见 ConversationRepository.clearFolderOfAssistant），
+     * 否则会话会指向已不存在的 folder_id，在文件夹视图里再也看不到。
+     */
+    suspend fun deleteFoldersOfAssistant(assistantId: Uuid) {
+        folderDAO.deleteByAssistant(assistantId.toString())
+    }
+
+    /**
      * 删除文件夹，先把归属该文件夹的会话 folder_id 清空，再删除文件夹本身（不影响会话）。
      */
     suspend fun deleteFolder(id: Uuid) {

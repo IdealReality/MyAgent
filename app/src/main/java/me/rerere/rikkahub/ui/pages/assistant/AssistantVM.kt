@@ -7,12 +7,15 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import me.rerere.rikkahub.data.datastore.DEFAULT_ASSISTANT_ID
+import me.rerere.rikkahub.data.datastore.getAssistantById
 import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.data.datastore.SettingsStore
 import me.rerere.rikkahub.data.files.FilesManager
 import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.data.model.Avatar
 import me.rerere.rikkahub.data.repository.ConversationRepository
+import me.rerere.rikkahub.data.repository.FolderRepository
 import me.rerere.rikkahub.data.repository.MemoryRepository
 import kotlin.uuid.Uuid
 
@@ -20,6 +23,7 @@ class AssistantVM(
     private val settingsStore: SettingsStore,
     private val memoryRepository: MemoryRepository,
     private val conversationRepo: ConversationRepository,
+    private val folderRepository: FolderRepository,
     private val filesManager: FilesManager,
 ) : ViewModel() {
     val settings: StateFlow<Settings> = settingsStore.settingsFlow
@@ -64,18 +68,57 @@ class AssistantVM(
         }
     }
 
+    /**
+     * 删除助手。
+     *
+     * 顺序是有意的：
+     *  1. 先把该助手名下的对话整体改派给默认助手，并解除它们的文件夹归属
+     *     （复用既有的 ConversationDAO.updateAssistantId；folder_id 必须一并清空，否则
+     *     对话换了 assistant_id 却仍挂在旧助手的文件夹里，新助手的列表按 folder_id = ''
+     *     取会话，用户会看到「对话消失」。两者在同一 Room 事务里完成）。
+     *  2. 删掉该助手的文件夹（文件夹是助手私有配置）。
+     *  3. 一次 settingsStore.update 完成「移除助手 + 当前指针切到默认助手 + 清归档槽位」，
+     *     而不是分两次写盘 —— 两次写盘之间存在中间态：助手已从列表消失、assistantId
+     *     却仍指向它，此时进程被杀就会留下悬空指针。
+     *  4. 记忆与头像/背景文件这些不可回滚的清理放到最后，只在设置已成功落盘后执行。
+     *
+     * 「默认助手」的口径与全局一致：DEFAULT_ASSISTANT_ID（Settings.assistantId 的缺省值），
+     * 若它已不在列表中则退到剩余的第一个助手；与 AssistantResolver.current 的兜底规则相同。
+     */
     fun removeAssistant(assistant: Assistant) {
         viewModelScope.launch {
-            cleanupAssistantFiles(assistant)
-
             val settings = settings.value
-            settingsStore.update(
-                settings.copy(
-                    assistants = settings.assistants.filter { it.id != assistant.id }
+            val remaining = settings.assistants.filter { it.id != assistant.id }
+            // 至少保留一个助手：AssistantResolver.current 在空列表上会抛异常，
+            // 删光会让所有 getCurrentAssistant() 调用点崩溃。
+            if (remaining.isEmpty()) return@launch
+
+            val fallback = settings
+                .getAssistantById(DEFAULT_ASSISTANT_ID)
+                ?.takeIf { it.id != assistant.id }
+                ?: remaining.first()
+
+            // 1) 对话改派 + 解除文件夹归属（Room 事务）
+            conversationRepo.reassignAndUnfileConversationsOfAssistant(assistant.id, fallback.id)
+            // 2) 删除该助手的文件夹
+            folderRepository.deleteFoldersOfAssistant(assistant.id)
+
+            // 3) 一次落盘：移除助手 + 当前选中助手安全切换 + 清掉归档文件夹槽位
+            settingsStore.update { current ->
+                current.copy(
+                    assistants = current.assistants.filter { it.id != assistant.id },
+                    assistantId = if (current.assistantId == assistant.id) {
+                        fallback.id
+                    } else {
+                        current.assistantId
+                    },
+                    subAgentArchiveFolders = current.subAgentArchiveFolders - assistant.id.toString(),
                 )
-            )
+            }
+
+            // 4) 不可回滚的清理放最后
             memoryRepository.deleteMemoriesOfAssistant(assistant.id.toString())
-            conversationRepo.deleteConversationOfAssistant(assistant.id)
+            cleanupAssistantFiles(assistant)
         }
     }
 
