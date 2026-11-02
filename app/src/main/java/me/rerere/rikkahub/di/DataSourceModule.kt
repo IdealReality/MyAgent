@@ -156,12 +156,13 @@ val dataSourceModule = module {
 
     single { McpManager(settingsStore = get(), appScope = get(), filesManager = get()) }
 
+    single { me.rerere.rikkahub.data.memory.AssistantMemoryEngine(context = get()) }
+
     single {
         GenerationLoop(
             context = get(),
             providerManager = get(),
             json = get(),
-            memoryRepo = get(),
             conversationRepo = get(),
             aiLoggingManager = get(),
             systemPromptBuilder = get(),

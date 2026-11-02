@@ -141,7 +141,6 @@ import me.rerere.rikkahub.data.model.replaceRegexes
 import me.rerere.rikkahub.data.model.toMessageNode
 import me.rerere.rikkahub.data.repository.ConversationRepository
 import me.rerere.rikkahub.data.repository.FolderRepository
-import me.rerere.rikkahub.data.repository.MemoryRepository
 import me.rerere.rikkahub.data.repository.WorkspaceRepository
 import me.rerere.workspace.WorkspaceShellStatus
 import me.rerere.workspace.WorkspaceStorageArea
@@ -454,7 +453,7 @@ class ChatService(
     private val appEventBus: AppEventBus,
     private val settingsStore: SettingsStore,
     private val conversationRepo: ConversationRepository,
-    private val memoryRepository: MemoryRepository,
+    private val memoryEngine: me.rerere.rikkahub.data.memory.AssistantMemoryEngine,
     private val generationLoop: GenerationLoop,
     private val translationHandler: TranslationHandler,
     private val templateTransformer: TemplateTransformer,
@@ -700,6 +699,7 @@ class ChatService(
 
     fun cleanup() = runCatching {
         ProcessLifecycleOwner.get().lifecycle.removeObserver(lifecycleObserver)
+        sessions.values.forEach { session -> closeEpisodeForSession(session.id, session) }
         sessions.values.forEach { it.cleanup() }
         sessions.clear()
         sessionMutexes.clear()
@@ -743,6 +743,37 @@ class ChatService(
         }
     }
 
+    // ---- 记忆引擎 v1（P1）：L2 切段生命周期 ----
+
+    /** 会话兜底收段 + L4 目录更新（removeSession / cleanup 时调用）。 */
+    private fun closeEpisodeForSession(conversationId: Uuid, session: ConversationSession) {
+        runCatching {
+            val settings = settingsStore.settingsFlow.value
+            val conversation = session.state.value
+            val assistant = AssistantResolver.forConversation(
+                assistants = settings.assistants,
+                conversationAssistantId = conversation.assistantId,
+                currentAssistantId = settings.assistantId,
+            ).assistant
+            if (!assistant.enableMemory) return
+            val messages = conversation.currentMessages
+            val lastUser = messages.lastOrNull { it.role == MessageRole.USER }
+            val lastAssistant = messages.lastOrNull { it.role == MessageRole.ASSISTANT }
+            appScope.launch(Dispatchers.IO) {
+                memoryEngine.writer(assistant).onConversationEnded(
+                    scopeId = memoryEngine.scopeIdOf(assistant),
+                    conversationId = conversationId.toString(),
+                    userText = lastUser?.parts
+                        ?.filterIsInstance<UIMessagePart.Text>()?.joinToString("\n") { it.text } ?: "",
+                    replyText = lastAssistant?.parts
+                        ?.filterIsInstance<UIMessagePart.Text>()?.joinToString("\n") { it.text } ?: "",
+                    title = conversation.title,
+                    nowMs = System.currentTimeMillis(),
+                )
+            }
+        }.onFailure { Log.w(TAG, "closeEpisodeForSession failed: ${it.message}") }
+    }
+
     private fun removeSession(conversationId: Uuid) {
         val session = sessions[conversationId] ?: return
         if (session.isInUse) {
@@ -751,6 +782,8 @@ class ChatService(
         }
         if (sessions.remove(conversationId, session)) {
             session.cleanup()
+            // 记忆引擎 v1（P1）：会话出内存 = 兜底收段 + L4 目录更新。
+            closeEpisodeForSession(conversationId, session)
             // Evict the per-conversation mutex so it doesn't accumulate forever.
             // dropSession() already removes it; removeSession() (idle eviction path)
             // was previously missing this cleanup, causing a slow leak on heavy-use
@@ -774,6 +807,7 @@ class ChatService(
      */
     fun dropSession(conversationId: Uuid) {
         val session = sessions.remove(conversationId) ?: return
+        closeEpisodeForSession(conversationId, session)
         session.cleanup()
         sessionMutexes.remove(conversationId)
         compactionMutexes.remove(conversationId)
@@ -1066,6 +1100,22 @@ class ChatService(
                     currentAssistantId = settings.assistantId,
                 ).assistant
                 val processedContent = preprocessUserInputParts(content, assistant)
+
+                // 记忆引擎 v1（P1）：L2 切段与累积。闲置>2h / 换话题 / 超24回合时收上一段；
+                // 文件 IO 小且低频，丢到 IO 线程不阻塞发送。
+                if (assistant.enableMemory) {
+                    appScope.launch(Dispatchers.IO) {
+                        memoryEngine.writer(assistant).onUserTurn(
+                            scopeId = memoryEngine.scopeIdOf(assistant),
+                            conversationId = conversationId.toString(),
+                            userText = processedContent
+                                .filterIsInstance<UIMessagePart.Text>()
+                                .joinToString("\n") { it.text },
+                            title = currentConversation.title,
+                            nowMs = System.currentTimeMillis(),
+                        )
+                    }
+                }
 
                 // 添加消息到列表
                 val withUser = currentConversation.copy(
@@ -1624,6 +1674,8 @@ class ChatService(
         // T-06 / (7) - cold memory (Markdown knowledge base). Same on both build paths so a
         // regenerate sees the surface the first pass had. Off unless enabled AND configured.
         addAll(createColdMemoryToolsIfConfigured(surfaceAssistant))
+        // 记忆引擎 v1（P2）：四层记忆检索三工具（与 ChatToolFactory.createTools 同一 surface）。
+        addAll(memoryEngine.toolsFor(surfaceAssistant))
         if (surfaceAssistant.enabledSkills.isNotEmpty()) {
             addAll(
                 createSkillTools(
@@ -1905,11 +1957,9 @@ class ChatService(
                 conversationModeInjectionIds = conversation.modeInjectionIds,
                 conversationLorebookIds = conversation.lorebookIds,
                 workspaceCwd = conversation.workspaceCwd,
-                memories = if (assistant.useGlobalMemory) {
-                    memoryRepository.getGlobalMemories()
-                } else {
-                    memoryRepository.getMemoriesOfAssistant(assistant.id.toString())
-                },
+                memoryPrompt = if (assistant.enableMemory) {
+                    memoryEngine.injectL1Prompt(assistant)
+                } else "",
                 inputTransformers = buildList {
                     addAll(inputTransformers)
                     add(templateTransformer)
@@ -1953,6 +2003,8 @@ class ChatService(
                     addAll(createWorkspaceToolsIfReady(surfaceAssistant.workspaceId?.toString(), conversation.workspaceCwd))
                     // T-06 / (7) - cold memory, mirroring the regenerate path above.
                     addAll(createColdMemoryToolsIfConfigured(surfaceAssistant))
+                    // 记忆引擎 v1（P2）：四层记忆检索三工具（regenerate 路径同一 surface）。
+                    addAll(memoryEngine.toolsFor(surfaceAssistant))
                     if (surfaceAssistant.enabledSkills.isNotEmpty()) {
                         addAll(
                             createSkillTools(

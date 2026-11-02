@@ -64,14 +64,11 @@ import me.rerere.rikkahub.data.ai.transformers.transforms
 import me.rerere.rikkahub.data.ai.transformers.visualTransforms
 import me.rerere.rikkahub.data.ai.limits.ToolRuntimeLimits
 import me.rerere.rikkahub.data.ai.tools.ToolExecutionRetryPolicy
-import me.rerere.rikkahub.data.ai.tools.buildMemoryTools
 import me.rerere.rikkahub.data.ai.tools.truncateToolResult
 import me.rerere.rikkahub.data.datastore.NetworkSetting
 import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.data.datastore.findProvider
 import me.rerere.rikkahub.data.model.Assistant
-import me.rerere.rikkahub.data.model.AssistantMemory
-import me.rerere.rikkahub.data.repository.MemoryRepository
 import java.io.File
 import java.io.IOException
 import kotlin.time.Clock
@@ -647,7 +644,6 @@ class GenerationLoop(
     private val context: Context,
     private val providerManager: ProviderManager,
     private val json: Json,
-    private val memoryRepo: MemoryRepository,
     private val conversationRepo: ConversationRepository,
     private val aiLoggingManager: AILoggingManager,
     private val systemPromptBuilder: SystemPromptBuilder,
@@ -659,7 +655,10 @@ class GenerationLoop(
         inputTransformers: List<InputMessageTransformer> = emptyList(),
         outputTransformers: List<OutputMessageTransformer> = emptyList(),
         assistant: Assistant,
-        memories: List<AssistantMemory>? = null,
+        // 记忆引擎 v1（P1）：调用方预组装的 L1 注入段（L1 摘要 + MEMORY_TOOL_HINT），
+        // 由 ChatService 经 AssistantMemoryEngine.injectL1Prompt 生成；空串 = 不注入。
+        // 旧 memories: List<AssistantMemory> 参数已删除（热记录停用，数据不迁移）。
+        memoryPrompt: String = "",
         tools: List<Tool> = emptyList(),
         // Read live from the runtime holder, not captured once: the default expression is
         // evaluated per call, so a settings change takes effect on the next turn.
@@ -753,27 +752,11 @@ class GenerationLoop(
 
             val toolsInternal = buildList {
                 Log.i(TAG, "generateInternal: build tools($assistant)")
-                if (assistant.enableMemory) {
-                    val memoryAssistantId = if (assistant.useGlobalMemory) {
-                        MemoryRepository.GLOBAL_MEMORY_ID
-                    } else {
-                        assistant.id.toString()
-                    }
-                    buildMemoryTools(
-                        json = json,
-                        onCreation = { content ->
-                            memoryRepo.addMemory(memoryAssistantId, content)
-                        },
-                        onUpdate = { id, content ->
-                            memoryRepo.updateContent(id, content)
-                        },
-                        onDelete = { id ->
-                            memoryRepo.deleteMemory(id)
-                        }
-                    ).let(this::addAll)
+                // 记忆引擎 v1（P1）：旧 memory_tool 热记录停用（原 enableMemory 时注册
+                // create/edit/delete 三操作，注入路径同步移除）。P2 将在此 scope 注册
+                // memory_recall / memory_guide / memory_write 三工具。
+                    addAll(tools)
                 }
-                addAll(tools)
-            }
 
             // Check if we have tool calls ready to continue after user interaction.
             val pendingTools = messages.lastOrNull()?.getTools()?.filter {
@@ -865,7 +848,7 @@ class GenerationLoop(
                         stepIndex = stepIndex,
                         provider = provider,
                         tools = toolsInternal,
-                        memories = memories ?: emptyList(),
+                        memoryPrompt = memoryPrompt,
                         stream = assistant.streamOutput,
                         processingStatus = processingStatus,
                         conversationSystemPrompt = conversationSystemPrompt,
@@ -1549,7 +1532,8 @@ class GenerationLoop(
         providerImpl: Provider<ProviderSetting>,
         provider: ProviderSetting,
         tools: List<Tool>,
-        memories: List<AssistantMemory>,
+        // 记忆引擎 v1（P1）：预组装的 L1 注入段（空串 = 不注入）。
+        memoryPrompt: String,
         stream: Boolean,
         processingStatus: MutableStateFlow<String?> = MutableStateFlow(null),
         conversationSystemPrompt: String? = null,
@@ -1582,9 +1566,9 @@ class GenerationLoop(
                 } else {
                     assistant.systemPrompt
                 }
-            val memoryPrompt = if (assistant.enableMemory) {
-                buildMemoryPrompt(memories = memories)
-            } else ""
+            // 记忆引擎 v1（P1）：L1 注入段由 ChatService 预组装传入（AssistantMemoryEngine），
+            // 这里不再读 Room 热记录。旧 buildMemoryPrompt 停用。
+            val memoryPrompt = memoryPrompt.trim()
             val recentChatsPrompt = if (assistant.enableRecentChatsReference) {
                 buildRecentChatsPrompt(assistant, conversationRepo)
             } else ""

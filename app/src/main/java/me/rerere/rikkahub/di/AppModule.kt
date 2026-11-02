@@ -22,6 +22,7 @@ import me.rerere.rikkahub.utils.EmojiData
 import me.rerere.rikkahub.utils.EmojiUtils
 import me.rerere.rikkahub.utils.JsonInstant
 import me.rerere.rikkahub.utils.SoundEffectPlayer
+import me.rerere.rikkahub.utils.UpdateChecker
 import me.rerere.rikkahub.web.WebServerManager
 import me.rerere.tts.provider.TTSManager
 import org.koin.dsl.module
@@ -226,6 +227,15 @@ val appModule = module {
     }
 
     single { me.rerere.rikkahub.data.agentsanywhere.AgentsAnywhereSessionStore(get()) }
+
+    single {
+        UpdateChecker(
+            client = get(),
+            appScope = get(),
+            // No self-hosted UPDATE_API_URL in this fork — the card reads GitHub Releases.
+            githubReleases = get(),
+        )
+    }
 
     single {
         AppScope()

@@ -13,7 +13,6 @@ import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.data.files.SkillManager
 import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.data.repository.ConversationRepository
-import me.rerere.rikkahub.data.repository.MemoryRepository
 import me.rerere.rikkahub.data.repository.WorkspaceRepository
 import me.rerere.workspace.WorkspaceShellStatus
 import kotlin.uuid.Uuid
@@ -30,7 +29,7 @@ class InvalidMcpServerNamesException(val names: List<String>) :
 /** Creates the complete tool set for one generation run, including approval resumption. */
 class ChatToolFactory(
     private val json: Json,
-    private val memoryRepository: MemoryRepository,
+    private val memoryEngine: me.rerere.rikkahub.data.memory.AssistantMemoryEngine,
     private val conversationRepository: ConversationRepository,
     private val localTools: LocalTools,
     private val mcpManager: McpManager,
@@ -43,21 +42,10 @@ class ChatToolFactory(
         model: Model,
         workspaceCwd: String? = null,
     ): List<Tool> = buildList {
-        if (assistant.enableMemory) {
-            val memoryAssistantId = if (assistant.useGlobalMemory) {
-                MemoryRepository.GLOBAL_MEMORY_ID
-            } else {
-                assistant.id.toString()
-            }
-            addAll(
-                buildMemoryTools(
-                    json = json,
-                    onCreation = { content -> memoryRepository.addMemory(memoryAssistantId, content) },
-                    onUpdate = { id, content -> memoryRepository.updateContent(id, content) },
-                    onDelete = { id -> memoryRepository.deleteMemory(id) },
-                )
-            )
-        }
+        // 记忆引擎 v1（P1）：旧 memory_tool 热记录停用（原 enableMemory 时注册
+        // create/edit/delete 三操作）。P2：memory_recall / memory_guide / memory_write
+        // 三工具（挂 AssistantMemoryEngine，四层 BM25 检索）。
+        addAll(buildMemoryV1Tools(assistant))
         if (shouldUseExternalWebSearch(assistant, model)) {
             addAll(createSearchTools(settings))
         }
@@ -93,8 +81,7 @@ class ChatToolFactory(
      * Validates that every enabled MCP server's name can form a valid `mcp__<name>__tool`
      * surface, throwing [InvalidMcpServerNamesException] otherwise. Returns the available
      * tools so callers that need them (like [createTools]) don't have to re-fetch them.
-     */
-    suspend fun validateMcpServerNames(): List<Triple<Uuid, String, McpTool>> {
+     */    suspend fun validateMcpServerNames(): List<Triple<Uuid, String, McpTool>> {
         val mcpTools = mcpManager.getAllAvailableTools()
         val invalidNames = mcpTools
             .map { it.second }
@@ -105,6 +92,18 @@ class ChatToolFactory(
         }
         return mcpTools
     }
+
+    /** 记忆引擎 v1（P2）：enableMemory 时注册 memory_recall / memory_guide / memory_write。 */
+    private fun buildMemoryV1Tools(assistant: Assistant): List<Tool> =
+        if (assistant.enableMemory) {
+            me.rerere.rikkahub.data.memory.MemoryToolsV1.build(
+                json = json,
+                engine = memoryEngine,
+                assistant = assistant,
+            )
+        } else {
+            emptyList()
+        }
 
     private suspend fun createWorkspaceToolsIfReady(workspaceId: String?, cwd: String?): List<Tool> {
         if (workspaceId.isNullOrBlank()) return emptyList()
