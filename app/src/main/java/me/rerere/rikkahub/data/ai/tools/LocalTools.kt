@@ -57,6 +57,7 @@ import me.rerere.rikkahub.data.ai.tools.local.notificationTool
 import me.rerere.rikkahub.data.ai.tools.local.getMediaStatusTool
 import me.rerere.rikkahub.data.ai.tools.local.pauseMediaTool
 import me.rerere.rikkahub.data.ai.tools.local.playMediaTool
+import me.rerere.rikkahub.data.ai.tools.local.recognizerStatusTool
 import me.rerere.rikkahub.data.ai.tools.local.resumeMediaTool
 import me.rerere.rikkahub.data.ai.tools.local.seekMediaTool
 import me.rerere.rikkahub.data.ai.tools.local.readSensorTool
@@ -109,7 +110,6 @@ import me.rerere.rikkahub.data.ai.tools.local.writeTextFileTool
 import me.rerere.rikkahub.data.ai.tools.local.showImageTool
 import me.rerere.rikkahub.data.ai.tools.local.openFileTool
 import me.rerere.rikkahub.data.ai.tools.local.transcribeAudioFileTool
-import me.rerere.rikkahub.data.ai.tools.local.whisperStatusTool
 import me.rerere.rikkahub.data.ai.tools.local.listFilesTool
 import me.rerere.rikkahub.data.ai.tools.local.readFileTool
 import me.rerere.rikkahub.data.ai.tools.local.writeBinaryFileTool
@@ -198,7 +198,6 @@ sealed class LocalToolOption {
     @Serializable @SerialName("telegram_bot")    data object TelegramBot    : LocalToolOption()
     @Serializable @SerialName("screen_automation") data object ScreenAutomation : LocalToolOption()
     @Serializable @SerialName("app_launcher")      data object AppLauncher       : LocalToolOption()
-    @Serializable @SerialName("termux")            data object Termux            : LocalToolOption()
     @Serializable @SerialName("notification_listener") data object NotificationListener : LocalToolOption()
     @Serializable @SerialName("files")               data object Files              : LocalToolOption()
     @Serializable @SerialName("mcp_control")         data object McpControl         : LocalToolOption()
@@ -401,12 +400,6 @@ class LocalTools(
     // toggle ([LocalToolOption.Browser]) acts as the group on/off; per-tool toggles act as
     // a sub-allow-list. Both must be true for a tool to register.
     private val browserPreferences: me.rerere.rikkahub.browser.BrowserPreferences,
-    // TermuxPreferences is injected here solely to force Koin to construct it at first tool
-    // use (same trick as browserPreferences above). Koin singles are lazy; without this
-    // constructor reference the singleton — and its init{} sync seed + async collectors —
-    // would never build in headless sessions that skip Settings -> Termux.
-    @Suppress("UNUSED_PARAMETER")
-    termuxPreferences: me.rerere.rikkahub.data.preferences.TermuxPreferences,
     // Post-action screenshot streamer for headless mode (Telegram bot / cron / sub-agent).
     // Injected rather than Koin-resolved inside each factory so JVM tests can pass a mock.
     private val interactiveToolStreamer: InteractiveToolStreamer,
@@ -876,6 +869,11 @@ class LocalTools(
         }
         if (options.contains(LocalToolOption.SpeechToText)) {
             tools.add(speechToTextTool(context))
+            // File transcription (mic-free) rides the same toggle: audio is decoded in-process
+            // and handed to the platform recognizer, so it needs no extra backend.
+            tools.add(transcribeAudioFileTool(context))
+            // recognizer_status is a free read-only pre-flight probe — no approval needed.
+            tools.add(recognizerStatusTool(context))
         }
         if (options.contains(LocalToolOption.Fingerprint)) {
             tools.add(fingerprintTool(context, biometricResultBuffer))
@@ -948,23 +946,6 @@ class LocalTools(
             tools.add(me.rerere.rikkahub.data.ai.tools.local.listAppActivitiesTool(context))
             tools.add(me.rerere.rikkahub.data.ai.tools.local.launchActivityTool(context, invocationContext, interactiveToolStreamer))
             tools.add(me.rerere.rikkahub.data.ai.tools.local.openUrlTool(context, invocationContext, interactiveToolStreamer))
-        }
-        if (options.contains(LocalToolOption.Termux)) {
-            tools.add(me.rerere.rikkahub.data.ai.tools.local.termuxRunCommandTool(context))
-            // Persistent interactive (tmux-backed) sessions: ssh-with-prompts, sudo, REPLs,
-            // stateful shells. start is approval-gated; send is hardline-guarded per call.
-            tools.add(me.rerere.rikkahub.data.ai.tools.local.termuxSessionStartTool(context))
-            tools.add(me.rerere.rikkahub.data.ai.tools.local.termuxSessionSendTool(context))
-            tools.add(me.rerere.rikkahub.data.ai.tools.local.termuxSessionReadTool(context))
-            tools.add(me.rerere.rikkahub.data.ai.tools.local.termuxSessionKillTool(context))
-            tools.add(me.rerere.rikkahub.data.ai.tools.local.termuxSessionListTool(context))
-            // transcribe_audio_file shells out to whisper-cli via Termux's RUN_COMMAND
-            // service — it has a hard transitive dependency on Termux being present. No
-            // separate toggle; it lives under the Termux toggle.
-            tools.add(transcribeAudioFileTool(context))
-            // whisper_status is a free read-only pre-flight check — no approval needed.
-            // The LLM calls this BEFORE attempting transcription to know what's set up.
-            tools.add(whisperStatusTool(context, settingsStore))
         }
         if (options.contains(LocalToolOption.NotificationListener)) {
             tools.add(listRecentNotificationsTool())

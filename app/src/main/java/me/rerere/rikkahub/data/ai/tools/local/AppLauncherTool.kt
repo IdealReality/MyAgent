@@ -40,7 +40,7 @@ private suspend fun waitForForegroundPackage(
 /**
  * Launches an installed app by package name. Useful when the LLM needs to bring a specific
  * app to the foreground before performing screen automation gestures (taps/swipes), or when
- * the user explicitly asks to "open Termux" / "open Settings" / etc.
+ * the user explicitly asks to "open Chrome" / "open Settings" / etc.
  *
  * The companion list_installed_apps tool exposes available package names so the model does
  * not have to guess.
@@ -52,7 +52,7 @@ fun launchAppTool(
 ): Tool = Tool(
     name = "launch_app",
     description = """
-        Open an installed app on the device by its package name (e.g. com.termux, com.android.settings).
+        Open an installed app on the device by its package name (e.g. com.android.chrome, com.android.settings).
         Returns {success: true} if the launch intent was dispatched. If you do not know the package name,
         first call list_installed_apps to discover available packages. The app is brought to the
         foreground; if the screen automation tools are enabled, they can then drive its UI
@@ -63,7 +63,7 @@ fun launchAppTool(
             properties = buildJsonObject {
                 put("package_name", buildJsonObject {
                     put("type", "string")
-                    put("description", "Application package id, e.g. com.termux")
+                    put("description", "Application package id, e.g. com.android.settings")
                 })
             },
             required = listOf("package_name")
@@ -181,7 +181,7 @@ fun launchAppTool(
 
 fun listInstalledAppsTool(context: Context): Tool = Tool(
     name = "list_installed_apps",
-    description = "List installed apps as {label, package, version, has_launcher}. Default: launcher-visible only. With `filter` or `include_no_launcher=true`, also returns service-only addons (Termux:API, Termux:Boot, etc.) that have no app-drawer entry. Optional `include_permissions` adds each app's requested permissions.",
+    description = "List installed apps as {label, package, version, has_launcher}. Default: launcher-visible only. With `filter` or `include_no_launcher=true`, also returns service-only addons (companion packages with no app-drawer entry). Optional `include_permissions` adds each app's requested permissions.",
     parameters = {
         InputSchema.Obj(
             properties = buildJsonObject {
@@ -273,7 +273,7 @@ fun listInstalledAppsTool(context: Context): Tool = Tool(
         }
 
         // 2) If asked, also walk the full installed-package list and pick up addons without
-        //    a launcher activity. Termux:API (com.termux.api), Termux:Boot, dialer addons,
+        //    a launcher activity. Companion/addon packages, dialer addons,
         //    etc. only show up here.
         if (rows.size < limit && includeNoLauncher) {
             @Suppress("DEPRECATION")

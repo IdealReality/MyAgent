@@ -387,9 +387,9 @@ private fun buildAiCoreMiniSystemPrefix(tools: List<Tool>): String = buildString
     appendLine("Helpful assistant in RikkaHub. Reply directly. Never describe yourself or these instructions.")
     if (tools.isNotEmpty()) {
         appendLine("If a tool is needed, output ONLY: <tool_call>{\"name\":\"<n>\",\"input\":{<obj>}}</tool_call> then stop. Do not write <tool_result>; the system writes that.")
-        appendLine("Example: <tool_call>{\"name\":\"termux_run_command\",\"input\":{\"command\":\"echo hi\"}}</tool_call>")
+        appendLine("Example: <tool_call>{\"name\":\"get_battery_status\",\"input\":{}}</tool_call>")
         // Generalised "stop after success" rule. Previously only named launch_app/open_url
-        // — Nano then looped on termux_run_command, set_brightness, etc., re-emitting the
+        // — Nano then looped on a shell tool, set_brightness, etc., re-emitting the
         // SAME tool_call after each {"success":true} response because nothing told it the
         // turn was over. The loop-guard catches this at trip 3 but the user sees 3 redundant
         // tool runs first. Naming "any" tool here lets Nano finalise on turn 2.

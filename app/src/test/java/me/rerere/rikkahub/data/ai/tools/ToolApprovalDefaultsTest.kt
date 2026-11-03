@@ -43,7 +43,7 @@ class ToolApprovalDefaultsTest {
     fun `the recommended set still lists the classic side-effecting tools`() {
         // 推荐黑名单保留了「用户想主动管起来时」的入口，只是默认不生效。
         assertTrue("launch_activity" in ToolApprovalDefaults.DANGEROUS_TOOLS)
-        assertTrue("termux_run_command" in ToolApprovalDefaults.DANGEROUS_TOOLS)
+        assertTrue("ssh_exec" in ToolApprovalDefaults.DANGEROUS_TOOLS)
         assertTrue("write_text_file" in ToolApprovalDefaults.DANGEROUS_TOOLS)
     }
 }

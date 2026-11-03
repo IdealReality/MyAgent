@@ -82,7 +82,7 @@ class SkillUrlImporter(
      * content first and pass the body to this method:
      *
      *  - `ssh_exec_saved("myserver", "cat ~/skills/morning.md")` → pipe stdout into here
-     *  - `termux_run_command("curl -H 'Authorization: Bearer ...' https://api/me/skill")`
+     *  - `ssh_exec(command="curl -H 'Authorization: Bearer ...' https://api/me/skill")`
      *  - any MCP tool returning a markdown body
      *  - the user pastes the content directly via clipboard / chat
      *
@@ -390,7 +390,7 @@ object ToolNameTranscoder {
         // openclaw → RikkaHub. Keys are case-sensitive; the lowercase common-English
         // duplicates (bash/shell/ssh/notify/send_message-in-prose) were dropped because
         // they collide with ordinary words.
-        "Bash" to "termux_run_command",
+        "Bash" to "ssh_exec",
         "Read" to "read_file",
         "Write" to "write_text_file",
         "Edit" to "write_text_file",

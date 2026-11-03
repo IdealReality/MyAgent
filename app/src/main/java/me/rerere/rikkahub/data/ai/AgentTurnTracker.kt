@@ -16,9 +16,9 @@ object AgentTurnTracker {
 
     /**
      * Per-package timestamp recording the last time the agent itself interacted with a
-     * package (launch_app, open_url, termux_run_command). The notification listener checks
+     * package (launch_app, open_url). The notification listener checks
      * this before forwarding to Telegram so a user driving the agent does not get spammed
-     * with status pings from the very work the agent just kicked off (Termux's "1 session"
+     * with status pings from the very work the agent just kicked off (a shell app's "1 session"
      * counter is the canonical offender).
      */
     private val touchedPackages = java.util.concurrent.ConcurrentHashMap<String, Long>()

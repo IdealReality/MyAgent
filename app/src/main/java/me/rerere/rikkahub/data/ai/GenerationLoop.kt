@@ -469,7 +469,7 @@ private const val TAG_GH_LOOP = "GenHandlerLoop"
 private const val LOOP_GUARD_REPEAT_THRESHOLD = 3
 
 // The per-turn wall-clock budget was hardcoded here (most recently 10 min). It now lives in
-// ToolRuntimeLimits.turnBudgetMs (default 30 min), user-configurable via Settings -> Termux;
+// ToolRuntimeLimits.turnBudgetMs (default 30 min), user-configurable via Settings -> Model ->
 // every read site below uses that holder directly.
 
 /**
@@ -995,7 +995,7 @@ class GenerationLoop(
                     // HARDLINE check: certain command patterns (rm -rf /, mkfs, shutdown,
                     // fork bomb, …) are blocked unconditionally — even "Always Allow"
                     // can't override. We check BEFORE the auto-approval lookup so a
-                    // permanently-allowed termux/ssh tool still can't smuggle one of
+                    // permanently-allowed ssh tool still can't smuggle one of
                     // these through. Result: tool is marked Denied with the hardline
                     // reason, the regular Denied branch downstream emits an error
                     // envelope to the model without executing.
@@ -1211,7 +1211,7 @@ class GenerationLoop(
                                                             "back to the user with what you have so far. Examples: for 'search " +
                                                             "X in chrome' use open_url(\"https://www.google.com/search?q=X\") " +
                                                             "instead of fighting Chrome's URL bar via set_text; for terminal " +
-                                                            "tasks use termux_run_command instead of typing into Termux."
+                                                            "tasks use a shell tool instead of typing into a terminal app."
                                                     )
                                                 )
                                             }
@@ -1485,7 +1485,7 @@ class GenerationLoop(
     /**
      * If the agent navigated away from RikkaHub during this turn (launch_app / open_url) and
      * the user is still on that destination, bring RikkaHub back to the foreground so the
-     * user is not stranded inside Chrome / Termux / etc. If the user manually switched apps
+     * user is not stranded inside another app / etc. If the user manually switched apps
      * mid-turn, we skip the auto-return and surface a Toast explaining the safety behavior.
      */
     private fun handleAutoReturnAfterTurn() {

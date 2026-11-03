@@ -113,10 +113,10 @@ class LocalToolPaletteTest {
                 LocalToolOption.Ssh to listOf("ssh_exec"),
                 LocalToolOption.Files to emptyList(),
                 LocalToolOption.Ssh to listOf("ssh_download"),
-                LocalToolOption.Termux to listOf("termux_run_command"),
+                LocalToolOption.Files to listOf("read_file"),
             )
         )
-        assertEquals(listOf(LocalToolOption.Ssh, LocalToolOption.Termux), palette.groups)
+        assertEquals(listOf(LocalToolOption.Ssh, LocalToolOption.Files), palette.groups)
         assertEquals(3, palette.size)
     }
 

@@ -208,23 +208,15 @@ class HardlineCommandGuardTest {
     }
 
     // -----------------------------------------------------------------------
-    // Tool-aware entrypoint: termux command/exe + ssh
+    // Tool-aware entrypoint: shell tools with a `command` field
     // -----------------------------------------------------------------------
 
-    @Test fun `termux command form blocks rm -rf root`() {
+    @Test fun `ssh_exec command form blocks rm -rf root`() {
         val reason = HardlineCommandGuard.checkTool(
-            "termux_run_command",
+            "ssh_exec",
             """{"command":"rm -rf /"}"""
         )
         assertNotNull("expected hardline match", reason)
-    }
-
-    @Test fun `termux executable+arguments form blocks shutdown`() {
-        val reason = HardlineCommandGuard.checkTool(
-            "termux_run_command",
-            """{"executable":"/usr/sbin/shutdown","arguments":["-h","now"]}"""
-        )
-        assertNotNull("expected hardline match in executable form", reason)
     }
 
     @Test fun `ssh_exec blocks rm -rf root`() {
@@ -261,7 +253,7 @@ class HardlineCommandGuardTest {
     }
 
     @Test fun `malformed JSON returns null instead of throwing`() {
-        val reason = HardlineCommandGuard.checkTool("termux_run_command", "{not json")
+        val reason = HardlineCommandGuard.checkTool("ssh_exec", "{not json")
         assertNull("malformed input should not crash", reason)
     }
 
@@ -316,7 +308,7 @@ class HardlineCommandGuardTest {
             "subagent_dispatch with rm -rf / in the prompt should block",
             HardlineCommandGuard.checkTool(
                 "subagent_dispatch",
-                """{"prompt":"please run rm -rf / to clean up","tools":["termux_run_command"]}"""
+                """{"prompt":"please run rm -rf / to clean up","tools":["ssh_exec"]}"""
             )
         )
         assertNotNull(

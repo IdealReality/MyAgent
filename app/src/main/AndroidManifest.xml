@@ -4,10 +4,10 @@
 
   <uses-permission android:name="android.permission.INTERNET" />
   <!-- Required for ConnectivityManager.registerNetworkCallback (NetworkChangeMonitor)
-       which evicts the OkHttp connection pool on default-network changes. Fixes the
-       post-Termux-interactive-session DNS bug where the JVM negative-cached a transient
-       lookup failure during background and held onto it after return. Auto-granted (normal
-       permission) but declaring is required. -->
+       which evicts the OkHttp connection pool on default-network changes. Fixes a DNS bug
+       where the JVM negative-cached a transient lookup failure while the app was
+       backgrounded and held onto it after return. Auto-granted (normal permission) but
+       declaring is required. -->
   <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
   <uses-permission android:name="android.permission.CAMERA" />
   <uses-permission
@@ -73,12 +73,6 @@
   <uses-permission
       android:name="android.permission.QUERY_ALL_PACKAGES"
       tools:ignore="QueryAllPackagesPermission" />
-  <!-- Custom permission Termux's RunCommandService gates access by. Without this declaration
-       ActivityManager rejects our intent with "Permission Denial requires
-       com.termux.permission.RUN_COMMAND" before Termux even sees it. The user still needs
-       allow-external-apps=true in ~/.termux/termux.properties on their side. -->
-  <uses-permission android:name="com.termux.permission.RUN_COMMAND" />
-
   <!-- Phase 25 — Phase 3 second cut. SEND_SMS is a runtime (dangerous) permission granted
        at toggle-on for the send_sms tool. SET_WALLPAPER and NFC are install-time. SAF and
        the archive tools need no manifest change (SAF is grant-driven; zip is pure JDK). -->

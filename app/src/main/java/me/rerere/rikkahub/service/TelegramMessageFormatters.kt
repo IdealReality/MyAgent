@@ -131,9 +131,9 @@ internal fun formatDurationCompact(ms: Long): String {
 }
 
 /**
- * Drops the noisy "/data/data/com.termux/files/usr/bin/bash: line N: " prefix that
- * Termux's bash adds to every stderr line. Without this every shell error reads:
- *   "/data/data/com.termux/files/usr/bin/bash: line 1: npm: command not found"
+ * Drops the noisy "<shell-path>/bash: line N: " prefix that some shells add to every
+ * stderr line. Without this every shell error reads:
+ *   "/usr/bin/bash: line 1: npm: command not found"
  * which buries the actual signal ("npm: command not found"). Best-effort regex; if no
  * match, returns the line unchanged.
  */

@@ -686,7 +686,7 @@ class TelegramBotService : Service() {
         // got replayed on every subsequent turn AND every agentic-loop step, burning
         // ~80 tokens × turn count of pure duplication.
         // Detect audio-class attachments BEFORE building the preamble so we can inject the
-        // whisper_status hint in the same addendum. Voice / audio / video_note all count.
+        // recognizer_status hint in the same addendum. Voice / audio / video_note all count.
         val hasAudioAttachment = m.attachments.any { att ->
             att.kind == AttachmentKind.VOICE ||
             att.kind == AttachmentKind.AUDIO ||
@@ -700,7 +700,7 @@ class TelegramBotService : Service() {
         // Download any inbound photos to the per-chat shared-storage inbox. They are attached as
         // UIMessagePart.Image for the vision pipeline (FileEncoder reads file:// only) AND their
         // saved paths are surfaced in the message text via buildPhotoNote, so a text-only model
-        // can still OCR / process them through file tools or Termux.
+        // can still OCR / process them through file tools.
         val (imageParts, photoPaths) = downloadInboundPhotos(client, m.chatId, m.photoFileIds)
         val photoNote = buildPhotoNote(photoPaths)
 
@@ -1130,17 +1130,15 @@ class TelegramBotService : Service() {
             }
             if (hasAudioAttachment) {
                 append("AUDIO ATTACHMENT — STRICT FLOW. This message has a voice note or audio file. ")
-                append("Your VERY FIRST tool call this turn must be `whisper_status()`. NOT termux_run_command, ")
-                append("NOT search_web, NOT transcribe_audio_file, NOT pkg/apt commands. Just whisper_status, once, ")
-                append("with no arguments. Read its response. ")
+                append("Your VERY FIRST tool call this turn must be `recognizer_status()`, with no arguments. ")
+                append("Read its response. ")
                 append("Then: if `ready_to_transcribe: true`, call `transcribe_audio_file(path)` with the saved path ")
-                append("from the inbox manifest above. ")
-                append("If `ready_to_transcribe: false`, tell the user EXACTLY what's missing (use the `missing_steps` ")
-                append("list verbatim) and quote the relevant entry from `install_commands` for them to confirm. ")
-                append("Do NOT begin installing on your own — the build takes ~5 minutes and downloads ~75 MB ")
-                append("on the user's data plan. Wait for an explicit yes before running install commands. ")
-                append("If a tool errors, READ THE ENVELOPE — the recovery field tells you what to do; do not ")
-                append("retry the same tool with different args or pivot to manual termux commands.\n")
+                append("from the inbox manifest above — the file is decoded in-process and sent to the device's ")
+                append("speech recognizer, so there is nothing to install. ")
+                append("If `ready_to_transcribe: false`, no speech recognition service is installed; say so plainly ")
+                append("and suggest enabling one in system settings (or installing the Google app). ")
+                append("If a tool errors, READ THE ENVELOPE — the detail field tells you what to do; do not ")
+                append("retry the same tool with different args.\n")
             }
             if (hasPhotoAttachment) {
                 val modelCanSeeImages = model?.inputModalities?.contains(Modality.IMAGE) == true
@@ -1153,7 +1151,7 @@ class TelegramBotService : Service() {
                     append("photos, but the current model has no vision capability. Do NOT describe ")
                     append("or guess what the image shows. Their saved file path(s) are listed in ")
                     append("the message text — to read the contents, OCR the file (e.g. ")
-                    append("`tesseract <path> stdout` via termux_run_command) or process it with ")
+                    append("OCR it on a device with a suitable tool) or process it with ")
                     append("another file tool.\n")
                 }
             }
@@ -2176,7 +2174,7 @@ class TelegramBotService : Service() {
             "status" to "Show service state, current model, assistant, and rate limit",
             "model" to "Show or switch the chat model. Usage: /model [name]",
             "ratelimit" to "Show or set the assistant's max output tokens. Usage: /ratelimit [number|clear]",
-            "doctor" to "Run app diagnostics — perms, services, DB, network, Termux",
+            "doctor" to "Run app diagnostics — perms, services, DB, network",
             "stream" to "Show or toggle auto-streamed screenshots. Usage: /stream [on|off]",
         )
 

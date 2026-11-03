@@ -14,7 +14,7 @@ import org.junit.Test
 
 class ScheduleJobToolValidationTest {
 
-    private val knownTools = listOf("post_notification", "telegram_send_message", "termux_run_command")
+    private val knownTools = listOf("post_notification", "telegram_send_message", "ssh_exec")
 
     private fun base(): JsonObject = buildJsonObject {
         put("name", "test")
@@ -79,7 +79,7 @@ class ScheduleJobToolValidationTest {
         val r = ScheduleJobValidator.validate(buildJsonObject {
             put("name", "x"); put("mode", "direct")
             put("actions", buildJsonArray { add(buildJsonObject {
-                put("tool", "termux_run_command")
+                put("tool", "ssh_exec")
                 put("args", buildJsonObject { put("command", "rm -rf /") })
             }) })
             put("schedule_type", "once"); put("at_unix_ms", 100L)

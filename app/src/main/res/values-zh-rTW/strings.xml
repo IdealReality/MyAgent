@@ -1226,7 +1226,7 @@
   <string name="accessibility_service_summary">當大型語言模型使用螢幕自動化工具時，允許 RikkaHub 點選、滑動、捲動、讀取螢幕內容和截圖。</string>
   <string name="assistant_page_fast_path_router">快速路徑路由</string>
   <string name="assistant_page_fast_path_router_desc">對於高信心度的請求（如「我的電量是多少」、「現在幾點」或「列出工作流程」），跳過大型語言模型。比對的工具直接執行，你立即得到答案。保守策略 — 任何含糊的請求仍會交給模型。記錄到 logcat（標籤：FastPathRouter）。</string>
-  <string name="assistant_page_local_tools_app_launcher_desc">按套件名稱開啟已安裝的應用程式（例如 Termux、設定）並列出可用應用程式。與螢幕自動化搭配可實現完整的介面控制。</string>
+  <string name="assistant_page_local_tools_app_launcher_desc">按套件名稱開啟已安裝的應用程式（例如 Chrome、設定）並列出可用應用程式。與螢幕自動化搭配可實現完整的介面控制。</string>
   <string name="assistant_page_local_tools_app_launcher_title">應用程式啟動器</string>
   <string name="assistant_page_local_tools_audio_info_desc">讀取響鈴模式、音樂播放狀態、耳機連接和輸出裝置。</string>
   <string name="assistant_page_local_tools_audio_info_title">音訊資訊</string>
@@ -1264,7 +1264,7 @@
   <string name="assistant_page_local_tools_listening_toast">正在聆聽 — 請說話…</string>
   <string name="assistant_page_local_tools_location_desc">讀取裝置目前位置（緯度、經度、精確度）。</string>
   <string name="assistant_page_local_tools_location_title">位置</string>
-  <string name="assistant_page_local_tools_mcp_control_desc">讓助理新增、編輯和移除 MCP 伺服器。助理可以在 Termux 或遠端 SSH 主機上安裝 MCP，然後將其接入應用程式 — 無需你開啟設定。</string>
+  <string name="assistant_page_local_tools_mcp_control_desc">讓助理新增、編輯和移除 MCP 伺服器。助理可以在遠端 SSH 主機上安裝 MCP，然後將其接入應用程式 — 無需你開啟設定。</string>
   <string name="assistant_page_local_tools_mcp_control_title">MCP 控制</string>
   <string name="assistant_page_local_tools_media_player_desc">從檔案路徑或網址播放和停止音訊。</string>
   <string name="assistant_page_local_tools_media_player_title">媒體播放器</string>
@@ -1319,22 +1319,6 @@
   <string name="assistant_page_local_tools_telegram_title">Telegram 機器人</string>
   <string name="assistant_page_local_tools_telephony_desc">讀取 SIM 卡和網路資訊（電信業者、網路類型）。需要 READ_PHONE_STATE 權限。</string>
   <string name="assistant_page_local_tools_telephony_title">電話資訊</string>
-  <string name="assistant_page_local_tools_termux_postgrant_command">mkdir -p ~/.termux &amp;&amp; echo \'allow-external-apps=true\' &gt;&gt; ~/.termux/termux.properties</string>
-  <string name="assistant_page_local_tools_termux_postgrant_copied">指令已複製 — 將其貼到 Termux 中。</string>
-  <string name="assistant_page_local_tools_termux_postgrant_copy">複製指令</string>
-  <string name="assistant_page_local_tools_termux_postgrant_message">RUN_COMMAND 權限已授予。在助理能執行指令之前，Termux 還需要在 `~/.termux/termux.properties` 中設定 `allow-external-apps=true`。\n\n開啟 Termux 並貼上下面的指令，然後從應用程式資訊中強制停止 Termux 並重新開啟。\n\n點選「驗證」後，此列會變為綠色。</string>
-  <string name="assistant_page_local_tools_termux_postgrant_title">Termux 還差一步</string>
-  <string name="assistant_page_local_tools_termux_status_no_permission">開啟開關以授予 RUN_COMMAND 權限</string>
-  <string name="assistant_page_local_tools_termux_status_not_installed">未安裝 Termux - 從 github.com/termux/termux-app/releases 安裝</string>
-  <string name="assistant_page_local_tools_termux_status_ok">已連接 - 指令執行並擷取輸出</string>
-  <string name="assistant_page_local_tools_termux_status_untested">即將就緒。開啟 Termux 並執行：mkdir -p ~/.termux &amp;&amp; echo \'allow-external-apps=true\' &gt;&gt; ~/.termux/termux.properties — 然後強制停止 Termux 並重新開啟。點選驗證。</string>
-  <string name="assistant_page_local_tools_termux_title">Termux 整合</string>
-  <string name="assistant_page_local_tools_termux_verify">點選驗證</string>
-  <string name="assistant_page_local_tools_termux_verify_no_permission">未授予 RUN_COMMAND 權限。將 Termux 開關關閉再開啟以重試系統提示。</string>
-  <string name="assistant_page_local_tools_termux_verify_ok">Termux 整合已驗證。</string>
-  <string name="assistant_page_local_tools_termux_verify_props_missing">Termux 未回應。開啟 Termux 並執行：mkdir -p ~/.termux &amp;&amp; echo \'allow-external-apps=true\' &gt;&gt; ~/.termux/termux.properties — 然後強制停止 Termux 並重新開啟。</string>
-  <string name="assistant_page_local_tools_termux_verify_unexpected">Termux 已回應，但輸出異常：%1$s</string>
-  <string name="assistant_page_local_tools_termux_verifying">正在驗證整合…</string>
   <string name="assistant_page_local_tools_toast_desc">在目前螢幕內容上方顯示一個簡短的 toast 彈出視窗。</string>
   <string name="assistant_page_local_tools_toast_title">Toast 提示</string>
   <string name="assistant_page_local_tools_torch_desc">開啟或關閉相機閃光燈。</string>
@@ -1510,7 +1494,7 @@
   <string name="setting_page_browser_desc">AI 驅動的網頁瀏覽器和技能檢視器。</string>
   <string name="setting_page_doctor">診斷工具</string>
   <string name="setting_page_doctor_copy_report">複製報告</string>
-  <string name="setting_page_doctor_desc">診斷並修復應用程式 — 權限、服務、資料庫、網路、Termux。</string>
+  <string name="setting_page_doctor_desc">診斷並修復應用程式 — 權限、服務、資料庫、網路。</string>
   <string name="setting_page_doctor_report_copied">診斷報告已複製到剪貼簿。</string>
   <string name="setting_page_doctor_run_again">重新執行</string>
   <string name="setting_page_doctor_running">正在執行…</string>
@@ -2004,54 +1988,14 @@
   <string name="setting_browser_per_tool_timeout_unit">秒</string>
   <string name="setting_browser_single_task_timeout_desc">單次 AI 驅動瀏覽器工作的硬性上限，用於限制失控迴圈。範圍為 1 分鐘到 60 分鐘。</string>
   <string name="setting_browser_single_task_timeout_unit">分鐘</string>
-  <string name="setting_page_termux">Termux</string>
-  <string name="setting_page_termux_desc">Shell 指令、逾時與 Termux 整合。</string>
   <string name="setting_page_shizuku">Shizuku</string>
   <string name="setting_page_shizuku_desc">為透過 Shizuku 執行的 shell 指令授權並檢查狀態。</string>
-  <string name="setting_termux_title">Termux</string>
-  <string name="setting_termux_section_status">狀態</string>
-  <string name="setting_termux_status_app">Termux 應用程式</string>
-  <string name="setting_termux_status_app_installed">已安裝 — 點一下開啟</string>
-  <string name="setting_termux_status_app_missing">未安裝 — 點一下下載</string>
-  <string name="setting_termux_status_open">開啟 Termux</string>
-  <string name="setting_termux_status_open_desc">啟動 Termux 應用程式</string>
-  <string name="setting_termux_status_permission">RUN_COMMAND 權限</string>
-  <string name="setting_termux_status_permission_granted">已授權 — 點一下重新要求</string>
-  <string name="setting_termux_toast_permission_granted">權限已授予</string>
-  <string name="setting_termux_status_permission_missing">未授權 — 點一下要求</string>
-  <string name="setting_termux_status_verify">allow-external-apps</string>
-  <string name="setting_termux_status_verify_ok">驗證通過</string>
-  <string name="setting_termux_status_verify_unknown">尚未驗證 — 點一下執行冒煙測試</string>
-  <string name="setting_termux_verify_ok">Termux 驗證通過。</string>
-  <string name="setting_termux_verify_not_installed">未安裝 Termux。</string>
-  <string name="setting_termux_verify_no_permission">未授予 RUN_COMMAND 權限。</string>
-  <string name="setting_termux_verify_allow_external_apps">已逾時 — ~/.termux/termux.properties 中可能未設定 allow-external-apps=true。</string>
-  <string name="setting_termux_verify_unexpected_output">冒煙測試輸出異常。</string>
-  <string name="setting_termux_verify_other_error">驗證失敗：%s</string>
-  <string name="setting_termux_section_timeouts">逾時</string>
-  <string name="setting_termux_command_timeout">預設指令逾時</string>
-  <string name="setting_termux_command_timeout_desc">等待背景 shell 指令傳回輸出的時長。範圍為 5 秒到 600 秒。</string>
   <string name="setting_model_page_turn_budget">單輪總時間預算</string>
   <string name="setting_model_page_turn_budget_desc">單一回合（含模型生成與工具執行）的總時長上限，逾時強制結束。範圍 1 分鐘到 720 分鐘（12 小時）。</string>
-  <string name="setting_termux_verify_timeout">冒煙測試驗證逾時</string>
-  <string name="setting_termux_verify_timeout_desc">allow-external-apps echo 冒煙測試的逾時時間。範圍為 3 秒到 30 秒。</string>
-  <string name="setting_termux_unit_seconds">秒</string>
-  <string name="setting_termux_unit_minutes">分鐘</string>
-  <string name="setting_termux_unit_steps">步驟</string>
+  <string name="setting_generation_limits_unit_minutes">分鐘</string>
+  <string name="setting_generation_limits_unit_steps">步驟</string>
   <string name="setting_model_page_max_tool_steps">每輪工具步驟數</string>
-  <string name="setting_model_page_max_tool_steps_desc">一次回覆在被強制結束前最多可連續呼叫多少次工具。對所有工具生效（不只 Termux）。若需執行較長的安裝或建置工作，可調高此值。範圍為 1 到 1500；上方的回合時間預算仍然適用。</string>
-  <string name="setting_termux_unit_bytes">位元組</string>
-  <string name="setting_termux_section_defaults">預設值與限制</string>
-  <string name="setting_termux_working_dir">預設工作目錄</string>
-  <string name="setting_termux_max_stdout">stdout 擷取上限</string>
-  <string name="setting_termux_max_stdout_desc">每則指令傳回給 AI 的 stdout 最大位元組數。範圍為 1000 到 64000。</string>
-  <string name="setting_termux_max_stderr">stderr 擷取上限</string>
-  <string name="setting_termux_max_stderr_desc">每則指令傳回給 AI 的 stderr 最大位元組數。範圍為 500 到 16000。</string>
-  <string name="setting_termux_apt_wrap">自動以非互動模式包裝 apt/dpkg</string>
-  <string name="setting_termux_apt_wrap_desc">在指令前加上 DEBIAN_FRONTEND=noninteractive，避免 apt 升級因等待互動式提示而卡住。</string>
-  <string name="setting_termux_section_help">設定說明</string>
-  <string name="setting_termux_help_allow_external_apps_title">如何啟用 allow-external-apps</string>
-  <string name="setting_termux_help_allow_external_apps_body">在 Termux 中執行：\n\n  mkdir -p ~/.termux\n  echo \'allow-external-apps=true\' &gt;&gt; ~/.termux/termux.properties\n\n然後從 Android 應用程式資訊中強制停止 Termux 並重新開啟。之後，點一下上方的驗證列以確認連線正常運作。</string>
+  <string name="setting_model_page_max_tool_steps_desc">一次回覆在被強制結束前最多可連續呼叫多少次工具。對所有工具生效。若需執行較長的安裝或建置工作，可調高此值。範圍為 1 到 1500；上方的回合時間預算仍然適用。</string>
   <string name="setting_shizuku_title">Shizuku</string>
   <string name="setting_shizuku_section_status">狀態</string>
   <string name="setting_shizuku_status_app">Shizuku 應用程式</string>

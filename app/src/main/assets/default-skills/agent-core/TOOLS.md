@@ -47,15 +47,14 @@ Every tool the agent can call, grouped by capability surface. Each entry lists: 
 - **`scan_media`** — tell Android's media scanner about new files so they show up in Gallery / Music.
 - **`download_file`** — fetch URL into Downloads via DownloadManager.
 - **`write_text_file`** — save text to a path. Defaults refuse if file exists.
-- **`whisper_status()`** — check whether whisper.cpp transcription is ready: Termux toggle
-  enabled, Termux app installed, whisper-cli on disk, model (.bin) present. Returns
-  `{termux_enabled_in_assistant, termux_app_installed, whisper_cli_installed, whisper_cli_path,
-  model_present, model_path, ready_to_transcribe, missing_steps[], install_commands}`.
+- **`recognizer_status()`** — check whether on-device audio transcription is available:
+  `{recognizer_available, record_audio_permission, ready_to_transcribe, note}`.
   Free/no approval. Call this BEFORE `transcribe_audio_file`.
-- **`transcribe_audio_file(path, language?)`** — transcribe speech in an audio file to text
-  using whisper.cpp (via Termux). Accepts OGG/Opus (Telegram voice notes), WAV, MP3, M4A,
-  FLAC. Returns `{success, text, language, audio_duration_sec, transcription_time_sec}`.
-  Requires Termux + whisper-cli + a model file.
+- **`transcribe_audio_file(path, language?, timeout_ms?)`** — transcribe speech in an audio
+  file to text with the device's own speech recognizer. The audio is decoded in-process
+  (MediaExtractor/MediaCodec → 16 kHz mono PCM) and fed to the recognizer, so nothing has to
+  be installed. Accepts OGG/Opus (Telegram voice notes), WAV, MP3, M4A, FLAC. Returns
+  `{success, text, language, audio_duration_sec}`.
   **NO HALLUCINATION RULE: `play_media` plays audio to the device speaker — it does NOT
   let the agent hear the content. When the user sends a voice note and asks what was said,
   ALWAYS call `transcribe_audio_file` to get the actual words. Never call `play_media` on a
@@ -64,16 +63,16 @@ Every tool the agent can call, grouped by capability surface. Each entry lists: 
 **Audio transcription flow**
 
 When the user sends an audio file or voice note (or otherwise asks for transcription),
-the FIRST tool you should call is `whisper_status()`. It tells you whether Termux is
-enabled, whisper.cpp is installed, and a model is present. Three outcomes:
+the FIRST tool you should call is `recognizer_status()`. Two outcomes:
 
 1. `ready_to_transcribe: true` → call `transcribe_audio_file(path, language?)` directly.
-2. `termux_enabled_in_assistant: false` → tell the user the Termux toggle needs to be on
-   for this assistant in Settings → Local Tools. You cannot enable it for them.
-3. Anything else missing (whisper not installed, model missing) → tell the user what's
-   missing AND the install commands from `install_commands`. Ask for explicit confirmation
-   BEFORE running them. The whisper.cpp build takes ~5 minutes; the model download is
-   ~75 MB. Don't silently install.
+2. `recognizer_available: false` → the device has no speech recognition service. Say so
+   plainly and suggest enabling one in system settings (or installing the Google app).
+   There is nothing for you to install from inside the app.
+
+If `transcribe_audio_file` returns `recognizer_rejected_audio_source`, the installed
+recognizer ignores file input; fall back to `speech_to_text` (live microphone) or hand the
+file to a model with audio input.
 
 NEVER call `play_media` on an audio file as a substitute for transcription — that plays
 it through the user's speaker but does NOT give YOU the content. Hallucinating what was
@@ -99,8 +98,8 @@ position. Instead: `get_media_status` (is it actually playing?), `get_volume` an
 
 System paths (`/system`, `/proc`, `/dev`, `/data/data/<other-apps>`) are blocked
 unconditionally with a `path_blocked` envelope. Path-traversal via `..` is
-canonicalized and blocked too. Prefer these tools over `termux_run_command` for
-file operations — faster, no shell needed, no Termux dependency.
+canonicalized and blocked too. Prefer these tools for file operations — they are faster
+than driving a terminal app and need no shell.
 
 ## Personal data (Phase 2)
 
@@ -123,14 +122,14 @@ Always read the screen *before* gesturing. The right pattern is `read_window_tre
 - **`scroll`** — direction up/down/left/right; falls back to swipe gesture if no scrollable container is found.
 - **`read_window_tree`** — current foreground window. Default mode filters to interactive nodes; pass `verbose:true` for the full tree (large; use sparingly). 500-node default cap.
 - **`find_node`** / **`click_node`** — selector by `text` / `content_description` / `view_id_resource_name`. `nth` disambiguates when multiple match. `click_node` walks up the parent chain to find a clickable ancestor automatically.
-- **`set_text`** — type into an editable input (URL bar, search field, form input). Locate the field with the same selector axes as `find_node`. **Does not work for terminals** like Termux that render to a Surface — for those, use `termux_run_command`.
+- **`set_text`** — type into an editable input (URL bar, search field, form input). Locate the field with the same selector axes as `find_node`. **Does not work for terminal apps** that render to a Surface — report that terminals cannot be typed into.
 - **`global_action`** — system gestures: `back`, `home`, `recents`, `notifications`, `quick_settings`, `lock_screen`, `power_dialog`.
 - **`take_screenshot`** — captures current display, returned as a vision-input image part on your next turn. Secure surfaces (DRM, banking, password fields) error out gracefully. ~1/sec OS rate limit.
 - **`wake_screen`** — turns the display on if it was off. Call this before `launch_app` or any gesture when the device may be asleep. Reports `keyguard_secure:true` if a real PIN is set; in that case the user must unlock manually before automation can continue.
 
 ## App launcher
 
-- **`launch_app`** — open any installed app by package name. Auto-wakes the screen if it was off and reports `woke_screen:true`. Use this to bring Termux / Settings / Chrome / any installed app to the foreground before screen automation.
+- **`launch_app`** — open any installed app by package name. Auto-wakes the screen if it was off and reports `woke_screen:true`. Use this to bring Settings / Chrome / any installed app to the foreground before screen automation.
 - **`list_installed_apps`** — discover available package names. Filter by substring; defaults to user-installed apps only.
 - **`open_url`** — hand a URL to the system's default handler. **Strongly preferred over `launch_app` + screen automation when the user's request maps cleanly to a URL.** Examples:
   - "search hello in chrome" → `open_url("https://www.google.com/search?q=hello")` — done in one tool call. Do NOT try to drive Chrome's URL bar via `set_text`; it is unreliable and you will loop.
@@ -140,15 +139,6 @@ Always read the screen *before* gesturing. The right pattern is `read_window_tre
   - "email foo@bar.com" → `open_url("mailto:foo@bar.com")`
 
   Pass `package_name` to force a specific browser; otherwise the system default opens.
-
-## Termux integration
-
-- **`termux_run_command`** — run a shell command in Termux. **Default mode captures output**: the command runs in the background and `stdout` / `stderr` / `exit_code` come back in the JSON envelope so you can reason on them. Examples: *"is python installed?"* → run `which python3 || echo missing`, read stdout, decide. *"how big is my home dir?"* → `du -sh ~`. Pass `interactive=true` for a visible session that the user can watch (no output capture in that mode — only useful when the user wants to see live output or run an interactive program like `nano`).
-  - Setup the user must do once: in Termux run `mkdir -p ~/.termux && echo 'allow-external-apps=true' >> ~/.termux/termux.properties`, then force-stop Termux and reopen it. The toggle row in the assistant Local-tools page has a state indicator (red/orange/yellow/green) and a "tap to verify" affordance that runs an end-to-end smoke test — once it goes green capture mode works.
-  - Errors return structured envelopes: `termux_not_installed`, `termux_permission_not_granted`, `termux_permission_denied` (allow-external-apps missing), `timeout`. The recovery field tells the user exactly what to fix; surface it verbatim.
-  - **Install source:** ONLY recommend the official GitHub releases page at `https://github.com/termux/termux-app/releases`. Do NOT recommend the Play Store or F-Droid — those builds are unmaintained and have known incompatibilities with newer Android versions. Same applies to addons (Termux:API, Termux:Boot, Termux:Styling, Termux:X11): GitHub releases only.
-  - **Local HTTP servers:** When you spin up a server in Termux that the user will hit from a browser on the *same phone*, bind it to `0.0.0.0` and visit `http://127.0.0.1:PORT` — never `localhost`. Some Android browsers and ROMs resolve `localhost` only over IPv6 loopback or fail outright; `127.0.0.1` is reliable. Also `pkill -f <process>` before relaunching, since a recently-killed server can leave the port in TIME_WAIT for ~30s and the new bind silently fails.
-  - **Noninteractive by default:** `command`-mode invocations are auto-wrapped with `DEBIAN_FRONTEND=noninteractive` and dpkg `--force-confdef --force-confold`, so `pkg upgrade` / `apt install` won't hang on debconf prompts. You don't need to set these yourself.
 
 ## Notification awareness
 
@@ -162,9 +152,9 @@ When `notification_listener` is enabled, the bound listener service maintains a 
 
 The auto-route forwarder is fire-and-forget — it formats the notification as `🔔 [App] Title: Text` and calls Telegram directly without an LLM round-trip. Empty whitelist by default; the user opts apps in via Settings → Notifications.
 
-## Detecting Termux addons
+## Detecting addon apps
 
-Termux:API, Termux:Boot, etc. are real installed packages but have **no launcher icon** — they show up only when `list_installed_apps` is called with a `filter` (or `include_no_launcher=true`). Each row carries `has_launcher: bool`; addons return `has_launcher: false` but `package` and `label` are still set, which is enough to confirm presence. The user reporting that `termux-vibrate` or any other `termux-api`-prefixed command works in Termux is conclusive proof that Termux:API is installed even if your earlier `list_installed_apps` call missed it — trust the user.
+Companion/addon packages are real installed packages but often have **no launcher icon** — they show up only when `list_installed_apps` is called with a `filter` (or `include_no_launcher=true`). Each row carries `has_launcher: bool`; addons return `has_launcher: false` but `package` and `label` are still set, which is enough to confirm presence. If the user reports that a companion package's feature works even though your earlier `list_installed_apps` call missed it, trust the user and re-query with `include_no_launcher=true`.
 
 ## SSH
 

@@ -408,8 +408,7 @@ fun clickNodeTool(
 /**
  * Type text into an editable accessibility node by selector. Works on standard input fields
  * (URL bars, search boxes, form fields, IME-driven text views). Does NOT work on terminals
- * like Termux because they render to a Surface and do not expose editable nodes; for Termux
- * use termux_run_command instead.
+ * because they render to a Surface and do not expose editable nodes.
  */
 fun setTextTool(
     invocationContext: ToolInvocationContext = ToolInvocationContext.EMPTY,
@@ -420,8 +419,7 @@ fun setTextTool(
         Type or replace text in an editable field, selected by node_id (preferred) or by/value.
         Type or replace text in an editable input field on screen. Find the field by selector
         (text / content_description / view_id_resource_name). Works for URL bars, search boxes,
-        form fields. Does NOT work for terminals like Termux that render natively - for Termux
-        use termux_run_command if that tool is enabled, otherwise report that terminals cannot
+        form fields. Does NOT work for terminals that render natively - report that terminals cannot
         be typed into. Returns {success, set_to, ...} or a structured error. The result carries
         an "after" object; check screen_changed in the after object to confirm the text landed.
     """.trimIndent().replace("\n", " "),
@@ -555,7 +553,7 @@ fun setTextTool(
                 if (editable == null) {
                     return@withActionEnvelope buildJsonObject {
                         put("error", "node_not_editable")
-                        put("recovery", "The matched node is not an editable input. Terminals (Termux) render natively and do not expose editable nodes; if the termux_run_command tool is enabled use it instead, otherwise report that terminals cannot be typed into.")
+                        put("recovery", "The matched node is not an editable input. Terminals render natively and do not expose editable nodes; report that terminals cannot be typed into.")
                     }
                 }
                 val args = android.os.Bundle().apply {

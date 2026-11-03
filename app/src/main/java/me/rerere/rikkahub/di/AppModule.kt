@@ -50,7 +50,10 @@ val appModule = module {
     single { TelegramChatRepository(get<me.rerere.rikkahub.data.db.AppDatabase>().telegramChatDao()) }
     single { TelegramBotPreferences(get()) }
     single { me.rerere.rikkahub.browser.BrowserPreferences(get()) }
-    single { me.rerere.rikkahub.data.preferences.TermuxPreferences(get()) }
+    // Generation limits (per-turn wall-clock budget + tool-step cap). Replaces the store that
+    // used to live inside the removed Termux preferences; the init{} block seeds
+    // ToolRuntimeLimits, so this must stay eagerly constructed (see RikkaHubApp).
+    single { me.rerere.rikkahub.data.ai.limits.GenerationLimitsPreferences(get()) }
     // Pass 3: Telegram-bound screenshot streamer for headless browser mode. Bound to the
     // [BrowserScreenshotStreamer] interface so [BrowserController.streamScreenshotIfHeadless]
     // can resolve it lazily via Koin without taking a constructor dep — avoids a cycle
@@ -212,7 +215,6 @@ val appModule = module {
             jsSkillRunner = get(),
             skillSecretsStore = get(),
             browserPreferences = get(),
-            termuxPreferences = get(),
             interactiveToolStreamer = get(),
             nfcResultBuffer = get(),
             safPickerResultBuffer = get(),

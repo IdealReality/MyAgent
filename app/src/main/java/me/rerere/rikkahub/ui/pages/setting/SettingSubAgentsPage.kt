@@ -852,7 +852,6 @@ internal fun localToolTitleRes(option: LocalToolOption): Int = when (option) {
         LocalToolOption.Shizuku -> R.string.assistant_page_local_tools_shizuku_title
         LocalToolOption.ScreenAutomation -> R.string.assistant_page_local_tools_screen_automation_title
         LocalToolOption.AppLauncher -> R.string.assistant_page_local_tools_app_launcher_title
-        LocalToolOption.Termux -> R.string.assistant_page_local_tools_termux_title
         LocalToolOption.KeyboardControl -> R.string.assistant_page_local_tools_keyboard_title
         LocalToolOption.VirtualDisplay -> R.string.assistant_page_local_tools_virtual_display_title
         LocalToolOption.AssistantConfig -> R.string.assistant_page_local_tools_assistant_config_title

@@ -272,7 +272,7 @@ class ActionTemplatesTest {
     @Test
     fun `a secret outside web_fetch headers is rejected`() {
         val args = buildJsonObject { put("command", "{{secret:TOKEN}}") }
-        val outcome = err(run(args, tool = "termux_run_command", known = setOf("TOKEN")))
+        val outcome = err(run(args, tool = "ssh_exec", known = setOf("TOKEN")))
         assertEquals("secret_not_allowed", outcome.code)
     }
 
@@ -316,7 +316,7 @@ class ActionTemplatesTest {
         assertFalse(ActionTemplates.secretRefAllowed("web_fetch", listOf("body")))
         assertFalse(ActionTemplates.secretRefAllowed("web_fetch", listOf("headers", "a", "b")))
         assertFalse(ActionTemplates.secretRefAllowed("web_extract", listOf("headers", "Authorization")))
-        assertFalse(ActionTemplates.secretRefAllowed("termux_run_command", listOf("headers", "X")))
+        assertFalse(ActionTemplates.secretRefAllowed("ssh_exec", listOf("headers", "X")))
     }
 
     @Test

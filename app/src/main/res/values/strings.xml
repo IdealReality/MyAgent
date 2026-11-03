@@ -1459,7 +1459,6 @@
   <string name="theme_name_autumn">Autumn Yellow</string>
   <string name="theme_name_black">Neutral Black</string>
   <string name="theme_name_claude">Claude</string>
-  <string name="theme_name_myagent">My Agent</string>
   <string name="theme_name_minimal">Minimal White</string>
   <string name="theme_name_ocean">Ocean Blue</string>
   <string name="theme_name_sakura">Sakura Pink</string>
@@ -1529,7 +1528,7 @@
   <string name="setting_page_scheduled_jobs">Scheduled jobs</string>
   <string name="setting_page_scheduled_jobs_desc">Time-based jobs the assistant scheduled — one-shots and recurring cron expressions.</string>
   <string name="setting_page_doctor">Doctor</string>
-  <string name="setting_page_doctor_desc">Diagnose and fix the app — permissions, services, database, network, Termux.</string>
+  <string name="setting_page_doctor_desc">Diagnose and fix the app — permissions, services, database, network.</string>
   <string name="setting_page_doctor_run_again">Run again</string>
   <string name="setting_page_doctor_running">Running…</string>
   <string name="setting_page_doctor_copy_report">Copy report</string>
@@ -1682,34 +1681,18 @@ HARDLINE protections still apply: rm -rf /, mkfs, shutdown / reboot, dd to block
   <string name="assistant_page_local_tools_screen_automation_title">Screen automation</string>
   <string name="assistant_page_local_tools_screen_automation_desc">Let the LLM tap, swipe, scroll, read on-screen content, and take screenshots via Android\'s accessibility service.</string>
   <string name="assistant_page_local_tools_app_launcher_title">App launcher</string>
-  <string name="assistant_page_local_tools_app_launcher_desc">Open installed apps by package name (e.g. Termux, Settings) and list available apps. Pairs with screen automation for full UI control.</string>
+  <string name="assistant_page_local_tools_app_launcher_desc">Open installed apps by package name (e.g. Chrome, Settings) and list available apps. Pairs with screen automation for full UI control.</string>
   <string name="assistant_page_local_tools_notifications_title">Notification awareness</string>
   <string name="assistant_page_local_tools_notifications_desc">Let the LLM read incoming notifications from other apps. Whitelisted apps also auto-forward to your default Telegram chat. Configure in Settings -&gt; Notifications.</string>
-  <string name="assistant_page_local_tools_termux_title">Termux integration</string>
-  <string name="assistant_page_local_tools_termux_status_not_installed">Termux not installed - install from github.com/termux/termux-app/releases</string>
-  <string name="assistant_page_local_tools_termux_status_no_permission">Toggle on to grant the RUN_COMMAND permission</string>
-  <string name="assistant_page_local_tools_termux_status_untested">Almost ready. Open Termux and run: mkdir -p ~/.termux &amp;&amp; echo \'allow-external-apps=true\' &gt;&gt; ~/.termux/termux.properties — then force-stop Termux and reopen. Tap to verify.</string>
-  <string name="assistant_page_local_tools_termux_status_ok">Connected - commands run with captured output</string>
-  <string name="assistant_page_local_tools_termux_verify">tap to verify</string>
-  <string name="assistant_page_local_tools_termux_verifying">Verifying integration…</string>
-  <string name="assistant_page_local_tools_termux_verify_ok">Termux integration verified.</string>
-  <string name="assistant_page_local_tools_termux_verify_props_missing">Termux did not respond. Open Termux and run: mkdir -p ~/.termux &amp;&amp; echo \'allow-external-apps=true\' &gt;&gt; ~/.termux/termux.properties — then force-stop Termux and reopen it.</string>
-  <string name="assistant_page_local_tools_termux_postgrant_title">One more step for Termux</string>
-  <string name="assistant_page_local_tools_termux_postgrant_message">RUN_COMMAND permission is granted. Termux still needs `allow-external-apps=true` in `~/.termux/termux.properties` before the assistant can run commands.\n\nOpen Termux and paste the command below, then force-stop Termux from app info and reopen it.\n\nThe row will turn green after you tap Verify.</string>
-  <string name="assistant_page_local_tools_termux_postgrant_command">mkdir -p ~/.termux &amp;&amp; echo \'allow-external-apps=true\' &gt;&gt; ~/.termux/termux.properties</string>
-  <string name="assistant_page_local_tools_termux_postgrant_copy">Copy command</string>
-  <string name="assistant_page_local_tools_termux_postgrant_copied">Command copied — paste it into Termux.</string>
   <string name="assistant_page_local_tools_telegram_notoken_title">Telegram bot needs a token</string>
   <string name="assistant_page_local_tools_telegram_notoken_message">The toggle is on, but no bot token is set yet.\n\nEasy way: ask the assistant in chat — "Set up the Telegram bot, my token is …, my user id is …, set me as default chat, enable it."\n\nManual way: message @BotFather on Telegram with /newbot for a token, and @userinfobot with /start for your numeric user id. Then ask the assistant or paste them in Settings → Telegram bot.</string>
   <string name="assistant_page_local_tools_cron_jobs_toast_hint">Heads up: scheduled jobs use the tools you have enabled. If a job calls SSH, Telegram, or any other tool, those toggles must also be on.</string>
   <string name="assistant_page_local_tools_dialog_dismiss">Got it</string>
-  <string name="assistant_page_local_tools_termux_verify_no_permission">RUN_COMMAND permission not granted. Toggle Termux off then on to retry the system prompt.</string>
-  <string name="assistant_page_local_tools_termux_verify_unexpected">Termux replied but with unexpected output: %1$s</string>
   <string name="assistant_page_local_tools_files_title">Files</string>
   <string name="assistant_page_local_tools_files_desc">Read, write, list, search, copy, move, delete files.</string>
   <string name="assistant_page_local_tools_section_files">File manager</string>
   <string name="assistant_page_local_tools_mcp_control_title">MCP control</string>
-  <string name="assistant_page_local_tools_mcp_control_desc">Let the assistant add, edit, and remove MCP servers. The assistant can install an MCP in Termux or on a remote SSH host, then wire it into the app — without you opening Settings.</string>
+  <string name="assistant_page_local_tools_mcp_control_desc">Let the assistant add, edit, and remove MCP servers. The assistant can install an MCP on a remote SSH host, then wire it into the app — without you opening Settings.</string>
   <string name="assistant_page_local_tools_model_control_title">Model management</string>
   <string name="setting_page_agents_anywhere">Agents Anywhere</string>
   <string name="setting_page_agents_anywhere_desc">把另一台机器上的 agent 直接当成一个模型来对话</string>
@@ -2013,54 +1996,14 @@ HARDLINE protections still apply: rm -rf /, mkfs, shutdown / reboot, dd to block
   <string name="setting_browser_single_task_timeout">Single-task timeout</string>
   <string name="setting_browser_single_task_timeout_desc">Hard cap on one AI-driven browser task to bound runaway loops. Range 1 min to 60 min.</string>
   <string name="setting_browser_single_task_timeout_unit">minutes</string>
-  <string name="setting_page_termux">Termux</string>
-  <string name="setting_page_termux_desc">Shell commands, timeouts, and Termux integration.</string>
   <string name="setting_page_shizuku">Shizuku</string>
   <string name="setting_page_shizuku_desc">Grant permission and check status for shell commands run through Shizuku.</string>
-  <string name="setting_termux_title">Termux</string>
-  <string name="setting_termux_section_status">Status</string>
-  <string name="setting_termux_status_app">Termux app</string>
-  <string name="setting_termux_status_app_installed">Installed — tap to open</string>
-  <string name="setting_termux_status_app_missing">Not installed — tap to download</string>
-  <string name="setting_termux_status_open">Open Termux</string>
-  <string name="setting_termux_status_open_desc">Launch the Termux app</string>
-  <string name="setting_termux_status_permission">RUN_COMMAND permission</string>
-  <string name="setting_termux_status_permission_granted">Granted — tap to re-request</string>
-  <string name="setting_termux_toast_permission_granted">Permission granted</string>
-  <string name="setting_termux_status_permission_missing">Not granted — tap to request</string>
-  <string name="setting_termux_status_verify">allow-external-apps</string>
-  <string name="setting_termux_status_verify_ok">Verified OK</string>
-  <string name="setting_termux_status_verify_unknown">Not yet verified — tap to run smoke test</string>
-  <string name="setting_termux_verify_ok">Termux verified OK.</string>
-  <string name="setting_termux_verify_not_installed">Termux is not installed.</string>
-  <string name="setting_termux_verify_no_permission">RUN_COMMAND permission not granted.</string>
-  <string name="setting_termux_verify_allow_external_apps">Timed out — allow-external-apps=true may not be set in ~/.termux/termux.properties.</string>
-  <string name="setting_termux_verify_unexpected_output">Unexpected output from smoke test.</string>
-  <string name="setting_termux_verify_other_error">Verify failed: %s</string>
-  <string name="setting_termux_section_timeouts">Timeouts</string>
-  <string name="setting_termux_command_timeout">Default command timeout</string>
-  <string name="setting_termux_command_timeout_desc">How long to wait for a background shell command to return output. Range 5 s to 600 s.</string>
   <string name="setting_model_page_turn_budget">Per-turn time budget</string>
   <string name="setting_model_page_turn_budget_desc">Hard cap on the total wall-clock time of one user turn, model generation and tool execution included. Range 1 min to 720 min (12 h).</string>
-  <string name="setting_termux_verify_timeout">Verify smoke-test timeout</string>
-  <string name="setting_termux_verify_timeout_desc">Timeout for the allow-external-apps echo smoke test. Range 3 s to 30 s.</string>
-  <string name="setting_termux_unit_seconds">seconds</string>
-  <string name="setting_termux_unit_minutes">minutes</string>
-  <string name="setting_termux_unit_steps">steps</string>
+  <string name="setting_generation_limits_unit_minutes">minutes</string>
+  <string name="setting_generation_limits_unit_steps">steps</string>
   <string name="setting_model_page_max_tool_steps">Tool steps per turn</string>
-  <string name="setting_model_page_max_tool_steps_desc">How many tool calls one reply may chain before it is force-ended. Applies to every tool family, not just Termux. Raise this for long install or build tasks. Range 1 to 1500; the turn time budget above still applies.</string>
-  <string name="setting_termux_unit_bytes">bytes</string>
-  <string name="setting_termux_section_defaults">Defaults &amp; limits</string>
-  <string name="setting_termux_working_dir">Default working directory</string>
-  <string name="setting_termux_max_stdout">Stdout capture cap</string>
-  <string name="setting_termux_max_stdout_desc">Max bytes of stdout returned to the AI per command. Range 1 000 to 64 000.</string>
-  <string name="setting_termux_max_stderr">Stderr capture cap</string>
-  <string name="setting_termux_max_stderr_desc">Max bytes of stderr returned to the AI per command. Range 500 to 16 000.</string>
-  <string name="setting_termux_apt_wrap">Auto-wrap apt/dpkg as noninteractive</string>
-  <string name="setting_termux_apt_wrap_desc">Prepend DEBIAN_FRONTEND=noninteractive so apt upgrades do not hang waiting for interactive prompts.</string>
-  <string name="setting_termux_section_help">Setup help</string>
-  <string name="setting_termux_help_allow_external_apps_title">How to enable allow-external-apps</string>
-  <string name="setting_termux_help_allow_external_apps_body">In Termux, run:\n\n  mkdir -p ~/.termux\n  echo \'allow-external-apps=true\' &gt;&gt; ~/.termux/termux.properties\n\nThen force-stop Termux from Android App Info and reopen it. After that, tap the verify row above to confirm the link is working.</string>
+  <string name="setting_model_page_max_tool_steps_desc">How many tool calls one reply may chain before it is force-ended. Applies to every tool family. Raise this for long install or build tasks. Range 1 to 1500; the turn time budget above still applies.</string>
   <string name="setting_shizuku_title">Shizuku</string>
   <string name="setting_shizuku_section_status">Status</string>
   <string name="setting_shizuku_status_app">Shizuku app</string>
@@ -2673,8 +2616,6 @@ HARDLINE protections still apply: rm -rf /, mkfs, shutdown / reboot, dd to block
   <string name="perm_desc_sms">Used by list_sms_inbox and search_sms.</string>
   <string name="perm_label_send_sms">Send SMS</string>
   <string name="perm_desc_send_sms">Used by send_sms to send text messages programmatically.</string>
-  <string name="perm_label_termux_run">Termux RUN_COMMAND</string>
-  <string name="perm_desc_termux_run">Lets RikkaHub start commands inside Termux for the termux_run_command tool.</string>
   <string name="perm_desc_runtime_default">Runtime permission required by one or more enabled tools.</string>
 
   <!-- Doctor screen: category names -->
@@ -2684,7 +2625,6 @@ HARDLINE protections still apply: rm -rf /, mkfs, shutdown / reboot, dd to block
   <string name="doctor_cat_toolgroups">Tool groups</string>
   <string name="doctor_cat_database">Database</string>
   <string name="doctor_cat_network">Network &amp; providers</string>
-  <string name="doctor_cat_termux">Termux integration</string>
   <string name="doctor_cat_shizuku">Shizuku</string>
   <string name="doctor_cat_maintenance">Maintenance</string>
   <string name="doctor_cat_diagnostics">Diagnostics</string>
@@ -2720,7 +2660,6 @@ HARDLINE protections still apply: rm -rf /, mkfs, shutdown / reboot, dd to block
   <string name="tool_name_wifi">WiFi info</string>
   <string name="tool_name_notif_listener">Notification listener</string>
   <string name="tool_name_screen_automation">Screen automation</string>
-  <string name="tool_name_termux">Termux</string>
   <string name="tool_name_stt">Speech-to-text</string>
   <string name="tool_name_ssh">SSH</string>
   <string name="tool_name_tg_bot">Telegram bot</string>
@@ -2767,7 +2706,6 @@ HARDLINE protections still apply: rm -rf /, mkfs, shutdown / reboot, dd to block
   <string name="doctor_check_app_launcher">App launcher</string>
   <string name="doctor_check_agent_keyboard">Agent keyboard</string>
   <string name="doctor_check_notif_listener">Notification listener</string>
-  <string name="doctor_check_termux">Termux</string>
   <string name="doctor_check_shizuku">Shizuku</string>
   <string name="doctor_check_files">Files</string>
   <string name="doctor_check_db_version">Database schema version</string>
@@ -2782,8 +2720,6 @@ HARDLINE protections still apply: rm -rf /, mkfs, shutdown / reboot, dd to block
   <string name="doctor_check_litert_vision">LiteRT vision encoder</string>
   <string name="doctor_check_llamacpp_models">llama.cpp models</string>
   <string name="doctor_check_dns">DNS resolution</string>
-  <string name="doctor_check_termux_installed">Termux installed</string>
-  <string name="doctor_check_termux_perm">Termux RUN_COMMAND permission</string>
   <string name="doctor_check_shizuku_installed">Shizuku installed</string>
   <string name="doctor_check_shizuku_running">Shizuku service running</string>
   <string name="doctor_check_shizuku_perm">Shizuku permission</string>
@@ -2866,8 +2802,6 @@ HARDLINE protections still apply: rm -rf /, mkfs, shutdown / reboot, dd to block
   <string name="doctor_detail_kb_ok">Installed and enabled as an IME.</string>
   <string name="doctor_detail_nl_granted">Listener access is granted.</string>
   <string name="doctor_detail_backend_nl_not_granted">Listener access is not granted; notification tools will fail.</string>
-  <string name="doctor_detail_termux_installed">Termux is installed.</string>
-  <string name="doctor_detail_termux_not_installed">Termux is not installed; shell commands will fail.</string>
   <string name="doctor_detail_shizuku_ready">Shizuku is ready.</string>
   <string name="doctor_detail_shizuku_not_installed">Shizuku is not installed.</string>
   <string name="doctor_detail_shizuku_not_running">Shizuku is installed but not running.</string>
@@ -2915,7 +2849,6 @@ HARDLINE protections still apply: rm -rf /, mkfs, shutdown / reboot, dd to block
   <string name="doctor_relies_on_launch">nothing (standalone); uses the accessibility service only to verify the app reached the foreground when it happens to be on</string>
   <string name="doctor_relies_on_keyboard">the co-signed agent-keyboard app, installed and enabled as an IME</string>
   <string name="doctor_relies_on_notification_listener">Notification Listener access, granted in system settings</string>
-  <string name="doctor_relies_on_termux">the Termux app installed, with the RUN_COMMAND permission granted</string>
   <string name="doctor_relies_on_shizuku">Shizuku (or Sui) installed, running, with permission granted</string>
   <string name="doctor_relies_on_all_files">all-files access on Android 11+ to reach arbitrary paths</string>
   <string name="doctor_relies_on_browser_profile">a writable profile directory to persist cookies and localStorage</string>
@@ -2930,9 +2863,6 @@ HARDLINE protections still apply: rm -rf /, mkfs, shutdown / reboot, dd to block
   <string name="doctor_detail_vision_unavailable_full">Vision encoder unavailable on this device for: %1$s. These multimodal models run in text-only mode — chat works, image inputs don\'t. Often fixed by a future LiteRT-LM SDK update.</string>
   <string name="doctor_detail_no_llama_models">No llama.cpp models installed.</string>
   <string name="doctor_fix_open_local_llama">Open Local llama.cpp</string>
-  <string name="doctor_detail_termux_not_installed_2">Termux not installed. Required by: %1$s.</string>
-  <string name="doctor_detail_termux_run_command_granted">Granted — RikkaHub can dispatch shell commands to Termux.</string>
-  <string name="doctor_detail_termux_run_command_not_granted">Not granted. Re-toggle the Termux row in Local Tools to see the post-grant dialog.</string>
   <string name="doctor_detail_shizuku_present">Shizuku (or an equivalent binder provider such as Sui) is present.</string>
   <string name="doctor_detail_shizuku_not_installed_needed">Not installed. Needed by: %1$s.</string>
   <string name="doctor_detail_shizuku_cant_check">Can\'t check: Shizuku isn\'t installed.</string>
@@ -2967,7 +2897,6 @@ HARDLINE protections still apply: rm -rf /, mkfs, shutdown / reboot, dd to block
   <string name="doctor_detail_subagents_broken_2">%1$d profile(s) configured. %2$d reference a model that no longer resolves to a chat model of an enabled provider: %3$s.</string>
   <string name="doctor_detail_storage_grants_2">%1$d directory(ies) granted: %2$s.</string>
   <string name="doctor_detail_dns_ok">dns.google resolved within 2.5 s.</string>
-  <string name="doctor_detail_termux_installed_2">com.termux is installed on this device.</string>
   <string name="doctor_detail_worker_stranded_2">%1$d run(s) started &gt; 30 min ago and never reported back. Likely process kill mid-run.</string>
   <string name="doctor_detail_default_assistant_suffix">Used for new chats, cron jobs, and Telegram when no override is set.</string>
   <string name="doctor_detail_nfc_off_needed_by_3">NFC is turned off in system settings. Needed by: %1$s.</string>

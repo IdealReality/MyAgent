@@ -22,7 +22,7 @@ private const val PREFS_KEY_AUTO_APPROVE = "auto_approve_ids"
  *     and the sub-agent recursion guard. Set via `mark()` or `markBrowserHeadless()`.
  *
  *  2. **Auto-approval** (`shouldAutoApprove`) — should side-effecting tools
- *     (termux_run_command, ssh_exec, …) skip the user-approval gate? True only when
+ *     (ssh_exec, …) skip the user-approval gate? True only when
  *     the caller has NO approval channel at all (cron / sub-agent / workflow /
  *     skill-tester / external-automation). Set via `mark()` only.
  *

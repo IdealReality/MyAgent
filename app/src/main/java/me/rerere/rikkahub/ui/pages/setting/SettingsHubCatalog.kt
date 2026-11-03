@@ -32,7 +32,6 @@ enum class SettingsHubItemId {
     NOTIF_ACCESS,
     PERMISSIONS,
     SHIZUKU,
-    TERMUX,
     SSH,
     SECRETS,
     WEB,
@@ -226,12 +225,6 @@ val settingsHubItems: Map<SettingsHubItemId, SettingsHubItemDef> = listOf(
         reorganized = SettingsHubItemCopy(R.string.setting_page_shizuku, R.string.setting_page_shizuku_desc),
     ),
     SettingsHubItemDef(
-        id = SettingsHubItemId.TERMUX,
-        route = Screen.SettingTermux,
-        classic = SettingsHubItemCopy(R.string.setting_page_termux, R.string.setting_page_termux_desc),
-        reorganized = SettingsHubItemCopy(R.string.setting_page_termux, R.string.setting_page_termux_desc),
-    ),
-    SettingsHubItemDef(
         id = SettingsHubItemId.SSH,
         route = Screen.SettingSsh,
         classic = SettingsHubItemCopy(R.string.setting_page_ssh, R.string.setting_page_ssh_desc),
@@ -354,7 +347,6 @@ private val classicSections: List<SettingsHubSectionDef> = listOf(
             SettingsHubItemId.NOTIF_ACCESS,
             SettingsHubItemId.PERMISSIONS,
             SettingsHubItemId.SHIZUKU,
-            SettingsHubItemId.TERMUX,
         ),
     ),
     SettingsHubSectionDef(
@@ -438,7 +430,6 @@ private val reorganizedSections: List<SettingsHubSectionDef> = listOf(
             SettingsHubItemId.NOTIF_ACCESS,
             SettingsHubItemId.PERMISSIONS,
             SettingsHubItemId.SHIZUKU,
-            SettingsHubItemId.TERMUX,
         ),
     ),
     SettingsHubSectionDef(

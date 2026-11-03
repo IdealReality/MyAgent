@@ -118,7 +118,7 @@ internal fun bindFailedResponse(failure: BindResult.Failure): JsonObject = build
  * our own AIDL service instead, see [ShizukuUserService].
  *
  * A stateless `object` wrapping a global SDK singleton, mirroring
- * [me.rerere.rikkahub.data.ai.tools.local.TermuxIntegration] in shape: tool factories and the
+ * [me.rerere.rikkahub.browser.BrowserController] in shape: tool factories and the
  * settings page call it directly with a [Context], no DI needed.
  */
 object ShizukuManager {

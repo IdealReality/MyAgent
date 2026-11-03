@@ -148,7 +148,7 @@ internal fun buildExtractEnvelope(
 /**
  * Lightweight HTTP tool (GET/POST/PUT/PATCH/DELETE/HEAD) so workflows / the LLM can fetch a
  * URL without driving the
- * full in-app browser or shelling out to Termux+curl. Backed by the DI [OkHttpClient]
+ * full in-app browser or shelling out to curl. Backed by the DI [OkHttpClient]
  * singleton (already NetworkChangeMonitor-registered), rebuilt per call with [withEgressGuard]
  * so private / loopback / link-local targets are refused, whether named by hostname or IP
  * literal, on every redirect hop. 30 s hard timeout via [withTimeoutOrNull]. Optionally

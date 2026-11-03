@@ -101,7 +101,7 @@ class SubAgentToolSurfaceTest {
             "memory_tool",
             "mcp__github__get_me",
             "browser",
-            "termux_run_command",
+            "ssh_exec",
             "open_file",
             "show_toast",
         )

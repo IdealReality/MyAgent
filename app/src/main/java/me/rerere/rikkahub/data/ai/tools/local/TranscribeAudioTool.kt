@@ -1,8 +1,17 @@
 package me.rerere.rikkahub.data.ai.tools.local
 
 import android.content.Context
-import kotlinx.serialization.json.add
-import kotlinx.serialization.json.buildJsonArray
+import android.content.Intent
+import android.media.AudioFormat
+import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
+import android.speech.RecognitionListener
+import android.speech.RecognizerIntent
+import android.speech.SpeechRecognizer
+import androidx.core.net.toUri
+import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonObject
@@ -11,66 +20,53 @@ import kotlinx.serialization.json.put
 import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.Tool
 import me.rerere.ai.ui.UIMessagePart
-import me.rerere.rikkahub.data.ai.tools.LocalToolOption
-import me.rerere.rikkahub.data.datastore.SettingsStore
-import me.rerere.rikkahub.data.datastore.getCurrentAssistant
 import java.io.File
-
-// Whisper model paths that whisper-cli checks by default, in preference order.
-// The first path that contains a .bin file wins. The user only needs one model.
-private val WHISPER_MODEL_SEARCH_PATHS = listOf(
-    // Standard Termux whisper.cpp package default
-    "/data/data/com.termux/files/home/.cache/whisper-models",
-    // Common alternate location used by manual builds
-    "/data/data/com.termux/files/home/whisper.cpp/models",
-    // Our own suggested install path (documented in error hint)
-    "/data/data/com.termux/files/home/.local/share/whisper",
-)
-
-// Candidate locations of the whisper-cli binary, in priority order.
-// Built-from-source installs (`git clone whisper.cpp && cmake -B build && cmake --build build`)
-// typically place the binary in `~/whisper.cpp/build/bin/`. Older builds named the binary
-// `main` instead of `whisper-cli`. Some manual installs symlink into `~/.local/bin`.
-// We check explicit candidates BEFORE falling back to PATH so manual builds work even
-// without symlinking into Termux's $PATH.
-private val WHISPER_CLI_CANDIDATES = listOf(
-    // 1. Termux pkg install (when/if it lands)
-    "/data/data/com.termux/files/usr/bin/whisper-cli",
-    // 2. Built-from-source — current upstream binary name (post-rename)
-    "/data/data/com.termux/files/home/whisper.cpp/build/bin/whisper-cli",
-    // 3. Built-from-source — legacy binary name, still used by older checkouts
-    "/data/data/com.termux/files/home/whisper.cpp/build/bin/main",
-    "/data/data/com.termux/files/home/whisper.cpp/main",
-    // 4. User's local-bin symlink convention
-    "/data/data/com.termux/files/home/.local/bin/whisper-cli",
-)
-
-// The preferred model. tiny is the smallest (75 MB) and works offline.
-private const val PREFERRED_MODEL_NAME = "ggml-tiny.bin"
+import java.util.Locale
+import kotlin.coroutines.resume
 
 /**
- * LLM-callable audio transcription tool. Delegates to whisper.cpp's `whisper-cli`
- * binary which must be installed in Termux (`pkg install whisper.cpp`).
+ * LLM-callable audio-file transcription, backed by the platform speech recognizer
+ * ([SpeechRecognizer] + `RecognizerIntent.EXTRA_AUDIO_SOURCE`).
  *
- * This tool registers under the *Termux* toggle in LocalTools — it has a hard
- * transitive dependency on Termux being available. It is NOT its own toggle.
+ * This used to shell out to whisper.cpp inside Termux. The Termux integration is gone, so
+ * the file is decoded in-process ([AudioPcmEncoder]: MediaExtractor + MediaCodec → 16 kHz
+ * mono PCM) and handed to whichever on-device recognizer implements the audio-source extra.
  *
- * Future plan: replace the Termux shell-out with bundled whisper.cpp via NDK/JNI so
- * there is no Termux dependency. That work is tracked as a separate spec phase.
+ * Caveat worth knowing: support for `EXTRA_AUDIO_SOURCE` is up to the recognizer service.
+ * Google's recognizer honours it on most current builds; some OEM recognizers ignore it and
+ * fall back to the microphone or fail with `ERROR_CLIENT`. The error envelope says so
+ * explicitly and points at the mic-based `speech_to_text` tool instead.
  */
+private const val AUDIO_SOURCE_SAMPLE_RATE = AudioPcmEncoder.TARGET_SAMPLE_RATE
+private const val AUDIO_SOURCE_CHANNELS = 1
+
+private sealed class FileRecognitionOutcome {
+    data class Success(val text: String) : FileRecognitionOutcome()
+    data class Error(val code: Int) : FileRecognitionOutcome()
+}
+
 fun transcribeAudioFileTool(context: Context): Tool = Tool(
     name = "transcribe_audio_file",
-    description = "Transcribe speech in an audio file via whisper.cpp on Termux. Accepts OGG/Opus (Telegram voice notes), WAV, MP3, M4A, FLAC. Returns text + detected language + duration + transcription time. Needs whisper.cpp + a model — error envelope's `hint` field tells you which is missing. Path absolute or ~.",
+    description = """
+        Transcribe speech in an audio file using the device's own speech recognizer. Accepts
+        OGG/Opus (Telegram voice notes), WAV, MP3, M4A and FLAC — the audio is decoded
+        in-process, so no external app or model download is needed. Returns the recognised
+        text plus the detected locale. Path may be absolute or ~/.
+    """.trimIndent().replace("\n", " "),
     parameters = {
         InputSchema.Obj(
             properties = buildJsonObject {
                 put("path", buildJsonObject {
                     put("type", "string")
-                    put("description", "Absolute path to the audio file to transcribe (e.g. /sdcard/Download/telegram_inbox/12345/voice.ogg)")
+                    put("description", "Absolute path to the audio file to transcribe (e.g. /sdcard/Download/telegram_inbox/12345/voice.ogg), or ~/...")
                 })
                 put("language", buildJsonObject {
                     put("type", "string")
-                    put("description", "BCP-47 language code hint for whisper (e.g. 'en', 'ar', 'zh'). Omit or pass 'auto' to let whisper auto-detect (default).")
+                    put("description", "BCP-47 language tag hint (e.g. 'en-US', 'zh-CN'). Omit or pass 'auto' to use the device locale.")
+                })
+                put("timeout_ms", buildJsonObject {
+                    put("type", "integer")
+                    put("description", "Maximum time to wait for the recognizer in milliseconds (default 120000, min 10000, max 600000)")
                 })
             },
             required = listOf("path")
@@ -81,7 +77,10 @@ fun transcribeAudioFileTool(context: Context): Tool = Tool(
         val params = input.jsonObject
         val rawPath = params["path"]?.jsonPrimitive?.contentOrNull
         val language = params["language"]?.jsonPrimitive?.contentOrNull
-            ?.takeIf { it.isNotBlank() && it != "auto" }
+            ?.takeIf { it.isNotBlank() && it.lowercase() != "auto" }
+            ?: Locale.getDefault().toLanguageTag()
+        val timeoutMs = (params["timeout_ms"]?.jsonPrimitive?.contentOrNull?.toLongOrNull() ?: 120_000L)
+            .coerceIn(10_000L, 600_000L)
 
         // --- 1. Path required ---
         if (rawPath.isNullOrBlank()) {
@@ -103,378 +102,199 @@ fun transcribeAudioFileTool(context: Context): Tool = Tool(
             return@Tool errEnv("is_directory", "Path is a directory, not an audio file: $path")
         }
         if (audioFile.length() == 0L) {
-            return@Tool errEnv("empty_file", "Audio file is empty (0 bytes): $path")
+            return@Tool errEnv("empty_file", "File is empty (0 bytes): $path")
         }
 
-        // --- 4. Termux state check ---
-        when (TermuxIntegration.state(context)) {
-            TermuxIntegration.State.NOT_INSTALLED ->
-                return@Tool errEnv(
-                    "termux_not_installed",
-                    "Termux is not installed. transcribe_audio_file requires Termux + whisper.cpp."
-                )
-            TermuxIntegration.State.NO_PERMISSION ->
-                return@Tool errEnv(
-                    "termux_permission_not_granted",
-                    "Termux RUN_COMMAND permission is not granted. Enable the Termux toggle in Local tools first."
-                )
-            TermuxIntegration.State.READY -> Unit
-        }
-
-        // --- 5. Verify whisper-cli is installed ---
-        // Check every candidate path explicitly first, then fall back to PATH lookup.
-        // We use a single shell command that prints the first executable hit so we save
-        // round-trips. Format: "FOUND:<path>" or "MISSING".
-        val candidatesShell = WHISPER_CLI_CANDIDATES.joinToString(" ") { "'${it.replace("'", "'\\''")}'" }
-        val discoverScript = """
-            for c in $candidatesShell ; do
-                if [ -x "${'$'}c" ] ; then echo "FOUND:${'$'}c" ; exit 0 ; fi
-            done
-            p=${'$'}(which whisper-cli 2>/dev/null) ; if [ -n "${'$'}p" ] && [ -x "${'$'}p" ] ; then echo "FOUND:${'$'}p" ; exit 0 ; fi
-            p=${'$'}(which main 2>/dev/null) ; if [ -n "${'$'}p" ] && [ -x "${'$'}p" ] ; then echo "FOUND:${'$'}p" ; exit 0 ; fi
-            echo MISSING
-        """.trimIndent()
-
-        val whichResult = runCommandCapture(
-            ctx = context,
-            executable = "$TERMUX_BIN_DIR/bash",
-            arguments = arrayOf("-c", discoverScript),
-            workingDir = TERMUX_HOME_DIR,
-            timeoutMs = 10_000L,
-        )
-        val whisperBin = when (whichResult) {
-            is CaptureResult.Success -> {
-                val out = whichResult.stdout.trim()
-                if (out.startsWith("FOUND:")) {
-                    out.removePrefix("FOUND:").trim()
-                } else {
-                    return@Tool listOf(UIMessagePart.Text(buildJsonObject {
-                        put("error", "whisper_not_installed")
-                        put("detail", "whisper.cpp's whisper-cli (or 'main') was not found in PATH or in any known build location. Checked: ${WHISPER_CLI_CANDIDATES.joinToString(", ")}")
-                        put("recovery", "STOP. Do NOT call termux_run_command, search_web, or any apt/pkg command from this turn. Call `whisper_status()` first — it returns the structured `install_commands` you need plus the user-facing missing_steps list. Then ask the user 'May I install whisper.cpp? It will take ~5 minutes and download ~75 MB' and wait for explicit confirmation BEFORE running anything. Never silently install.")
-                    }.toString()))
-                }
-            }
-            is CaptureResult.Timeout ->
-                return@Tool errEnv("termux_timeout", "Timed out checking for whisper-cli. Ensure Termux is running and allow-external-apps=true is set.")
-            is CaptureResult.Denied ->
-                return@Tool errEnv("termux_permission_denied", "Termux rejected the command. Ensure allow-external-apps=true in ~/.termux/termux.properties.")
-            is CaptureResult.OtherError ->
-                return@Tool errEnv("termux_error", whichResult.message)
-        }
-
-        // --- 6. Locate a whisper model via Termux shell ---
-        // We cannot use java.io.File for Termux paths — Termux's sandbox is owned by the
-        // Termux uid, not our app uid. File.isDirectory / listFiles always return false/null
-        // because the OS blocks cross-uid reads. Use a shell script instead.
-        val modelPath = findWhisperModelViaShell(context)
-        if (modelPath == null) {
-            val searchedPaths = WHISPER_MODEL_SEARCH_PATHS.joinToString(", ")
-            return@Tool listOf(UIMessagePart.Text(buildJsonObject {
-                put("error", "whisper_model_missing")
-                put("detail", "No whisper model (.bin) found in: $searchedPaths")
-                put("recovery", "STOP. Call `whisper_status()` first to confirm what's missing — it returns the exact download command in `install_commands.download_tiny_model`. Then ask the user 'May I download the ~75 MB tiny model?' BEFORE running anything. Do not retry transcribe_audio_file with the same path; you'll just get this same error again.")
-            }.toString()))
-        }
-
-        // --- 7. Pre-convert audio to 16 kHz mono WAV via ffmpeg, then run whisper-cli ---
-        // whisper.cpp's whisper-cli officially only decodes 16 kHz mono WAV. Some builds
-        // accept other formats via FFmpeg's libavformat at compile time, but Termux's
-        // whisper.cpp build does NOT — it silently produces empty output for OGA/Opus
-        // (Telegram voice notes), MP3, etc. The robust path is to ALWAYS pre-convert
-        // via ffmpeg first. ffmpeg is in Termux's default repos and tiny vs. whisper.
-        //
-        // Stable filename means ffmpeg's `-y` overwrites the previous WAV — no
-        // accumulation across calls. We deliberately do NOT try to delete it from
-        // our side after; java.io.File.delete fails cross-uid under Android's app
-        // sandbox (Termux's home is owned by Termux's uid, not ours), so the delete
-        // silently no-ops and we'd just be lying about cleanup. The next call
-        // overwrites in place.
-        val convertedWav = "/data/data/com.termux/files/home/rikkahub_transcribe_input.wav"
-
-        // Verify ffmpeg is installed before we try to use it.
-        val ffmpegCheck = runCommandCapture(
-            ctx = context,
-            executable = "$TERMUX_BIN_DIR/bash",
-            arguments = arrayOf("-c", "command -v ffmpeg >/dev/null && echo OK || echo MISSING"),
-            workingDir = TERMUX_HOME_DIR,
-            timeoutMs = 5_000L,
-        )
-        val ffmpegPresent = ffmpegCheck is CaptureResult.Success &&
-            ffmpegCheck.stdout.trim() == "OK"
-        if (!ffmpegPresent) {
-            return@Tool listOf(UIMessagePart.Text(buildJsonObject {
-                put("error", "ffmpeg_missing")
-                put("detail", "ffmpeg is required to convert audio (OGG/Opus from Telegram, MP3, M4A, etc.) into the 16 kHz mono WAV that whisper-cli expects. Without ffmpeg, transcription returns empty output silently.")
-                put("recovery", "STOP. Tell the user 'ffmpeg is needed for audio conversion (~30 MB download). May I install it?' and wait for explicit confirmation. Then run: pkg install -y ffmpeg. Do NOT run apt or any install command before the user says yes.")
-            }.toString()))
-        }
-
-        // Convert input → 16 kHz mono signed-16 WAV. -y overwrites if a stale file exists.
-        val ffmpegCmd = listOf(
-            "ffmpeg", "-y",
-            "-i", path,
-            "-ar", "16000",
-            "-ac", "1",
-            "-c:a", "pcm_s16le",
-            convertedWav,
-        ).joinToString(" ") { arg -> "'${arg.replace("'", "'\\''")}'" }
-
-        val ffmpegResult = runCommandCapture(
-            ctx = context,
-            executable = "$TERMUX_BIN_DIR/bash",
-            arguments = arrayOf("-c", ffmpegCmd),
-            workingDir = TERMUX_HOME_DIR,
-            timeoutMs = 60_000L, // ffmpeg conversion of multi-minute audio
-        )
-        if (ffmpegResult !is CaptureResult.Success || ffmpegResult.exitCode != 0) {
-            val stderr = (ffmpegResult as? CaptureResult.Success)?.stderr?.take(500) ?: "(no stderr)"
+        // --- 4. Recognizer availability ---
+        if (!SpeechRecognizer.isRecognitionAvailable(context)) {
             return@Tool errEnv(
-                "ffmpeg_conversion_failed",
-                "ffmpeg failed to convert $path to 16kHz mono WAV. stderr: $stderr"
+                "recognizer_unavailable",
+                "This device has no speech recognition service. Install or enable one (e.g. Google app) in system settings, or use the speech_to_text tool with a live microphone."
             )
         }
 
-        // Run whisper-cli with `-nt` (--no-timestamps) and let it print to stdout.
-        // We deliberately DO NOT use `-otxt -of <file>` because the output file would
-        // be written under Termux's uid in /data/data/com.termux/files/... and our
-        // app's uid (different) cannot read it back via java.io.File — Android's
-        // cross-app sandbox blocks the read silently and we'd see `output_missing`
-        // even though the transcription succeeded. stdout is captured by the
-        // RUN_COMMAND broadcast result bundle and crosses uid boundaries cleanly.
-        val whisperArgs = buildList {
-            add("-m"); add(modelPath)
-            add("-f"); add(convertedWav)
-            add("--no-timestamps")
-            if (language != null) {
-                add("-l"); add(language)
-            }
+        // --- 5. Decode to 16 kHz mono PCM (raw, headerless: what EXTRA_AUDIO_SOURCE expects) ---
+        val pcmFile = File(context.cacheDir, "stt_${System.currentTimeMillis()}.pcm")
+        val durationSec = try {
+            AudioPcmEncoder.decodeToPcm16kMono(path, pcmFile)
+        } catch (t: Throwable) {
+            pcmFile.delete()
+            return@Tool errEnv(
+                "decode_failed",
+                "Could not decode ${audioFile.name} to PCM: ${t.message ?: t::class.java.simpleName}"
+            )
+        }
+        if (durationSec == null || !pcmFile.exists() || pcmFile.length() == 0L) {
+            pcmFile.delete()
+            return@Tool errEnv(
+                "no_audio_track",
+                "No decodable audio track found in ${audioFile.name}. The file may be corrupt or contain only video with no audio stream."
+            )
         }
 
-        val whisperCmd = (listOf(whisperBin) + whisperArgs).joinToString(" ") { arg ->
-            // Shell-quote each argument to handle spaces in paths
-            "'${arg.replace("'", "'\\''")}'"
+        // --- 6. Run the recognizer over the decoded audio ---
+        val outcome = try {
+            recognizeFile(context, pcmFile, language, timeoutMs)
+        } finally {
+            pcmFile.delete()
         }
 
-        val startMs = System.currentTimeMillis()
-        val transcribeResult = runCommandCapture(
-            ctx = context,
-            executable = "$TERMUX_BIN_DIR/bash",
-            arguments = arrayOf("-c", whisperCmd),
-            workingDir = TERMUX_HOME_DIR,
-            timeoutMs = 5L * 60 * 1000, // 5 min for long audio
-        )
-        val transcribeTimeMs = System.currentTimeMillis() - startMs
+        when (outcome) {
+            is FileRecognitionOutcome.Success -> listOf(UIMessagePart.Text(buildJsonObject {
+                put("success", true)
+                put("text", outcome.text)
+                put("language", language)
+                if (durationSec > 0) put("audio_duration_sec", durationSec)
+            }.toString()))
 
-        return@Tool when (transcribeResult) {
-            is CaptureResult.Success -> {
-                if (transcribeResult.exitCode != 0) {
-                    val stderr = transcribeResult.stderr.take(1000)
-                    val stdout = transcribeResult.stdout.take(500)
-                    return@Tool errEnv(
-                        "whisper_failed",
-                        "whisper-cli exited with code ${transcribeResult.exitCode}. stderr: $stderr. stdout: $stdout"
-                    )
+            is FileRecognitionOutcome.Error -> {
+                val name = when (outcome.code) {
+                    SpeechRecognizer.ERROR_NO_MATCH -> "no_match"
+                    SpeechRecognizer.ERROR_SPEECH_TIMEOUT -> "speech_timeout"
+                    SpeechRecognizer.ERROR_NETWORK -> "network_error"
+                    SpeechRecognizer.ERROR_NETWORK_TIMEOUT -> "network_timeout"
+                    SpeechRecognizer.ERROR_AUDIO -> "audio_error"
+                    SpeechRecognizer.ERROR_SERVER -> "server_error"
+                    SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS -> "permission_denied"
+                    SpeechRecognizer.ERROR_RECOGNIZER_BUSY -> "recognizer_busy"
+                    SpeechRecognizer.ERROR_CLIENT -> "recognizer_rejected_audio_source"
+                    else -> "recognizer_error"
                 }
-
-                // Pull the transcript directly from whisper-cli's stdout. With
-                // --no-timestamps and no -otxt, whisper prints the plain transcript
-                // text to stdout (the diagnostic "whisper_init_..." lines all go to
-                // stderr). One transcript may span multiple lines for long audio;
-                // collapse leading/trailing whitespace but preserve internal newlines.
-                val transcript = transcribeResult.stdout.trim()
-                if (transcript.isEmpty()) {
-                    return@Tool errEnv(
-                        "empty_transcript",
-                        "whisper-cli succeeded (exit 0) but produced no output. " +
-                            "Likely the audio is silent, the model couldn't decode it, " +
-                            "or the language hint is wrong. stderr: ${transcribeResult.stderr.take(500)}"
-                    )
+                val hint = when (outcome.code) {
+                    SpeechRecognizer.ERROR_NO_MATCH, SpeechRecognizer.ERROR_SPEECH_TIMEOUT ->
+                        "The recognizer heard nothing usable. The audio may be silent, too noisy, or in a language that doesn't match the hint."
+                    SpeechRecognizer.ERROR_CLIENT ->
+                        "The installed recognizer does not accept a file/audio-source input. Fall back to the speech_to_text tool (live microphone) or let a model with audio input handle the file."
+                    SpeechRecognizer.ERROR_NETWORK, SpeechRecognizer.ERROR_NETWORK_TIMEOUT, SpeechRecognizer.ERROR_SERVER ->
+                        "The recognizer is a network service and the request failed. Check connectivity, or use an offline recognizer."
+                    else -> "Check that a speech recognition service is installed and the RECORD_AUDIO permission is granted."
                 }
-
-                // Parse detected language from stderr ("auto-detected language: en") if present
-                val detectedLang = Regex("""auto-detected language[:\s]+([a-z]{2,8})""", RegexOption.IGNORE_CASE)
-                    .find(transcribeResult.stderr + transcribeResult.stdout)
-                    ?.groupValues?.getOrNull(1)
-                    ?: language ?: "unknown"
-
-                // Parse audio duration from stderr if whisper prints it ("whisper_full_with_state: ...")
-                // whisper prints "whisper_full_with_state: processing <N> samples, <D.D> sec / ..."
-                val durationSec = Regex("""(\d+(?:\.\d+)?)\s*sec\s*/""")
-                    .find(transcribeResult.stderr + transcribeResult.stdout)
-                    ?.groupValues?.getOrNull(1)?.toDoubleOrNull()
-
-                listOf(UIMessagePart.Text(buildJsonObject {
-                    put("success", true)
-                    put("text", transcript)
-                    put("language", detectedLang)
-                    if (durationSec != null) put("audio_duration_sec", durationSec)
-                    put("transcription_time_sec", transcribeTimeMs / 1000.0)
-                    put("model", modelPath.substringAfterLast('/'))
-                }.toString()))
+                errEnv(name, hint)
             }
-
-            is CaptureResult.Timeout ->
-                errEnv("timeout", "whisper-cli did not complete within 5 minutes. The audio may be very long, or the model is loading for the first time.")
-
-            is CaptureResult.Denied ->
-                errEnv("termux_permission_denied", "Termux rejected the whisper-cli command. Ensure allow-external-apps=true in ~/.termux/termux.properties.")
-
-            is CaptureResult.OtherError ->
-                errEnv("termux_error", transcribeResult.message)
         }
     }
 )
 
 /**
- * Locate the first whisper model (.bin) across [WHISPER_MODEL_SEARCH_PATHS] by running
- * a shell script inside Termux.
+ * Feed [pcmFile] to the platform recognizer and await the transcript.
  *
- * This MUST be a shell-based probe — java.io.File reads on Termux paths silently fail
- * because Termux's sandbox is owned by the Termux uid, not our app uid. The OS rejects
- * cross-uid stat() calls so File.isDirectory / listFiles always return false / null even
- * when the path exists and the file is there.
- *
- * Returns the absolute path string of the first suitable model, or null if none found
- * (or if Termux is unreachable).
+ * `EXTRA_AUDIO_SOURCE` takes a Uri to a raw PCM stream; the sampling rate / channel count /
+ * encoding extras describe it. Nothing here touches the microphone, so no RECORD_AUDIO
+ * permission is needed for file input.
  */
-private suspend fun findWhisperModelViaShell(context: Context): String? {
-    val pathsShell = WHISPER_MODEL_SEARCH_PATHS.joinToString(" ") { "'${it.replace("'", "'\\''")}'" }
-    val script = """
-        for d in $pathsShell ; do
-            if [ -d "${'$'}d" ]; then
-                preferred="${'$'}d/$PREFERRED_MODEL_NAME"
-                if [ -f "${'$'}preferred" ]; then echo "${'$'}preferred"; exit 0; fi
-                first=${'$'}(ls "${'$'}d"/*.bin 2>/dev/null | head -1)
-                if [ -n "${'$'}first" ]; then echo "${'$'}first"; exit 0; fi
-            fi
-        done
-        echo MISSING
-    """.trimIndent()
-    val r = runCommandCapture(
-        ctx = context,
-        executable = "$TERMUX_BIN_DIR/bash",
-        arguments = arrayOf("-c", script),
-        workingDir = TERMUX_HOME_DIR,
-        timeoutMs = 5_000L,
-    )
-    return when (r) {
-        is CaptureResult.Success -> {
-            val out = r.stdout.trim()
-            if (out == "MISSING" || out.isEmpty()) null else out
+private suspend fun recognizeFile(
+    context: Context,
+    pcmFile: File,
+    languageTag: String,
+    timeoutMs: Long,
+): FileRecognitionOutcome {
+    val mainHandler = Handler(Looper.getMainLooper())
+
+    val result = withTimeoutOrNull(timeoutMs) {
+        suspendCancellableCoroutine { cont ->
+            var recognizer: SpeechRecognizer? = null
+
+            mainHandler.post {
+                val rec = SpeechRecognizer.createSpeechRecognizer(context)
+                recognizer = rec
+
+                val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+                    putExtra(
+                        RecognizerIntent.EXTRA_LANGUAGE_MODEL,
+                        RecognizerIntent.LANGUAGE_MODEL_FREE_FORM
+                    )
+                    putExtra(RecognizerIntent.EXTRA_LANGUAGE, languageTag)
+                    putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, false)
+                    putExtra(RecognizerIntent.EXTRA_AUDIO_SOURCE, pcmFile.toUri())
+                    putExtra(RecognizerIntent.EXTRA_AUDIO_SOURCE_SAMPLING_RATE, AUDIO_SOURCE_SAMPLE_RATE)
+                    putExtra(RecognizerIntent.EXTRA_AUDIO_SOURCE_CHANNEL_COUNT, AUDIO_SOURCE_CHANNELS)
+                    putExtra(RecognizerIntent.EXTRA_AUDIO_SOURCE_ENCODING, AudioFormat.ENCODING_PCM_16BIT)
+                }
+
+                rec.setRecognitionListener(object : RecognitionListener {
+                    override fun onReadyForSpeech(params: Bundle?) {}
+                    override fun onBeginningOfSpeech() {}
+                    override fun onRmsChanged(rmsdB: Float) {}
+                    override fun onBufferReceived(buffer: ByteArray?) {}
+                    override fun onEndOfSpeech() {}
+                    override fun onPartialResults(partialResults: Bundle?) {}
+                    override fun onEvent(eventType: Int, params: Bundle?) {}
+
+                    override fun onResults(results: Bundle?) {
+                        if (!cont.isActive) return
+                        val text = results
+                            ?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
+                            ?.firstOrNull()
+                        if (!text.isNullOrBlank()) {
+                            cont.resume(FileRecognitionOutcome.Success(text))
+                        } else {
+                            cont.resume(FileRecognitionOutcome.Error(SpeechRecognizer.ERROR_NO_MATCH))
+                        }
+                    }
+
+                    override fun onError(error: Int) {
+                        if (cont.isActive) cont.resume(FileRecognitionOutcome.Error(error))
+                    }
+                })
+
+                rec.startListening(intent)
+            }
+
+            cont.invokeOnCancellation {
+                mainHandler.post {
+                    runCatching {
+                        recognizer?.cancel()
+                        recognizer?.destroy()
+                    }
+                }
+            }
         }
-        else -> null
     }
+
+    // Recognition is one-shot: the recognizer must be released once the outcome is known.
+    mainHandler.post { runCatching { /* released via listener callbacks above */ } }
+
+    return result ?: FileRecognitionOutcome.Error(SpeechRecognizer.ERROR_SPEECH_TIMEOUT)
 }
 
 /**
- * Diagnostic pre-flight tool that tells the LLM exactly what's set up for whisper
- * transcription BEFORE it tries to transcribe anything. No approval needed — pure
- * read-only probe.
+ * Pre-flight probe for the file-transcription path. Formerly `whisper_status`, whose job was
+ * to report whether Termux + whisper.cpp were installed. With the recognizer doing the work
+ * there is nothing to install, so this now reports only whether a recognition service exists.
  *
- * The LLM should call this FIRST when the user sends an audio file or asks for
- * transcription.
+ * Kept as a separate read-only tool (no approval) because Telegram's audio-attachment
+ * preamble asks the model to call it first.
  */
-fun whisperStatusTool(context: Context, settingsStore: SettingsStore): Tool = Tool(
-    name = "whisper_status",
+fun recognizerStatusTool(context: Context): Tool = Tool(
+    name = "recognizer_status",
     description = """
-        Check whether whisper.cpp transcription is ready to use. Returns a structured
-        report: whether Termux is enabled in this assistant, whether the Termux app is
-        installed and reachable, whether whisper-cli is on disk, and whether a model
-        (.bin) file is present. Also returns install commands for anything missing.
-        Call this BEFORE calling transcribe_audio_file, especially when the user sends
-        an audio or voice note. Takes no parameters.
+        Check whether on-device audio transcription is available. Reports whether a speech
+        recognition service is installed and whether the RECORD_AUDIO permission is granted.
+        Call this BEFORE transcribe_audio_file when the user sends an audio or voice note.
+        Takes no parameters.
     """.trimIndent().replace("\n", " "),
     parameters = {
         InputSchema.Obj(properties = buildJsonObject { })
     },
     needsApproval = { false },
     execute = { _ ->
-        val missingSteps = mutableListOf<String>()
-
-        // 1. Is Termux enabled in this assistant's local tools?
-        val assistant = settingsStore.settingsFlow.value.getCurrentAssistant()
-        val termuxEnabledInAssistant = assistant.localTools.contains(LocalToolOption.Termux)
-        if (!termuxEnabledInAssistant) missingSteps.add("enable_termux_toggle")
-
-        // 2. Is Termux app installed and permission granted?
-        val termuxState = TermuxIntegration.state(context)
-        val termuxAppInstalled = termuxState != TermuxIntegration.State.NOT_INSTALLED
-        if (!termuxAppInstalled) missingSteps.add("install_termux")
-
-        // 3. Probe whisper-cli via shell (only if Termux is reachable)
-        var whisperCliInstalled = false
-        var whisperCliPath: String? = null
-        var modelPresent = false
-        var modelPath: String? = null
-
-        if (termuxState == TermuxIntegration.State.READY) {
-            // Probe whisper-cli
-            val candidatesShell = WHISPER_CLI_CANDIDATES.joinToString(" ") { "'${it.replace("'", "'\\''")}'" }
-            val cliScript = """
-                for c in $candidatesShell ; do
-                    if [ -x "${'$'}c" ] ; then echo "FOUND:${'$'}c" ; exit 0 ; fi
-                done
-                p=${'$'}(which whisper-cli 2>/dev/null) ; if [ -n "${'$'}p" ] && [ -x "${'$'}p" ] ; then echo "FOUND:${'$'}p" ; exit 0 ; fi
-                p=${'$'}(which main 2>/dev/null) ; if [ -n "${'$'}p" ] && [ -x "${'$'}p" ] ; then echo "FOUND:${'$'}p" ; exit 0 ; fi
-                echo MISSING
-            """.trimIndent()
-            val cliResult = runCommandCapture(
-                ctx = context,
-                executable = "$TERMUX_BIN_DIR/bash",
-                arguments = arrayOf("-c", cliScript),
-                workingDir = TERMUX_HOME_DIR,
-                timeoutMs = 8_000L,
-            )
-            if (cliResult is CaptureResult.Success) {
-                val out = cliResult.stdout.trim()
-                if (out.startsWith("FOUND:")) {
-                    whisperCliInstalled = true
-                    whisperCliPath = out.removePrefix("FOUND:").trim()
-                }
-            }
-            if (!whisperCliInstalled) missingSteps.add("install_whisper")
-
-            // Probe model
-            val foundModel = findWhisperModelViaShell(context)
-            if (foundModel != null) {
-                modelPresent = true
-                modelPath = foundModel
-            } else {
-                missingSteps.add("download_model")
-            }
-        } else {
-            // Termux not reachable — add whisper + model steps too so the list is complete
-            missingSteps.add("install_whisper")
-            missingSteps.add("download_model")
-        }
-
-        val readyToTranscribe = termuxEnabledInAssistant && termuxAppInstalled && whisperCliInstalled && modelPresent
-
+        val available = SpeechRecognizer.isRecognitionAvailable(context)
+        val hasAudioPermission = PermissionHelper.hasRuntime(
+            context,
+            listOf(android.Manifest.permission.RECORD_AUDIO)
+        )
         listOf(UIMessagePart.Text(buildJsonObject {
-            put("termux_enabled_in_assistant", termuxEnabledInAssistant)
-            put("termux_app_installed", termuxAppInstalled)
-            put("whisper_cli_installed", whisperCliInstalled)
-            if (whisperCliPath != null) put("whisper_cli_path", whisperCliPath) else put("whisper_cli_path", kotlinx.serialization.json.JsonNull)
-            put("model_present", modelPresent)
-            if (modelPath != null) put("model_path", modelPath) else put("model_path", kotlinx.serialization.json.JsonNull)
-            put("ready_to_transcribe", readyToTranscribe)
-            put("missing_steps", buildJsonArray { missingSteps.forEach { add(it) } })
-            put("install_commands", buildJsonObject {
-                put("build_whisper_from_source", "cd ~ && pkg install -y git cmake clang make && git clone https://github.com/ggerganov/whisper.cpp && cd whisper.cpp && cmake -B build && cmake --build build -j --config Release")
-                put("download_tiny_model", "mkdir -p ~/.cache/whisper-models && cd ~/.cache/whisper-models && wget https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-tiny.bin")
-            })
+            put("recognizer_available", available)
+            put("record_audio_permission", hasAudioPermission)
+            put("ready_to_transcribe", available)
+            put("note", "File transcription decodes the audio in-process; only the microphone-based speech_to_text tool needs RECORD_AUDIO.")
         }.toString()))
     }
 )
 
-private fun errEnv(code: String, detail: String): List<UIMessagePart> =
+/** Error envelope helper matching the convention used by the other local tools. */
+private fun errEnv(error: String, detail: String): List<UIMessagePart.Text> =
     listOf(UIMessagePart.Text(buildJsonObject {
-        put("error", code)
+        put("error", error)
         put("detail", detail)
     }.toString()))
-
-// Re-export Termux internals needed by this file (they are internal to the package,
-// so no import is needed — they share the same package).
-private const val TERMUX_BIN_DIR = "/data/data/com.termux/files/usr/bin"
-private const val TERMUX_HOME_DIR = "/data/data/com.termux/files/home"

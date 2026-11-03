@@ -192,7 +192,7 @@ fun skillInstallFromUrlTool(
  *
  * Compose with any read-capable tool to bridge the gap, e.g.:
  *  - `ssh_exec_saved(host_label="myserver", command="cat ~/skills/morning.md")` → pipe stdout
- *  - `termux_run_command(command="curl -H 'Authorization: Bearer …' https://my.server/skill.md")`
+ *  - `ssh_exec(command="curl -H 'Authorization: Bearer …' https://my.server/skill.md")`
  *  - any MCP tool returning a skill body
  *
  * Same approval gate as `skill_install_from_url` — every install is reviewed individually
@@ -207,7 +207,7 @@ fun skillInstallFromTextTool(
     name = "skill_install_from_text",
     description = """
         Install a skill from raw text content (markdown or JSON) the LLM already has —
-        useful when the source is behind auth and was fetched via ssh_exec / termux_run_command /
+        useful when the source is behind auth and was fetched via ssh_exec /
         an MCP tool. Accepts the same three formats as skill_install_from_url (native /
         openclaw / Hermes). The user reviews + approves the source label + skill name.
         Newly-installed skills are auto-enabled for the calling assistant unless they

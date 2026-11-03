@@ -19,7 +19,6 @@ class DoctorReportTest {
         DoctorCategory.ToolGroups to "Tool groups",
         DoctorCategory.Database to "Database",
         DoctorCategory.Network to "Network & providers",
-        DoctorCategory.Termux to "Termux integration",
         DoctorCategory.Shizuku to "Shizuku",
         DoctorCategory.Maintenance to "Maintenance",
         DoctorCategory.Diagnostics to "Diagnostics",
@@ -75,7 +74,7 @@ class DoctorReportTest {
     @Test fun `empty categories are skipped`() {
         val out = DoctorReport.format(listOf(check("a", DoctorCategory.Network, Severity.OK))) { names.getValue(it) }
         assertTrue(out.contains("## ${names.getValue(DoctorCategory.Network)}"))
-        assertTrue(!out.contains("## ${names.getValue(DoctorCategory.Termux)}"))
+        assertTrue(!out.contains("## ${names.getValue(DoctorCategory.Database)}"))
     }
 
     @Test fun `each severity gets its mark`() {

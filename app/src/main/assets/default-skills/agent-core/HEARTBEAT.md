@@ -34,8 +34,7 @@ Tools return structured `{error, recovery, ...}` envelopes when state is degrade
 | `error: "no_active_window"` | Transient — animations / lock screen / screen-off | Call `wake_screen` first; if `keyguard_secure:true`, ask the user to unlock. Otherwise retry one turn later. |
 | `error: "wrong_foreground_app", current: ...` | Some other app is in the foreground | Call `launch_app` first (it will auto-wake), then retry **without** the `package_name` guard if the user is actively viewing RikkaHub. |
 | `error: "launch_did_not_focus", current_foreground: ...` | `launch_app` dispatched but the OS did not move focus (usually because the user is physically looking at RikkaHub's chat) | Do NOT pass `package_name` to the next `read_window_tree` — drop the guard and read whatever IS on screen, or surface `recovery` to the user verbatim and stop trying to drive the target app this turn. |
-| `error: "node_not_editable"` | `set_text` target is not an input field | If the surface is Termux or a terminal, switch to `termux_run_command`. Otherwise re-locate the actual input. |
-| `error: "termux_not_installed"` / `"termux_permission_denied"` | Termux missing or `allow-external-apps` not set | Surface the recovery hint to the user verbatim — it tells them exactly what to fix. |
+| `error: "node_not_editable"` | `set_text` target is not an input field | If the surface is a terminal app, report that terminals cannot be typed into. Otherwise re-locate the actual input. |
 | `error: "screenshot_unavailable", reason: "secure_surface"` | DRM / banking / password — never recoverable this session | Don't keep retrying. Tell the user what surface you can see instead. |
 | `error: "rate_limited"` | OS throttle on screenshot (~1/sec) | Wait, then retry. |
 | `recovery: "Enable RikkaHub in Settings ..."` | Some grant flow is missing | Surface the recovery hint to the user verbatim — it tells them exactly what to enable. |
@@ -44,15 +43,15 @@ Tools return structured `{error, recovery, ...}` envelopes when state is degrade
 | `error: "loop_detected"` (from any tool) | The host app blocked your call because you repeated this exact tool with identical args 3+ times in this turn without progress | STOP retrying. Either change args meaningfully, switch to a different tool, or reply to the user with what you have. The `recovery` field tells you exactly what to try. |
 | `error: "whisper_not_installed"` (from `transcribe_audio_file`) | whisper.cpp isn't in PATH or any known build location | Show the user the install commands from `hint`, ask for confirmation, run them, then retry. Do NOT silently install — the build takes ~5 minutes and downloads ~75 MB. |
 | `error: "whisper_model_missing"` (from `transcribe_audio_file`) | whisper-cli is installed but no `.bin` model file exists | Show the user the model-download command from `hint`, ask for confirmation, then run it. The tiny model is the safe default. |
-| `error: "termux_not_installed"` (from `transcribe_audio_file` / `whisper_status`) | Termux app isn't installed on the device | Tell the user transcription needs Termux from F-Droid. Don't keep retrying. |
-| `error: "termux_permission_not_granted"` (from `transcribe_audio_file` / `whisper_status`) | Termux toggle isn't enabled in this assistant's Local tools | Tell the user to flip Termux on under Settings → Assistant → Local tools. You can't enable it for them. |
+| `error: "recognizer_unavailable"` (from `transcribe_audio_file` / `recognizer_status`) | No speech recognition service on the device | Tell the user transcription needs a recognizer enabled in system settings. Don't keep retrying. |
+| `error: "recognizer_rejected_audio_source"` (from `transcribe_audio_file`) | The installed recognizer ignores file input | Fall back to `speech_to_text` (live microphone) or a model with audio input. |
 
 ## Loop avoidance — token-cost discipline
 
 **Hard rule:** every tool call costs the user money. If a tool returns the same result twice in a row, calling it a third time will return `loop_detected` and you will have wasted three turns. Specific anti-patterns to avoid:
 
 - **Browser typing:** Never drive Chrome's URL bar with `set_text`. The accessibility tree's editable target is unstable across Chrome's launch overlay, the Suggestions panel, and the omnibox. For searches use `open_url("https://www.google.com/search?q=…")`; for direct visits use `open_url("https://example.com")`. One tool call, done.
-- **Terminal typing:** Never `set_text` into Termux. Use `termux_run_command` with capture mode.
+- **Terminal typing:** Never `set_text` into a terminal app — those render to a Surface and expose no editable nodes.
 - **Selector retries:** If `click_node(by=text, value="Send")` returned `no_match`, calling it again with the SAME `value` won't suddenly succeed. Try a different selector axis (`view_id_resource_name` if the app exposes one) or a different value.
 - **Self-diagnostic spam:** Don't call `notification_status` / `telegram_status` mid-task "to make sure" — they are diagnostic tools, only useful when something already returned a not-bound envelope.
 - **Re-reads with no action between:** After a successful `tap` / `click_node` / `swipe`, give the OS one beat before re-reading the tree. Reading the tree N times for the same on-screen state is wasted budget.

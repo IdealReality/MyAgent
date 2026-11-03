@@ -175,7 +175,7 @@ object PermissionInventory {
 
         if (info == null) {
             // Unknown to this device — typically a custom perm declared by an app that isn't
-            // installed (e.g. com.termux.permission.RUN_COMMAND when Termux isn't installed).
+            // installed (e.g. a companion app's signature permission).
             // Best we can do is check checkSelfPermission and offer no grant flow.
             val granted = ContextCompat.checkSelfPermission(context, perm) ==
                 PackageManager.PERMISSION_GRANTED
@@ -271,7 +271,6 @@ object PermissionInventory {
         Manifest.permission.READ_SMS -> context.getString(R.string.perm_label_sms)
         Manifest.permission.SEND_SMS -> context.getString(R.string.perm_label_send_sms)
         Manifest.permission.POST_NOTIFICATIONS -> context.getString(R.string.perm_label_post_notifications)
-        "com.termux.permission.RUN_COMMAND" -> context.getString(R.string.perm_label_termux_run)
         else -> null
     }
 
@@ -285,7 +284,6 @@ object PermissionInventory {
         Manifest.permission.READ_CALL_LOG -> context.getString(R.string.perm_desc_call_log)
         Manifest.permission.READ_SMS -> context.getString(R.string.perm_desc_sms)
         Manifest.permission.SEND_SMS -> context.getString(R.string.perm_desc_send_sms)
-        "com.termux.permission.RUN_COMMAND" -> context.getString(R.string.perm_desc_termux_run)
         else -> null
     }
 

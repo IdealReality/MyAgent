@@ -163,7 +163,7 @@ fun keyboardReadFieldTool(client: KeyboardApiClient): Tool = Tool(
     name = "keyboard_read_field",
     description = "Read the full text content of the currently focused text field via the " +
         "agent-keyboard IME. Returns the field text and the selected substring (if any). " +
-        "Read-only. Note: terminal emulators (e.g. Termux) and some custom views do not " +
+        "Read-only. Note: terminal emulators and some custom views do not " +
         "expose their buffer to the IME, so this can return empty even when text is " +
         "visible on screen - take a screenshot to read those. Example: keyboard_read_field().",
     parameters = { InputSchema.Obj(properties = buildJsonObject { }) },

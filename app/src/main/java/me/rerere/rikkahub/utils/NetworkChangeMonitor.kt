@@ -10,7 +10,7 @@ import java.lang.ref.WeakReference
 private const val TAG = "NetworkChangeMonitor"
 
 /**
- * Phase-17 stability fix — when the app is backgrounded (e.g. user opens Termux's
+ * Phase-17 stability fix — when the app is backgrounded (e.g. the user switches to another app's
  * interactive terminal for `htop`) and Android changes the active default network OR
  * puts the app's network into a restricted state, OkHttp's connection pool can hold
  * onto stale sockets and the JVM's DNS negative-cache can persist a transient
@@ -117,7 +117,7 @@ object NetworkChangeMonitor {
                 override fun onLost(network: Network) {
                     // Clear so the next onAvailable evicts unconditionally, even when
                     // the same physical network reappears with the same handle id (the
-                    // post-Termux-backgrounding case the monitor exists to fix).
+                    // post-backgrounding case the monitor exists to fix).
                     if (lastDefaultHandle == network.networkHandle) {
                         lastDefaultHandle = null
                     }
@@ -125,7 +125,7 @@ object NetworkChangeMonitor {
                 // Intentionally NO override of onCapabilitiesChanged. Capability ticks
                 // (signal strength, validation, RSSI) used to trigger eviction storms
                 // that killed every keep-alive socket multiple times per minute. The
-                // post-Termux DNS regression we're guarding against is a network-
+                // post-backgrounding DNS regression we're guarding against is a network-
                 // handoff symptom, which onAvailable + onLost catch correctly.
             }
             try {

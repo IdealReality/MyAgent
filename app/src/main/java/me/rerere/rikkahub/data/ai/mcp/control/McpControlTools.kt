@@ -362,7 +362,7 @@ fun mcpAddTool(settingsStore: SettingsStore, manager: McpManager): Tool = Tool(
         for the first sync to complete and returns the resulting status. If still CONNECTING
         when the timeout elapses, poll with mcp_test.
 
-        Typical flow: install your MCP server in Termux or on a remote box, expose it over
+        Typical flow: install your MCP server on a phone-side shell or a remote box, expose it over
         HTTP/SSE (e.g. via mcp-proxy), then mcp_add with the URL. Loopback URLs (localhost,
         127.x.x.x, ::1) are accepted only in interactive contexts — scheduled jobs and other
         headless callers cannot wire up loopback servers.

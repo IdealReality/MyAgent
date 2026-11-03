@@ -56,7 +56,7 @@ class ToolExecutionRetryPolicyTest {
     @Test
     fun `read only tools without a safe prefix are eligible`() {
         val names = listOf(
-            "conversation_search", "recent_chats", "whisper_status", "tool_search",
+            "conversation_search", "recent_chats", "recognizer_status", "tool_search",
             "notification_status", "keyboard_editor_info", "keyboard_read_field",
             "file_info", "keystore_list_keys", "keystore_verify",
             "workspace_read_file", "workspace_read_folder", "workspace_background_status",
@@ -80,7 +80,7 @@ class ToolExecutionRetryPolicyTest {
             "telegram_set_token", "record_audio", "speech_to_text", "take_photo",
             "take_screenshot", "verify_fingerprint", "nfc_write_tag", "launch_app",
             "keystore_generate_key", "keystore_decrypt", "keystore_encrypt", "keystore_sign",
-            "keystore_delete_key", "termux_run_command", "shizuku_exec", "eval_javascript",
+            "keystore_delete_key", "ssh_exec", "shizuku_exec", "eval_javascript",
             "ssh_exec", "ssh_upload", "schedule_job", "trigger_job_now", "set_volume",
         )
         names.forEach { name ->

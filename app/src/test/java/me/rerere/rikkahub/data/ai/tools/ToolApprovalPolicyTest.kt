@@ -39,7 +39,7 @@ class ToolApprovalPolicyTest {
 
     @Test
     fun `auto ignores the blacklist`() {
-        assertTrue(decide("termux_run_command", blacklist = setOf("termux_run_command"), mode = ApprovalMode.AUTO))
+        assertTrue(decide("ssh_exec", blacklist = setOf("ssh_exec"), mode = ApprovalMode.AUTO))
     }
 
     /**
@@ -78,14 +78,14 @@ class ToolApprovalPolicyTest {
 
     @Test
     fun `semi asks for a blacklisted tool`() {
-        assertFalse(decide("termux_run_command", blacklist = setOf("termux_run_command"), mode = ApprovalMode.SEMI))
+        assertFalse(decide("ssh_exec", blacklist = setOf("ssh_exec"), mode = ApprovalMode.SEMI))
     }
 
     @Test
     fun `semi only affects the named tool`() {
-        val blacklist = setOf("termux_run_command")
-        assertFalse(decide("termux_run_command", blacklist = blacklist, mode = ApprovalMode.SEMI))
-        assertTrue(decide("ssh_exec", blacklist = blacklist, mode = ApprovalMode.SEMI))
+        val blacklist = setOf("ssh_exec")
+        assertFalse(decide("ssh_exec", blacklist = blacklist, mode = ApprovalMode.SEMI))
+        assertTrue(decide("get_battery_status", blacklist = blacklist, mode = ApprovalMode.SEMI))
     }
 
     @Test
@@ -107,7 +107,7 @@ class ToolApprovalPolicyTest {
 
     @Test
     fun `manual asks for a blacklisted tool`() {
-        assertFalse(decide("termux_run_command", blacklist = setOf("termux_run_command"), mode = ApprovalMode.MANUAL))
+        assertFalse(decide("ssh_exec", blacklist = setOf("ssh_exec"), mode = ApprovalMode.MANUAL))
     }
 
     @Test
@@ -125,7 +125,7 @@ class ToolApprovalPolicyTest {
     @Test
     fun `a chat grant suppresses a blacklisted tool in semi`() {
         assertTrue(
-            decide("termux_run_command", blacklist = setOf("termux_run_command"), mode = ApprovalMode.SEMI, allowedForChat = true)
+            decide("ssh_exec", blacklist = setOf("ssh_exec"), mode = ApprovalMode.SEMI, allowedForChat = true)
         )
     }
 

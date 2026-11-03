@@ -68,7 +68,7 @@ class HeadlessToolApprovalPolicyTest {
     fun `an ordinary tool is never refused`() {
         assertFalse(HeadlessToolApprovalPolicy.isRefused("read_file"))
         assertFalse(HeadlessToolApprovalPolicy.isRefused("web_fetch"))
-        assertNull(HeadlessToolApprovalPolicy.refusalEnvelope("termux_run_command"))
+        assertNull(HeadlessToolApprovalPolicy.refusalEnvelope("ssh_exec"))
     }
 
     @Test

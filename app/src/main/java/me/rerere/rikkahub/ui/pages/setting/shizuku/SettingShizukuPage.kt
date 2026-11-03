@@ -46,7 +46,7 @@ private const val SHIZUKU_PACKAGE = "moe.shizuku.privileged.api"
 private const val SHIZUKU_RELEASES_URL = "https://github.com/RikkaApps/Shizuku/releases/latest"
 
 /**
- * Settings -> Shizuku. Mirrors the Termux settings page's structure: a status section with
+ * Settings -> Shizuku. Structure: a status section with
  * tap actions (app installed, service running, permission granted), then a help section.
  * The permission is only ever requested from the explicit tap here, never at app start or
  * on first chat.

@@ -1,7 +1,7 @@
 package me.rerere.rikkahub.data.ai
 
 import me.rerere.rikkahub.data.ai.limits.ToolRuntimeLimits
-import me.rerere.rikkahub.data.preferences.TermuxDefaults
+import me.rerere.rikkahub.data.ai.limits.GenerationLimits
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotEquals
@@ -33,14 +33,14 @@ class GenerationHandlerTurnBudgetTest {
     fun defaultBudget_is30Minutes() {
         // The original hardcoded const in GenerationHandler.kt was 10 min; the default is
         // now 30 min.
-        assertEquals(30L * 60L * 1_000L, TermuxDefaults.DEFAULT_TURN_BUDGET_MS)
+        assertEquals(30L * 60L * 1_000L, GenerationLimits.DEFAULT_TURN_BUDGET_MS)
     }
 
     @Test
     fun toolRuntimeLimits_initialDefault_matchesTheDefaultBudget() {
-        // On a fresh JVM process the holder initialises from TermuxDefaults.DEFAULT_TURN_BUDGET_MS.
+        // On a fresh JVM process the holder initialises from GenerationLimits.DEFAULT_TURN_BUDGET_MS.
         // We read prevBudget (captured before any test runs) to check what the holder started at.
-        assertEquals(TermuxDefaults.DEFAULT_TURN_BUDGET_MS, prevBudget)
+        assertEquals(GenerationLimits.DEFAULT_TURN_BUDGET_MS, prevBudget)
     }
 
     @Test
@@ -53,11 +53,11 @@ class GenerationHandlerTurnBudgetTest {
 
     @Test
     fun turnBudget_clampedValueFitsInHolder() {
-        // Verify that a clamped value from TermuxDefaults survives a round-trip through
+        // Verify that a clamped value from GenerationLimits survives a round-trip through
         // the holder without loss (no cast / truncation hazard).
-        val clamped = TermuxDefaults.clampTurnBudgetMs(TermuxDefaults.MAX_TURN_BUDGET_MS + 1L) // over max → should snap
+        val clamped = GenerationLimits.clampTurnBudgetMs(GenerationLimits.MAX_TURN_BUDGET_MS + 1L) // over max → should snap
         ToolRuntimeLimits.turnBudgetMs = clamped
         assertEquals(clamped, ToolRuntimeLimits.turnBudgetMs)
-        assertEquals(TermuxDefaults.MAX_TURN_BUDGET_MS, ToolRuntimeLimits.turnBudgetMs)
+        assertEquals(GenerationLimits.MAX_TURN_BUDGET_MS, ToolRuntimeLimits.turnBudgetMs)
     }
 }

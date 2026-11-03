@@ -40,8 +40,8 @@ import java.io.File
 import me.rerere.rikkahub.R
 
 /**
- * Each row that depends on a system capability (a permission, an OS-level service binding,
- * Termux being installed) is "tool-aware": if no enabled tool needs the capability, the
+ * Each row that depends on a system capability (a permission, an OS-level service binding)
+ * is "tool-aware": if no enabled tool needs the capability, the
  * row drops to INFO with a "not required" subtitle so the screen doesn't drown the user
  * in WARN noise about features they don't use.
  *
@@ -67,11 +67,6 @@ private object Capability {
     )
     val Accessibility: Set<LocalToolOption> = setOf(
         LocalToolOption.ScreenAutomation,    // take_screenshot, swipe, click_at, scroll, gesture
-    )
-    val Termux: Set<LocalToolOption> = setOf(
-        LocalToolOption.Termux,
-        LocalToolOption.SpeechToText,        // transcribe_audio_file uses Termux + whisper.cpp
-        LocalToolOption.Ssh,                 // ssh_exec calls into termux ssh
     )
     val BatteryWhitelist: Set<LocalToolOption> = setOf(
         LocalToolOption.TelegramBot,         // long-poll loop
@@ -122,7 +117,6 @@ private fun LocalToolOption.shortName(ctx: Context): String = when (this) {
     LocalToolOption.WifiInfo -> ctx.getString(R.string.tool_name_wifi)
     LocalToolOption.NotificationListener -> ctx.getString(R.string.tool_name_notif_listener)
     LocalToolOption.ScreenAutomation -> ctx.getString(R.string.tool_name_screen_automation)
-    LocalToolOption.Termux -> ctx.getString(R.string.tool_name_termux)
     LocalToolOption.SpeechToText -> ctx.getString(R.string.tool_name_stt)
     LocalToolOption.Ssh -> ctx.getString(R.string.tool_name_ssh)
     LocalToolOption.TelegramBot -> ctx.getString(R.string.tool_name_tg_bot)
@@ -200,7 +194,6 @@ class DoctorChecks(
             addAll(toolGroupChecks(enabled, assistants))
             addAll(databaseChecks(enabled))
             addAll(networkChecks())
-            addAll(termuxChecks(enabled))
             addAll(shizukuChecks(enabled))
             addAll(browserChecks(enabled))
             addAll(mcpChecks())
@@ -831,7 +824,7 @@ class DoctorChecks(
                 ),
             )
         )
-        // Notification listener / Termux / Shizuku / Files / Browser rows reuse the
+        // Notification listener / Shizuku / Files / Browser rows reuse the
         // readiness probes the existing category checks already compute, rather than
         // duplicating logic inline.
         add(
@@ -849,19 +842,6 @@ class DoctorChecks(
                     context.getString(R.string.doctor_fix_open_settings),
                     PermissionHelper.notificationListenerSettingsIntent(),
                 ),
-            )
-        )
-        val termuxInstalled = isTermuxInstalled()
-        add(
-            groupRow(
-                id = "tools.termux",
-                option = LocalToolOption.Termux,
-                label = context.getString(R.string.doctor_check_termux),
-                reliesOn = context.getString(R.string.doctor_relies_on_termux),
-                backendReady = termuxInstalled,
-                backendDetail = if (termuxInstalled) context.getString(R.string.doctor_detail_termux_installed)
-                else context.getString(R.string.doctor_detail_termux_not_installed),
-                fix = null,
             )
         )
         val shizukuStatus = ShizukuManager.status(context)
@@ -925,10 +905,6 @@ class DoctorChecks(
             )
         )
     }
-
-    /** Shared with [termuxChecks] so the "is Termux installed" probe is computed once. */
-    private fun isTermuxInstalled(): Boolean =
-        runCatching { context.packageManager.getPackageInfo("com.termux", 0); true }.getOrDefault(false)
 
     /** Shared with [browserChecks] so the profile-directory path is defined once. */
     private fun browserProfileDir(): File = File(context.filesDir, "browser-profile")
@@ -1259,49 +1235,12 @@ class DoctorChecks(
         )
     }
 
-    // ----- Termux ----------------------------------------------------------------------
-
-    private fun termuxChecks(enabled: Set<LocalToolOption>): List<DoctorCheck> = buildList {
-        val needers = requirersOf(Capability.Termux, enabled)
-        // Skip the entire category when no Termux-using tool is enabled — keeps the
-        // Doctor screen focused on what the user actually configured.
-        if (needers.isEmpty()) return@buildList
-
-        val termuxInstalled = isTermuxInstalled()
-        add(
-            DoctorCheck(
-                id = "termux.installed",
-                category = DoctorCategory.Termux,
-                label = context.getString(R.string.doctor_check_termux_installed),
-                detail = if (termuxInstalled) context.getString(R.string.doctor_detail_termux_installed_2)
-                else context.getString(R.string.doctor_detail_termux_not_installed_2, needers.joinToString(", ") { it.shortName(context) }),
-                severity = if (termuxInstalled) Severity.OK else Severity.WARN,
-            )
-        )
-        if (termuxInstalled) {
-            val runCommandPerm = runCatching {
-                val perm = "com.termux.permission.RUN_COMMAND"
-                context.checkSelfPermission(perm) == android.content.pm.PackageManager.PERMISSION_GRANTED
-            }.getOrDefault(false)
-            add(
-                DoctorCheck(
-                    id = "termux.run_command",
-                    category = DoctorCategory.Termux,
-                    label = context.getString(R.string.doctor_check_termux_perm),
-                    detail = if (runCommandPerm) context.getString(R.string.doctor_detail_termux_run_command_granted)
-                    else context.getString(R.string.doctor_detail_termux_run_command_not_granted),
-                    severity = if (runCommandPerm) Severity.OK else Severity.WARN,
-                )
-            )
-        }
-    }
-
     // ----- Shizuku ------------------------------------------------------------------------
 
     /**
-     * Doctor refresh: three rows tracking Shizuku the same way [termuxChecks] tracks Termux,
-     * a companion privileged-helper app the `shizuku_exec` tool depends on. Unlike Termux,
-     * these rows are always emitted (not skipped when unused) so the settings page shows
+     * Doctor refresh: three rows tracking Shizuku, a companion privileged-helper app the
+     * `shizuku_exec` tool depends on. These rows are always emitted (not skipped when unused)
+     * so the settings page shows
      * "not required" rather than silently omitting the whole category; severity still
      * downgrades to INFO when no enabled tool needs Shizuku, matching every other
      * capability-aware row in this file.

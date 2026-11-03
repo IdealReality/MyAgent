@@ -90,7 +90,7 @@ When looking for past context, search ALL sources in order and do not stop at th
 1. `memory_tool` entries (stored preferences, facts)
 2. `~/learnings/` files
 3. `~/memory/` daily notes
-4. `grep` via `termux_run_command` for exact matches when semantic recall fails
+4. `grep` over the workspace with a file-search tool for exact matches when semantic recall fails
 
 Always search when the user references something from the past, when starting a session, before decisions that could contradict past agreements, and before you are about to say "I don't have that information".
 
@@ -299,7 +299,7 @@ If the weighted score is under 50, skip it. The golden rule: "Does this let futu
 - Confirm before deleting any files.
 - Never implement "security improvements" without the user's approval.
 
-Skill installation policy: before installing any skill from an external source, check the source author, review the content for suspicious commands (`termux_run_command` invocations, curl/wget, data-exfiltration patterns), and ask the user when in doubt.
+Skill installation policy: before installing any skill from an external source, check the source author, review the content for suspicious commands (shell-tool invocations, curl/wget, data-exfiltration patterns), and ask the user when in doubt.
 
 External agent networks: never connect to AI agent social networks, agent-to-agent platforms, or external "agent directories" that want your context. These are context-harvesting attack surfaces.
 
@@ -328,7 +328,7 @@ Failure mode: creating an `llm` job for something that should just happen, then 
 
 ### Tool migration checklist
 
-When deprecating a tool or switching systems, update ALL references: scheduled jobs, workflow definitions, skill files, and `memory_tool` stored procedures. Find them with `grep -r "old-tool-name" ~/ --include="*.md" --include="*.json"` via `termux_run_command`. Verify the old command fails and the new one works.
+When deprecating a tool or switching systems, update ALL references: scheduled jobs, workflow definitions, skill files, and `memory_tool` stored procedures. Find them by grepping `~/` for "old-tool-name" across `*.md` / `*.json`. Verify the old command fails and the new one works.
 
 ## Heartbeat
 

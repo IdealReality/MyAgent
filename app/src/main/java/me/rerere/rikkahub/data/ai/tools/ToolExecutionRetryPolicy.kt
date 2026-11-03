@@ -81,7 +81,7 @@ object ToolExecutionRetryPolicy {
     private val IDEMPOTENT_EXACT = setOf(
         "conversation_search",
         "recent_chats",
-        "whisper_status",
+        "recognizer_status",
         "tool_search",
         "notification_status",
         "keyboard_editor_info",

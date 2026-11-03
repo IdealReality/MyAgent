@@ -37,7 +37,6 @@ enum class DoctorCategory(val displayNameRes: Int) {
     ToolGroups(R.string.doctor_cat_toolgroups),
     Database(R.string.doctor_cat_database),
     Network(R.string.doctor_cat_network),
-    Termux(R.string.doctor_cat_termux),
     Shizuku(R.string.doctor_cat_shizuku),
     Maintenance(R.string.doctor_cat_maintenance),
     Diagnostics(R.string.doctor_cat_diagnostics),

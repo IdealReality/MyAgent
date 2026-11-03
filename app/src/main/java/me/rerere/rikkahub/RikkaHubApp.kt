@@ -149,16 +149,13 @@ class RikkaHubApp : Application() {
         // Initialise the agent's `~` workspace at /data/data/<pkg>/files/workspace/.
         // Tools resolve `~` and `~/foo` paths to this dir, giving the LLM a stable
         // sandbox for `.learnings/`, scratch files, and skill state without scoped-
-        // storage friction. Termux-style: private, persistent, OS-blessed.
+        // storage friction: private, persistent, OS-blessed.
         me.rerere.rikkahub.data.ai.tools.local.AgentWorkspace.init(this)
 
-        // TermuxPreferences is already constructed transitively via eagerlyInitChatService()
-        // above (ChatService -> LocalTools -> TermuxPreferences), which runs its init{}
-        // restore + persister wiring for TermuxIntegration.lastVerifiedOkAtMs (GitHub #14).
-        // This explicit touch is a decoupled safety net so that persistence still initializes
-        // if that construction chain is later refactored or throws before reaching
-        // termuxPreferences.
-        eagerlyInitTermuxPreferences()
+        // Generation limits (per-turn wall-clock budget + tool-step cap) live in their own
+        // DataStore; constructing the singleton runs its init{} block, which seeds
+        // ToolRuntimeLimits before the first tool call. Koin singles are lazy, so touch it here.
+        eagerlyInitGenerationLimits()
 
         // Copy any default skills bundled in assets/default-skills/* into the user's skills
         // dir on first launch. SkillManager guards via a per-skill .seeded sentinel so this
@@ -174,10 +171,10 @@ class RikkaHubApp : Application() {
         startWorkflowRegistry()
 
         // Phase-17 stability — register a network-change monitor that evicts OkHttp's
-        // connection pool on every default-network transition. Fixes the post-Termux-
-        // interactive-session "Unable to resolve host …" bug: when the user opens
-        // Termux's terminal for `htop` the app backgrounds, Android may flip the
-        // network into a restricted state, and the JVM's negative DNS cache plus
+        // connection pool on every default-network transition. Fixes the
+        // "Unable to resolve host …" bug after the app has been backgrounded for a while:
+        // Android may flip the network into a restricted state, and the JVM's negative
+        // DNS cache plus
         // OkHttp's idle sockets keep the failure sticky after return. Eviction on the
         // next onAvailable forces a fresh DNS lookup + new socket on the next request.
         startNetworkChangeMonitor()
@@ -412,13 +409,13 @@ class RikkaHubApp : Application() {
         }
     }
 
-    // Decoupled safety net: normally a no-op since eagerlyInitChatService() already
-    // constructed TermuxPreferences transitively; kept independent in case that chain changes.
-    private fun eagerlyInitTermuxPreferences() {
+    // Seeds ToolRuntimeLimits from the persisted generation limits. Must not throw into the
+    // startup path: a corrupt store should degrade to the compile-time defaults, not crash.
+    private fun eagerlyInitGenerationLimits() {
         try {
-            get<me.rerere.rikkahub.data.preferences.TermuxPreferences>()
+            get<me.rerere.rikkahub.data.ai.limits.GenerationLimitsPreferences>()
         } catch (t: Throwable) {
-            Log.e(TAG, "eagerlyInitTermuxPreferences failed", t)
+            Log.e(TAG, "eagerlyInitGenerationLimits failed", t)
         }
     }
 

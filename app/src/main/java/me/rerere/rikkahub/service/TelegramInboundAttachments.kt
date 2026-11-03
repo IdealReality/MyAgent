@@ -15,7 +15,7 @@ import java.io.File
  * LLM sees an inventory of what arrived.
  *
  * Path policy: `/sdcard/Download/telegram_inbox/<chatId>/`. Shared storage (NOT app cache)
- * so Termux, file tools, and the user can reach the files.
+ * so file tools and the user can reach the files.
  *
  * Inbox hygiene: files older than 24 h are pruned, then total size is capped at
  * [INBOUND_ATTACHMENT_INBOX_CAP_BYTES] (oldest first).
@@ -45,7 +45,7 @@ internal data class DownloadedAttachment(
     val skipReason: String?,
 )
 
-/** The per-chat inbound-attachment inbox on shared storage. Termux / file tools can reach it. */
+/** The per-chat inbound-attachment inbox on shared storage. File tools can reach it. */
 internal fun inboxDirFor(chatId: Long): File =
     File("/sdcard/Download/telegram_inbox/$chatId").apply { mkdirs() }
 
@@ -71,7 +71,7 @@ internal fun pruneInbox(inboxDir: File) {
 
 /**
  * Resolve each Telegram photo file_id to a downloaded file in the per-chat shared-storage
- * inbox (so Termux / file tools can also reach it, not just the in-process vision pipeline),
+ * inbox (so file tools can also reach it, not just the in-process vision pipeline),
  * then return both the UIMessagePart.Image entries (file:// URIs, for vision-capable models)
  * AND the saved absolute paths (so [buildPhotoNote] can surface them in the message text for
  * text-only models). Failures on individual photos are logged and skipped so a transient
@@ -114,7 +114,7 @@ internal suspend fun downloadInboundPhotos(
  * Download non-photo inbound attachments to /sdcard/Download/telegram_inbox/<chatId>/.
  *
  * Differences vs downloadInboundPhotos:
- * - Saves to shared storage (not app cache) so the LLM can point file-manager / Termux at the paths.
+ * - Saves to shared storage (not app cache) so the LLM can point file tools at the paths.
  * - Preserves original filenames (sanitized); falls back to tg-<ts>-<suffix>.<ext>.
  * - Skips files > INBOUND_ATTACHMENT_SIZE_CAP_BYTES and surfaces a note instead.
  * - Prunes files older than 24 h and caps total inbox size at 500 MB.
@@ -214,7 +214,7 @@ internal fun buildAttachmentNote(downloads: List<DownloadedAttachment>): String 
 /**
  * Build the structured note appended to the user message when inbound photos arrive, so the
  * LLM learns the saved file path(s). Mirrors [buildAttachmentNote] — it lets the model OCR /
- * process the image via file tools or Termux even when the configured model has no vision
+ * process the image via file tools even when the configured model has no vision
  * pipeline. Returns "" when no photo was saved.
  */
 internal fun buildPhotoNote(paths: List<String>): String {
@@ -225,7 +225,7 @@ internal fun buildPhotoNote(paths: List<String>): String {
     for (p in paths) {
         sb.append("- photo → saved to $p\n")
     }
-    sb.append("View it directly if you have vision, or process the file at that path (e.g. OCR with `tesseract` via Termux).]")
+    sb.append("View it directly if you have vision, or OCR it with an OCR-capable tool (e.g. `tesseract`).]")
     return sb.toString()
 }
 

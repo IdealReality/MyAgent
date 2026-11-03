@@ -25,7 +25,7 @@ private const val MAX_TIMEOUT_MS = 300_000
  *
  * Approval-gated in [me.rerere.rikkahub.data.ai.tools.ToolApprovalDefaults] and its `command`
  * argument is checked against [me.rerere.rikkahub.data.ai.tools.HardlineCommandGuard] like
- * every other shell surface (SSH, Termux).
+ * every other shell surface (e.g. SSH).
  */
 fun shizukuExecTool(context: Context): Tool = Tool(
     name = "shizuku_exec",

@@ -61,7 +61,7 @@ object HeadlessToolApprovalPolicy {
      *
      * T-10 stopped at `NO_ALWAYS_ALLOW` and the microphone pair. That left the far larger
      * [ToolApprovalDefaults.DANGEROUS_TOOLS] group (132 names) auto-approving in headless runs —
-     * deliberate for `read_file` / `web_fetch` / `termux_run_command` (a schedule has to be
+     * deliberate for `read_file` / `web_fetch` / `ssh_exec` (a schedule has to be
      * able to do its job), and wrong for these: a run that reads the SMS inbox, the contact
      * list or the call log, fires the camera, re-sends a notification, or posts a message as
      * the user is a thing nobody asked for and nobody is watching.

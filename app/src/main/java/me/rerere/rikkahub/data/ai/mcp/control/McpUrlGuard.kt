@@ -15,7 +15,7 @@ import java.net.URI
  *      hosts (`127.0.0.0/8`, `::1`, the literal `localhost`). Rationale: the LLM running
  *      autonomously at 3am should not be able to silently wire itself to a localhost
  *      service it shouldn't talk to. In an interactive context (in-app chat or Telegram
- *      bot), the user is present — loopback is the EXPECTED workflow (Termux + mcp-proxy
+ *      bot), the user is present — loopback is the EXPECTED workflow (mcp-proxy
  *      on the phone itself), so we allow it.
  *
  * Note on heuristic for "headless context": v1 uses [HeadlessConversations.activeIds] —

@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
@@ -53,8 +54,7 @@ import me.rerere.hugeicons.stroke.ArrowRight01
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.datastore.AutoCompactionThresholdMode
 import me.rerere.rikkahub.data.datastore.Settings
-import me.rerere.rikkahub.ui.pages.setting.termux.SettingTermuxViewModel
-import me.rerere.rikkahub.ui.pages.setting.termux.TimeoutInput
+
 import me.rerere.rikkahub.ui.components.ai.ModelListSheet
 import me.rerere.rikkahub.ui.components.ai.ReasoningButton
 import me.rerere.rikkahub.ui.components.ai.rememberModelListState
@@ -191,15 +191,14 @@ private fun ModelSettingsPage(settings: Settings, vm: SettingVM, contentPadding:
 /**
  * Per-turn generation limits — the wall-clock budget and the tool-step ceiling for one
  * user turn. These are app-wide (they govern every tool family and the model loop itself,
- * see [me.rerere.rikkahub.data.ai.limits.ToolRuntimeLimits]); they live on the model page
- * because they shape generation behaviour, not Termux specifically. Persistence stays in
- * TermuxPreferences (the pre-existing store), surfaced here through SettingTermuxViewModel.
+ * see [me.rerere.rikkahub.data.ai.limits.ToolRuntimeLimits]); persistence lives in
+ * [me.rerere.rikkahub.data.ai.limits.GenerationLimitsPreferences].
  */
 @Composable
 private fun GenerationLimitsSettingItem(
-    termuxVm: SettingTermuxViewModel = koinViewModel(),
+    limitsVm: GenerationLimitsViewModel = koinViewModel(),
 ) {
-    val config by termuxVm.config.collectAsStateWithLifecycle()
+    val config by limitsVm.config.collectAsStateWithLifecycle()
 
     CardGroup(title = { Text(stringResource(R.string.setting_model_page_generation_limits)) }) {
         item(
@@ -208,8 +207,8 @@ private fun GenerationLimitsSettingItem(
             trailingContent = {
                 TimeoutInput(
                     currentValue = config.turnBudgetMs / 60_000L,
-                    unitLabel = stringResource(R.string.setting_termux_unit_minutes),
-                    onCommit = termuxVm::setTurnBudgetMinutes,
+                    unitLabel = stringResource(R.string.setting_generation_limits_unit_minutes),
+                    onCommit = limitsVm::setTurnBudgetMinutes,
                 )
             },
         )
@@ -219,12 +218,46 @@ private fun GenerationLimitsSettingItem(
             trailingContent = {
                 TimeoutInput(
                     currentValue = config.maxToolSteps.toLong(),
-                    unitLabel = stringResource(R.string.setting_termux_unit_steps),
-                    onCommit = termuxVm::setMaxToolSteps,
+                    unitLabel = stringResource(R.string.setting_generation_limits_unit_steps),
+                    onCommit = limitsVm::setMaxToolSteps,
                 )
             },
         )
     }
+}
+
+/**
+ * Compact numeric input for a limit row's trailing slot. Editing is buffered in local state
+ * and committed on focus loss; the persisted value is clamped in the store, so an
+ * out-of-range entry snaps back to the nearest bound and the buffer follows it.
+ */
+@Composable
+private fun TimeoutInput(
+    currentValue: Long,
+    unitLabel: String,
+    onCommit: (Long) -> Unit,
+) {
+    var text by remember(currentValue) { mutableStateOf(currentValue.toString()) }
+
+    OutlinedTextField(
+        value = text,
+        onValueChange = { new -> text = new.filter { it.isDigit() }.take(6) },
+        singleLine = true,
+        suffix = { Text(unitLabel, style = MaterialTheme.typography.bodySmall) },
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+        modifier = Modifier
+            .width(148.dp)
+            .onFocusChanged { focus ->
+                if (!focus.isFocused) {
+                    val parsed = text.toLongOrNull()
+                    if (parsed != null && parsed != currentValue) {
+                        onCommit(parsed)
+                    } else {
+                        text = currentValue.toString()
+                    }
+                }
+            },
+    )
 }
 
 @Composable

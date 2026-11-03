@@ -44,7 +44,7 @@ internal object BackupLayout {
         "external_automation",
         "browser_prefs",
         "notification_listener",
-        "termux_prefs",
+        "generation_limits",
         "tool_approval",
         "telegram_bot",
     )

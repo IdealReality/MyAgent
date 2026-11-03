@@ -13,7 +13,7 @@ import kotlinx.serialization.json.jsonPrimitive
  * The "hardline" tier — unconditional command blocklist.
  *
  * Patterns here are blocked BEFORE any approval prompt and BEFORE any allow-list check.
- * Even if the user has granted "Always Allow" for the parent tool (e.g. termux_run_command),
+ * Even if the user has granted "Always Allow" for the parent tool (e.g. ssh_exec),
  * a hardline-matching command never runs. There is no way to override hardline through the
  * UI — that's the whole point. If the user genuinely needs to run something on this list,
  * they should run it themselves in a terminal, not through the agent.
@@ -158,17 +158,6 @@ object HardlineCommandGuard {
      */
     fun checkToolParsed(toolName: String, input: JsonObject): String? {
         return when {
-            toolName == "termux_run_command" -> {
-                val cmd = input["command"]?.jsonPrimitive?.contentOrNull
-                checkCommand(cmd)?.let { return it }
-                val exe = input["executable"]?.jsonPrimitive?.contentOrNull
-                val args = input["arguments"]?.jsonArray
-                    ?.mapNotNull { it.jsonPrimitive.contentOrNull }
-                    ?.joinToString(" ")
-                if (exe != null || args != null) {
-                    checkCommand("${exe.orEmpty()} ${args.orEmpty()}")
-                } else null
-            }
             toolName == "ssh_exec" || toolName == "ssh_exec_saved" ->
                 checkCommand(input["command"]?.jsonPrimitive?.contentOrNull)
             toolName == "shizuku_exec" ->

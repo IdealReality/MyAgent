@@ -112,7 +112,7 @@
   <string name="setting_page_scheduled_jobs">المهام المجدوَلة</string>
   <string name="setting_page_scheduled_jobs_desc">مهام قائمة على الوقت جدوَلها المساعد — مهام لمرة واحدة وتعبيرات cron متكررة.</string>
   <string name="setting_page_doctor">التشخيص</string>
-  <string name="setting_page_doctor_desc">تشخيص التطبيق وإصلاحه — الأذونات والخدمات وقاعدة البيانات والشبكة وTermux.</string>
+  <string name="setting_page_doctor_desc">تشخيص التطبيق وإصلاحه — الأذونات والخدمات وقاعدة البيانات والشبكة.</string>
   <string name="setting_page_doctor_run_again">تشغيل مرة أخرى</string>
   <string name="setting_page_doctor_running">جارٍ التشغيل…</string>
   <string name="setting_page_doctor_copy_report">نسخ التقرير</string>
@@ -1145,34 +1145,18 @@
   <string name="assistant_page_local_tools_screen_automation_title">أتمتة الشاشة</string>
   <string name="assistant_page_local_tools_screen_automation_desc">السماح للنموذج اللغوي بالنقر والسحب والتمرير وقراءة المحتوى المعروض على الشاشة والتقاط لقطات شاشة عبر خدمة إمكانية الوصول في Android.</string>
   <string name="assistant_page_local_tools_app_launcher_title">مشغّل التطبيقات</string>
-  <string name="assistant_page_local_tools_app_launcher_desc">فتح التطبيقات المثبتة باسم الحزمة (مثل Termux، الإعدادات) وسرد التطبيقات المتاحة. يقترن بأتمتة الشاشة للتحكم الكامل في الواجهة.</string>
+  <string name="assistant_page_local_tools_app_launcher_desc">فتح التطبيقات المثبتة باسم الحزمة (مثل Chrome، الإعدادات) وسرد التطبيقات المتاحة. يقترن بأتمتة الشاشة للتحكم الكامل في الواجهة.</string>
   <string name="assistant_page_local_tools_notifications_title">إدراك الإشعارات</string>
   <string name="assistant_page_local_tools_notifications_desc">السماح للنموذج اللغوي بقراءة الإشعارات الواردة من التطبيقات الأخرى. التطبيقات المدرجة في القائمة البيضاء تُحوَّل أيضًا تلقائيًا إلى دردشة Telegram الافتراضية. كوّن في الإعدادات -&gt; الإشعارات.</string>
-  <string name="assistant_page_local_tools_termux_title">تكامل Termux</string>
-  <string name="assistant_page_local_tools_termux_status_not_installed">Termux غير مثبت - ثبّته من github.com/termux/termux-app/releases</string>
-  <string name="assistant_page_local_tools_termux_status_no_permission">فعّل لمنح إذن RUN_COMMAND</string>
-  <string name="assistant_page_local_tools_termux_status_untested">جاهز تقريبًا. افتح Termux ونفّذ: mkdir -p ~/.termux &amp;&amp; echo \'allow-external-apps=true\' &gt;&gt; ~/.termux/termux.properties — ثم أوقف Termux إجباريًا وأعد فتحه. انقر للتحقق.</string>
-  <string name="assistant_page_local_tools_termux_status_ok">متصل - تعمل الأوامر مع التقاط الإخراج</string>
-  <string name="assistant_page_local_tools_termux_verify">انقر للتحقق</string>
-  <string name="assistant_page_local_tools_termux_verifying">جارٍ التحقق من التكامل…</string>
-  <string name="assistant_page_local_tools_termux_verify_ok">تم التحقق من تكامل Termux.</string>
-  <string name="assistant_page_local_tools_termux_verify_props_missing">لم يستجب Termux. افتح Termux ونفّذ: mkdir -p ~/.termux &amp;&amp; echo \'allow-external-apps=true\' &gt;&gt; ~/.termux/termux.properties — ثم أوقف Termux إجباريًا وأعد فتحه.</string>
-  <string name="assistant_page_local_tools_termux_postgrant_title">خطوة أخيرة لـ Termux</string>
-  <string name="assistant_page_local_tools_termux_postgrant_message">تم منح إذن RUN_COMMAND. لا يزال Termux يحتاج إلى `allow-external-apps=true` في `~/.termux/termux.properties` قبل أن يتمكن المساعد من تشغيل الأوامر.\n\nافتح Termux والصق الأمر أدناه، ثم أوقف Termux إجباريًا من معلومات التطبيق وأعد فتحه.\n\nسيتحول الصف إلى الأخضر بعد النقر على «تحقق».</string>
-  <string name="assistant_page_local_tools_termux_postgrant_command">mkdir -p ~/.termux &amp;&amp; echo \'allow-external-apps=true\' &gt;&gt; ~/.termux/termux.properties</string>
-  <string name="assistant_page_local_tools_termux_postgrant_copy">نسخ الأمر</string>
-  <string name="assistant_page_local_tools_termux_postgrant_copied">تم نسخ الأمر — الصقه في Termux.</string>
   <string name="assistant_page_local_tools_telegram_notoken_title">بوت Telegram يحتاج إلى رمز</string>
   <string name="assistant_page_local_tools_telegram_notoken_message">المفتاح مُفعَّل، لكن لم يُعيَّن رمز بوت بعد.\n\nالطريقة السهلة: اطلب من المساعد في الدردشة — "أعدّ بوت Telegram، رمزي هو …، معرّف المستخدم الخاص بي …، عيّنّي كدردشة افتراضية، فعّله."\n\nالطريقة اليدوية: راسل @BotFather على Telegram بـ /newbot للحصول على رمز، و@userinfobot بـ /start لمعرّف المستخدم الرقمي الخاص بك. ثم اطلب من المساعد أو الصقهما في الإعدادات → بوت Telegram.</string>
   <string name="assistant_page_local_tools_cron_jobs_toast_hint">تنبيه: تستخدم المهام المجدوَلة الأدوات التي مكّنتها. إذا استدعت مهمة SSH أو Telegram أو أي أداة أخرى، فيجب أن تكون تلك المفاتيح مُفعَّلة أيضًا.</string>
   <string name="assistant_page_local_tools_dialog_dismiss">فهمت</string>
-  <string name="assistant_page_local_tools_termux_verify_no_permission">إذن RUN_COMMAND غير ممنوح. أوقف Termux ثم فعّله لإعادة محاولة مطالبة النظام.</string>
-  <string name="assistant_page_local_tools_termux_verify_unexpected">رد Termux لكن بإخراج غير متوقع: %1$s</string>
   <string name="assistant_page_local_tools_files_title">الملفات</string>
   <string name="assistant_page_local_tools_files_desc">قراءة الملفات وكتابتها وسردها والبحث فيها ونسخها ونقلها وحذفها.</string>
   <string name="assistant_page_local_tools_section_files">مدير الملفات</string>
   <string name="assistant_page_local_tools_mcp_control_title">التحكم بـ MCP</string>
-  <string name="assistant_page_local_tools_mcp_control_desc">السماح للمساعد بإضافة خوادم MCP وتعديلها وإزالتها. يمكن للمساعد تثبيت MCP في Termux أو على مضيف SSH بعيد، ثم ربطه بالتطبيق — دون أن تفتح الإعدادات.</string>
+  <string name="assistant_page_local_tools_mcp_control_desc">السماح للمساعد بإضافة خوادم MCP وتعديلها وإزالتها. يمكن للمساعد تثبيت MCP على مضيف SSH بعيد، ثم ربطه بالتطبيق — دون أن تفتح الإعدادات.</string>
   <string name="assistant_page_local_tools_external_automation_title">الأتمتة الخارجية</string>
   <string name="assistant_page_local_tools_external_automation_desc">السماح للمساعد بإدارة واجهة Intent للأتمتة الخارجية — المسار الذي يتيح لـ Tasker / MacroDroid / Locale / ADB إطلاق نوايا RUN_TASK إلى المساعد. الافتراضي مُعطَّل؛ يمكن للمساعد تفعيله وإضافة حزم مستدعِين موثوقة ومراجعة سجل الاستدعاءات الأخير.</string>
   <string name="assistant_page_local_tools_reliability_title">الموثوقية</string>
@@ -1666,7 +1650,6 @@
   <string name="setting_tts_page_fish_audio_speed_description">سرعة الكلام (0.5 - 2.0، القيمة الافتراضية 1.0)</string>
   <string name="stats_page_cache_hit_rate">معدل إصابة الذاكرة المؤقتة</string>
   <string name="theme_name_claude">كلود (Claude)</string>
-  <string name="theme_name_myagent">My Agent</string>
   <string name="theme_name_minimal">أبيض بسيط</string>
   <string name="setting_theme_page_delete_theme_title">حذف السمة</string>
   <string name="setting_theme_page_delete_theme_message">هل أنت متأكد أنك تريد حذف هذه السمة؟</string>
@@ -1719,54 +1702,14 @@
   <string name="setting_browser_per_tool_timeout_unit">ثواني</string>
   <string name="setting_browser_single_task_timeout_desc">حد أقصى صارم لزمن مهمة المتصفح المدعومة بالذكاء الاصطناعي لمنع الحلقات غير المنتهية. النطاق من 1 إلى 60 دقيقة.</string>
   <string name="setting_browser_single_task_timeout_unit">دقائق</string>
-  <string name="setting_page_termux">بيئة Termux</string>
-  <string name="setting_page_termux_desc">أوامر سطر الأوامر (Shell)، المهلات، والتكامل مع Termux.</string>
   <string name="setting_page_shizuku">Shizuku</string>
   <string name="setting_page_shizuku_desc">منح الإذن ومعرفة حالة الأوامر التي تُشغَّل عبر Shizuku.</string>
-  <string name="setting_termux_title">Termux</string>
-  <string name="setting_termux_section_status">الحالة</string>
-  <string name="setting_termux_status_app">حالة التطبيق</string>
-  <string name="setting_termux_status_app_installed">مثبت — انقر للفتح</string>
-  <string name="setting_termux_status_app_missing">غير مثبت — انقر للتنزيل</string>
-  <string name="setting_termux_status_open">فتح Termux</string>
-  <string name="setting_termux_status_open_desc">تشغيل تطبيق Termux</string>
-  <string name="setting_termux_status_permission">حالة الإذن</string>
-  <string name="setting_termux_status_permission_granted">ممنوح — انقر لإعادة الطلب</string>
-  <string name="setting_termux_toast_permission_granted">الإذن ممنوح</string>
-  <string name="setting_termux_status_permission_missing">غير ممنوح — انقر للطلب</string>
-  <string name="setting_termux_status_verify">التحقق من الاتصال</string>
-  <string name="setting_termux_status_verify_ok">تم التحقق بنجاح</string>
-  <string name="setting_termux_status_verify_unknown">لم يتم التحقق بعد — انقر لتشغيل الاختبار</string>
-  <string name="setting_termux_verify_ok">تم التحقق من Termux بنجاح.</string>
-  <string name="setting_termux_verify_not_installed">التحقق فشل: تطبيق Termux غير مثبت</string>
-  <string name="setting_termux_verify_no_permission">التحقق فشل: الإذن غير ممنوح</string>
-  <string name="setting_termux_verify_allow_external_apps">التحقق فشل: يلزم allow-external-apps=true</string>
-  <string name="setting_termux_verify_unexpected_output">مخرجات اختبار غير متوقعة</string>
-  <string name="setting_termux_verify_other_error">خطأ في التحقق: %s</string>
-  <string name="setting_termux_section_timeouts">المهلات</string>
-  <string name="setting_termux_command_timeout">مهلة الأوامر الإجمالية</string>
-  <string name="setting_termux_command_timeout_desc">المدة الزمنية لانتظار إرجاع مخرجات أمر سطر الأوامر في الخلفية. النطاق من 5 ثوانٍ إلى 600 ثانية.</string>
   <string name="setting_model_page_turn_budget">ميزانية وقت الدورة</string>
   <string name="setting_model_page_turn_budget_desc">حد أقصى صارم لإجمالي الوقت الذي يمكن أن يقضيه دور مستخدم واحد في تنفيذ الأدوات. النطاق من دقيقة واحدة إلى 60 دقيقة.</string>
-  <string name="setting_termux_verify_timeout">مهلة التحقق</string>
-  <string name="setting_termux_verify_timeout_desc">مهلة اختبار استجابة أمر الصدى allow-external-apps. النطاق من 3 ثوانٍ إلى 30 ثانية.</string>
-  <string name="setting_termux_unit_seconds">ثواني</string>
-  <string name="setting_termux_unit_minutes">دقائق</string>
-  <string name="setting_termux_unit_steps">خطوات</string>
+  <string name="setting_generation_limits_unit_minutes">دقائق</string>
+  <string name="setting_generation_limits_unit_steps">خطوات</string>
   <string name="setting_model_page_max_tool_steps">الحد الأقصى لاستدعاءات أدوات سطر الأوامر لكل دورة</string>
   <string name="setting_model_page_max_tool_steps_desc">عدد استدعاءات الأدوات التي يمكن لرد واحد تسلسلها قبل إنهائه إجباريًا. ارفع هذه القيمة لمهام التثبيت أو البناء الطويلة. النطاق من 1 إلى 500؛ مع استمرار سريان ميزانية زمن الدور أعلاه.</string>
-  <string name="setting_termux_unit_bytes">بايت</string>
-  <string name="setting_termux_section_defaults">القيم الافتراضية</string>
-  <string name="setting_termux_working_dir">دليل العمل</string>
-  <string name="setting_termux_max_stdout">حد مخرجات stdout</string>
-  <string name="setting_termux_max_stdout_desc">الحد الأقصى للبايتات من المخرجات القياسية (stdout) المعادة للذكاء الاصطناعي لكل أمر. النطاق من 1,000 إلى 64,000 بايت.</string>
-  <string name="setting_termux_max_stderr">حد مخرجات stderr</string>
-  <string name="setting_termux_max_stderr_desc">الحد الأقصى للبايتات من مخرجات الأخطاء (stderr) المعادة للذكاء الاصطناعي لكل أمر. النطاق من 500 إلى 16,000 بايت.</string>
-  <string name="setting_termux_apt_wrap">التغليف التلقائي لـ apt غير التفاعلي</string>
-  <string name="setting_termux_apt_wrap_desc">إضافة خيارات التغليف التلقائية لـ DEBIAN_FRONTEND=noninteractive عند تشغيل apt</string>
-  <string name="setting_termux_section_help">المساعدة والتوثيق</string>
-  <string name="setting_termux_help_allow_external_apps_title">كيفية تمكين allow-external-apps</string>
-  <string name="setting_termux_help_allow_external_apps_body">لتسمح لـ RikkaHub بتشغيل الأوامر في Termux:\n\n1. افتح تطبيق Termux.\n2. قم بتعديل أو إضافة السطر التالي إلى ملف الخصائص:\n   echo \"allow-external-apps = true\" &gt;&gt; ~/.termux/termux.properties\n3. أعد تحميل التكوين:\n   termux-reload-settings</string>
   <string name="setting_shizuku_title">Shizuku</string>
   <string name="setting_shizuku_section_status">الحالة</string>
   <string name="setting_shizuku_status_app">تطبيق Shizuku</string>

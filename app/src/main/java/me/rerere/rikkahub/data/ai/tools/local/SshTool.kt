@@ -70,8 +70,7 @@ internal val sshDnsCache: DnsCache = DnsCache().also { cache ->
 /**
  * Caps on stdout / stderr returned to the LLM. Without these, `cat /var/log/syslog` /
  * `journalctl` / `ls -R /` push megabytes into the next prompt, blowing the context
- * budget on a single tool call. Mirrors the Termux tool's caps so behaviour is
- * consistent across local and remote shell.
+ * budget on a single tool call.
  */
 private const val MAX_RETURNED_STDOUT = 8_000
 private const val MAX_RETURNED_STDERR = 2_000
@@ -159,9 +158,9 @@ internal fun wrapDetachedCommand(command: String): String =
 /**
  * Resolves [host] to an IPv4 address string. JSch's `Socket(addr, port)` does NOT implement
  * Happy Eyeballs — it sits on the IPv6 SYN until the connect timeout fires, even when the
- * server only listens on IPv4. Termux's OpenSSH races both stacks in parallel and never
- * sees this failure mode, which is why `ssh user@host` from Termux works while our direct
- * JSch path on the same Pixel times out.
+ * server only listens on IPv4. A Happy-Eyeballs client races both stacks and never sees
+ * this failure mode, which is why `ssh user@host` from a desktop terminal works while our
+ * direct JSch path on the same device times out.
  *
  * Returns null if [host] is already a literal IP, if no IPv4 record exists, or if DNS fails.
  * Caller falls back to the original [host] string in that case.
@@ -336,8 +335,8 @@ internal fun openSshSession(
         val passBytes = auth.passphrase?.toByteArray(Charsets.UTF_8)
         jsch.addIdentity("rikkahub-ssh-key-${System.nanoTime()}", keyBytes, null, passBytes)
     }
-    // Force IPv4 resolution before handing the address to JSch. Solves the "ssh works in
-    // Termux but times out in our app" Pixel-only failure: Android's DnsResolver returns
+    // Force IPv4 resolution before handing the address to JSch. Solves the "ssh works from a
+    // desktop terminal but times out in our app" failure: Android's DnsResolver returns
     // AAAA first and JSch sits on the IPv6 SYN for the full timeout instead of falling
     // back to v4. setHostKeyAlias keeps known_hosts comparisons keyed by the human-readable
     // hostname so trust-on-first-use still works the same.
@@ -466,7 +465,7 @@ internal fun unreachableEnvelope(
             failures.forEach { (label, reason) -> put(label, reason) }
         })
         put("recovery", "Direct TCP to $resolvedIp:$port failed across every available " +
-            "network (${totalMs}ms total). If Termux ssh from the same device reaches " +
+            "network (${totalMs}ms total). If ssh from another app on the same device reaches " +
             "this host, RikkaHub's process is being filtered. Check Settings → Network → " +
             "Private DNS (try Off), any active VPN's per-app routing, and Settings → Apps → " +
             "RikkaHub → Mobile data & Wi-Fi (enable Background data and Unrestricted data usage).")

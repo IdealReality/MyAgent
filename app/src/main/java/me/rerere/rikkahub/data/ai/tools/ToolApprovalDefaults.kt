@@ -45,9 +45,7 @@ object ToolApprovalDefaults {
      */
     val DANGEROUS_TOOLS: Set<String> = setOf(
         // Shell / arbitrary code execution
-        "termux_run_command",
-        "termux_session_start",  // opens a persistent interactive shell; the meaningful consent moment
-        "transcribe_audio_file",  // shells out to whisper-cli via Termux; reads arbitrary audio files
+        "transcribe_audio_file",  // decodes + sends arbitrary audio files to the recognizer
         "eval_javascript",
 
         // Shell via Shizuku (shell UID, no root)

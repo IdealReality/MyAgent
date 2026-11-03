@@ -19,11 +19,11 @@ import me.rerere.rikkahub.ui.pages.extensions.skills.SkillDetailVM
 import me.rerere.rikkahub.ui.pages.extensions.skills.SkillsVM
 import me.rerere.rikkahub.ui.pages.extensions.workspace.WorkspaceDetailVM
 import me.rerere.rikkahub.ui.pages.extensions.workspace.WorkspaceVM
+import me.rerere.rikkahub.ui.pages.setting.GenerationLimitsViewModel
 import me.rerere.rikkahub.ui.pages.setting.SettingVM
 // P2-32 ssh hosts page
 import me.rerere.rikkahub.ui.pages.setting.SettingSshViewModel
 import me.rerere.rikkahub.ui.pages.setting.browser.SettingBrowserViewModel
-import me.rerere.rikkahub.ui.pages.setting.termux.SettingTermuxViewModel
 import me.rerere.rikkahub.ui.pages.setting.locallm.SettingLocalLlmViewModel
 import me.rerere.rikkahub.ui.pages.share.handler.ShareHandlerVM
 import me.rerere.rikkahub.ui.pages.translator.TranslatorVM
@@ -101,7 +101,7 @@ val viewModelModule = module {
     viewModelOf(::ScheduledJobsViewModel)
     viewModelOf(::DoctorViewModel)
     viewModelOf(::SettingBrowserViewModel)
-    viewModelOf(::SettingTermuxViewModel)
+    viewModelOf(::GenerationLimitsViewModel)
     // P2-32 ssh hosts page
     viewModelOf(::SettingSshViewModel)
 

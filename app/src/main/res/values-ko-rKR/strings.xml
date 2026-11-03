@@ -1159,7 +1159,7 @@ mDNS 주소: .local 호스트네임을 사용하며, IP를 몰라도 같은 네�
   <string name="accessibility_service_summary">LLM이 화면 자동화 도구를 사용할 때 RikkaHub가 탭, 스와이프, 스크롤, 화면 내용 읽기, 스크린샷 촬영을 할 수 있도록 합니다.</string>
   <string name="assistant_page_fast_path_router">패스트패스 라우터</string>
   <string name="assistant_page_fast_path_router_desc">“배터리 얼마야”, “지금 몇 시야”, “워크플로 목록” 같은 높은 신뢰도의 요청에서는 LLM을 건너뜁니다. 일치하는 도구가 직접 실행되어 즉시 답을 얻습니다. 보수적 — 모호한 것은 모두 모델로 갑니다. logcat에 기록됨(태그: FastPathRouter).</string>
-  <string name="assistant_page_local_tools_app_launcher_desc">패키지 이름으로 설치된 앱(예: Termux, 설정)을 열고 사용 가능한 앱을 나열합니다. 화면 자동화와 함께 사용하면 완전한 UI 제어가 가능합니다.</string>
+  <string name="assistant_page_local_tools_app_launcher_desc">패키지 이름으로 설치된 앱(예: Chrome, 설정)을 열고 사용 가능한 앱을 나열합니다. 화면 자동화와 함께 사용하면 완전한 UI 제어가 가능합니다.</string>
   <string name="assistant_page_local_tools_app_launcher_title">앱 실행기</string>
   <string name="assistant_page_local_tools_audio_info_desc">벨소리 모드, 음악 재생 상태, 헤드폰 연결, 출력 장치를 읽습니다.</string>
   <string name="assistant_page_local_tools_audio_info_title">오디오 정보</string>
@@ -1194,7 +1194,7 @@ mDNS 주소: .local 호스트네임을 사용하며, IP를 몰라도 같은 네�
   <string name="assistant_page_local_tools_listening_toast">듣는 중 — 지금 말하세요…</string>
   <string name="assistant_page_local_tools_location_desc">기기의 현재 위치(위도, 경도, 정확도)를 읽습니다.</string>
   <string name="assistant_page_local_tools_location_title">위치</string>
-  <string name="assistant_page_local_tools_mcp_control_desc">어시스턴트가 MCP 서버를 추가, 편집, 제거할 수 있습니다. 어시스턴트는 Termux나 원격 SSH 호스트에 MCP를 설치한 다음, 설정을 열지 않고도 앱에 연결할 수 있습니다.</string>
+  <string name="assistant_page_local_tools_mcp_control_desc">어시스턴트가 MCP 서버를 추가, 편집, 제거할 수 있습니다. 어시스턴트는 원격 SSH 호스트에 MCP를 설치한 다음, 설정을 열지 않고도 앱에 연결할 수 있습니다.</string>
   <string name="assistant_page_local_tools_mcp_control_title">MCP 제어</string>
   <string name="assistant_page_local_tools_media_player_desc">파일 경로 또는 URL에서 오디오를 재생하고 중지합니다.</string>
   <string name="assistant_page_local_tools_media_player_title">미디어 플레이어</string>
@@ -1249,22 +1249,6 @@ mDNS 주소: .local 호스트네임을 사용하며, IP를 몰라도 같은 네�
   <string name="assistant_page_local_tools_telegram_title">Telegram 봇</string>
   <string name="assistant_page_local_tools_telephony_desc">SIM 및 네트워크 정보(이동통신사, 네트워크 유형)를 읽습니다. READ_PHONE_STATE가 필요합니다.</string>
   <string name="assistant_page_local_tools_telephony_title">전화 정보</string>
-  <string name="assistant_page_local_tools_termux_postgrant_command">mkdir -p ~/.termux &amp;&amp; echo \'allow-external-apps=true\' &gt;&gt; ~/.termux/termux.properties</string>
-  <string name="assistant_page_local_tools_termux_postgrant_copied">명령이 복사되었습니다 — Termux에 붙여넣으세요.</string>
-  <string name="assistant_page_local_tools_termux_postgrant_copy">명령 복사</string>
-  <string name="assistant_page_local_tools_termux_postgrant_message">RUN_COMMAND 권한이 부여되었습니다. 어시스턴트가 명령을 실행하려면 Termux의 `~/.termux/termux.properties`에 `allow-external-apps=true`가 여전히 필요합니다.\n\nTermux를 열고 아래 명령을 붙여넣은 다음, 앱 정보에서 Termux를 강제 종료하고 다시 여세요.\n\n“확인”을 탭하면 행이 녹색으로 바뀝니다.</string>
-  <string name="assistant_page_local_tools_termux_postgrant_title">Termux를 위한 한 단계 더</string>
-  <string name="assistant_page_local_tools_termux_status_no_permission">켜서 RUN_COMMAND 권한 부여</string>
-  <string name="assistant_page_local_tools_termux_status_not_installed">Termux가 설치되지 않음 - github.com/termux/termux-app/releases 에서 설치</string>
-  <string name="assistant_page_local_tools_termux_status_ok">연결됨 - 명령이 출력을 캡처하여 실행됩니다</string>
-  <string name="assistant_page_local_tools_termux_status_untested">거의 준비됨. Termux를 열고 실행: mkdir -p ~/.termux &amp;&amp; echo \'allow-external-apps=true\' &gt;&gt; ~/.termux/termux.properties — 그런 다음 Termux를 강제 종료하고 다시 여세요. 탭하여 확인.</string>
-  <string name="assistant_page_local_tools_termux_title">Termux 통합</string>
-  <string name="assistant_page_local_tools_termux_verify">탭하여 확인</string>
-  <string name="assistant_page_local_tools_termux_verify_no_permission">RUN_COMMAND 권한이 부여되지 않았습니다. Termux를 껐다가 켜서 시스템 프롬프트를 다시 시도하세요.</string>
-  <string name="assistant_page_local_tools_termux_verify_ok">Termux 통합이 확인되었습니다.</string>
-  <string name="assistant_page_local_tools_termux_verify_props_missing">Termux가 응답하지 않았습니다. Termux를 열고 실행: mkdir -p ~/.termux &amp;&amp; echo \'allow-external-apps=true\' &gt;&gt; ~/.termux/termux.properties — 그런 다음 Termux를 강제 종료하고 다시 여세요.</string>
-  <string name="assistant_page_local_tools_termux_verify_unexpected">Termux가 응답했지만 예상치 못한 출력입니다: %1$s</string>
-  <string name="assistant_page_local_tools_termux_verifying">통합 확인 중…</string>
   <string name="assistant_page_local_tools_toast_desc">현재 화면에 있는 것 위에 짧은 토스트 팝업을 표시합니다.</string>
   <string name="assistant_page_local_tools_toast_title">토스트</string>
   <string name="assistant_page_local_tools_torch_desc">카메라 플래시를 켜거나 끕니다.</string>
@@ -1440,7 +1424,7 @@ mDNS 주소: .local 호스트네임을 사용하며, IP를 몰라도 같은 네�
   <string name="setting_page_browser_desc">AI 기반 웹 브라우저 및 스킬 뷰어.</string>
   <string name="setting_page_doctor">진단 도구</string>
   <string name="setting_page_doctor_copy_report">보고서 복사</string>
-  <string name="setting_page_doctor_desc">앱을 진단하고 수정 — 권한, 서비스, 데이터베이스, 네트워크, Termux.</string>
+  <string name="setting_page_doctor_desc">앱을 진단하고 수정 — 권한, 서비스, 데이터베이스, 네트워크.</string>
   <string name="setting_page_doctor_report_copied">진단 보고서를 클립보드에 복사했습니다.</string>
   <string name="setting_page_doctor_run_again">다시 실행</string>
   <string name="setting_page_doctor_running">실행 중…</string>

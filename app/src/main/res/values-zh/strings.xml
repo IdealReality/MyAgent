@@ -1385,7 +1385,6 @@ mDNS 地址：使用 .local 主机名，同一网络中的其他设备可通过�
   <string name="text_area_save">保存</string>
   <string name="theme_name_autumn">秋黄</string>
   <string name="theme_name_black">中性黑</string>
-  <string name="theme_name_myagent">My Agent</string>
   <string name="theme_name_minimal">极简白</string>
   <string name="theme_name_ocean">海湾蓝</string>
   <string name="theme_name_sakura">樱花粉</string>
@@ -1450,7 +1449,7 @@ mDNS 地址：使用 .local 主机名，同一网络中的其他设备可通过�
   <string name="accessibility_service_summary">当大模型使用屏幕自动化工具时，允许 RikkaHub 点击、滑动、滚动、读取屏幕内容和截图。</string>
   <string name="assistant_page_fast_path_router">快速路径路由</string>
   <string name="assistant_page_fast_path_router_desc">对于高置信度的请求（如“我的电量是多少”、“现在几点”或“列出工作流”），跳过大模型。匹配的工具直接运行，你立即得到答案。保守策略 — 任何含糊的请求仍会交给模型。记录到 logcat（标签：FastPathRouter）。</string>
-  <string name="assistant_page_local_tools_app_launcher_desc">按包名打开已安装的应用（例如 Termux、设置）并列出可用应用。与屏幕自动化配合可实现完整的界面控制。</string>
+  <string name="assistant_page_local_tools_app_launcher_desc">按包名打开已安装的应用（例如 Chrome、设置）并列出可用应用。与屏幕自动化配合可实现完整的界面控制。</string>
   <string name="assistant_page_local_tools_app_launcher_title">应用启动器</string>
   <string name="assistant_page_local_tools_audio_info_desc">读取响铃模式、音乐播放状态、耳机连接和输出设备。</string>
   <string name="assistant_page_local_tools_audio_info_title">音频信息</string>
@@ -1492,7 +1491,7 @@ mDNS 地址：使用 .local 主机名，同一网络中的其他设备可通过�
   <string name="assistant_page_local_tools_listening_toast">正在聆听 — 请讲话…</string>
   <string name="assistant_page_local_tools_location_desc">读取设备当前位置（纬度、经度、精度）。</string>
   <string name="assistant_page_local_tools_location_title">位置</string>
-  <string name="assistant_page_local_tools_mcp_control_desc">让助手添加、编辑和移除 MCP 服务器。助手可以在 Termux 或远程 SSH 主机上安装 MCP，然后将其接入应用 — 无需你打开设置。</string>
+  <string name="assistant_page_local_tools_mcp_control_desc">让助手添加、编辑和移除 MCP 服务器。助手可以在远程 SSH 主机上安装 MCP，然后将其接入应用 — 无需你打开设置。</string>
   <string name="assistant_page_local_tools_model_control_title">模型管理</string>
   <string name="assistant_page_local_tools_virtual_display_title">虚拟屏</string>
   <string name="assistant_page_local_tools_assistant_config_title">助手配置</string>
@@ -1551,22 +1550,6 @@ mDNS 地址：使用 .local 主机名，同一网络中的其他设备可通过�
   <string name="assistant_page_local_tools_telegram_title">Telegram 机器人</string>
   <string name="assistant_page_local_tools_telephony_desc">读取 SIM 卡和网络信息（运营商、网络类型）。需要 READ_PHONE_STATE 权限。</string>
   <string name="assistant_page_local_tools_telephony_title">电话信息</string>
-  <string name="assistant_page_local_tools_termux_postgrant_command">mkdir -p ~/.termux &amp;&amp; echo \'allow-external-apps=true\' &gt;&gt; ~/.termux/termux.properties</string>
-  <string name="assistant_page_local_tools_termux_postgrant_copied">命令已复制 — 将其粘贴到 Termux 中。</string>
-  <string name="assistant_page_local_tools_termux_postgrant_copy">复制命令</string>
-  <string name="assistant_page_local_tools_termux_postgrant_message">RUN_COMMAND 权限已授予。在助手能运行命令之前，Termux 还需要在 `~/.termux/termux.properties` 中设置 `allow-external-apps=true`。\n\n打开 Termux 并粘贴下面的命令，然后从应用信息中强制停止 Termux 并重新打开。\n\n点击“验证”后，此行会变为绿色。</string>
-  <string name="assistant_page_local_tools_termux_postgrant_title">Termux 还差一步</string>
-  <string name="assistant_page_local_tools_termux_status_no_permission">打开开关以授予 RUN_COMMAND 权限</string>
-  <string name="assistant_page_local_tools_termux_status_not_installed">未安装 Termux - 从 github.com/termux/termux-app/releases 安装</string>
-  <string name="assistant_page_local_tools_termux_status_ok">已连接 - 命令运行并捕获输出</string>
-  <string name="assistant_page_local_tools_termux_status_untested">即将就绪。打开 Termux 并运行：mkdir -p ~/.termux &amp;&amp; echo \'allow-external-apps=true\' &gt;&gt; ~/.termux/termux.properties — 然后强制停止 Termux 并重新打开。点击验证。</string>
-  <string name="assistant_page_local_tools_termux_title">Termux 集成</string>
-  <string name="assistant_page_local_tools_termux_verify">点击验证</string>
-  <string name="assistant_page_local_tools_termux_verify_no_permission">未授予 RUN_COMMAND 权限。将 Termux 开关关闭再打开以重试系统提示。</string>
-  <string name="assistant_page_local_tools_termux_verify_ok">Termux 集成已验证。</string>
-  <string name="assistant_page_local_tools_termux_verify_props_missing">Termux 未响应。打开 Termux 并运行：mkdir -p ~/.termux &amp;&amp; echo \'allow-external-apps=true\' &gt;&gt; ~/.termux/termux.properties — 然后强制停止 Termux 并重新打开。</string>
-  <string name="assistant_page_local_tools_termux_verify_unexpected">Termux 已回复，但输出异常：%1$s</string>
-  <string name="assistant_page_local_tools_termux_verifying">正在验证集成…</string>
   <string name="assistant_page_local_tools_toast_desc">在当前屏幕内容上方显示一个简短的 toast 弹窗。</string>
   <string name="assistant_page_local_tools_toast_title">Toast 提示</string>
   <string name="assistant_page_local_tools_torch_desc">打开或关闭相机闪光灯。</string>
@@ -1787,7 +1770,7 @@ mDNS 地址：使用 .local 主机名，同一网络中的其他设备可通过�
   <string name="setting_page_browser_desc">AI 驱动的网页浏览器和技能查看器。</string>
   <string name="setting_page_doctor">诊断工具</string>
   <string name="setting_page_doctor_copy_report">复制报告</string>
-  <string name="setting_page_doctor_desc">诊断并修复应用 — 权限、服务、数据库、网络、Termux。</string>
+  <string name="setting_page_doctor_desc">诊断并修复应用 — 权限、服务、数据库、网络。</string>
   <string name="setting_page_doctor_report_copied">诊断报告已复制到剪贴板。</string>
   <string name="setting_page_doctor_run_again">重新运行</string>
   <string name="setting_page_doctor_running">正在运行…</string>
@@ -2278,54 +2261,14 @@ HARDLINE 保护仍然生效：rm -rf /、mkfs、shutdown / reboot、向块设备
   <string name="setting_browser_per_tool_timeout_unit">秒</string>
   <string name="setting_browser_single_task_timeout_desc">单次 AI 驱动浏览器任务的硬性上限，用于限制失控循环。范围为 1 分钟到 60 分钟。</string>
   <string name="setting_browser_single_task_timeout_unit">分钟</string>
-  <string name="setting_page_termux">Termux</string>
-  <string name="setting_page_termux_desc">Shell 命令、超时和 Termux 集成。</string>
   <string name="setting_page_shizuku">Shizuku</string>
   <string name="setting_page_shizuku_desc">为通过 Shizuku 运行的 shell 命令授权并检查状态。</string>
-  <string name="setting_termux_title">Termux</string>
-  <string name="setting_termux_section_status">状态</string>
-  <string name="setting_termux_status_app">Termux 应用</string>
-  <string name="setting_termux_status_app_installed">已安装 — 点击打开</string>
-  <string name="setting_termux_status_app_missing">未安装 — 点击下载</string>
-  <string name="setting_termux_status_open">打开 Termux</string>
-  <string name="setting_termux_status_open_desc">启动 Termux 应用</string>
-  <string name="setting_termux_status_permission">RUN_COMMAND 权限</string>
-  <string name="setting_termux_status_permission_granted">已授权 — 点击重新请求</string>
-  <string name="setting_termux_toast_permission_granted">权限已授予</string>
-  <string name="setting_termux_status_permission_missing">未授权 — 点击请求</string>
-  <string name="setting_termux_status_verify">allow-external-apps</string>
-  <string name="setting_termux_status_verify_ok">验证通过</string>
-  <string name="setting_termux_status_verify_unknown">尚未验证 — 点击运行冒烟测试</string>
-  <string name="setting_termux_verify_ok">Termux 验证通过。</string>
-  <string name="setting_termux_verify_not_installed">未安装 Termux。</string>
-  <string name="setting_termux_verify_no_permission">未授予 RUN_COMMAND 权限。</string>
-  <string name="setting_termux_verify_allow_external_apps">已超时 — ~/.termux/termux.properties 中可能未设置 allow-external-apps=true。</string>
-  <string name="setting_termux_verify_unexpected_output">冒烟测试输出异常。</string>
-  <string name="setting_termux_verify_other_error">验证失败：%s</string>
-  <string name="setting_termux_section_timeouts">超时</string>
-  <string name="setting_termux_command_timeout">默认命令超时</string>
-  <string name="setting_termux_command_timeout_desc">等待后台 shell 命令返回输出的时长。范围为 5 秒到 600 秒。</string>
   <string name="setting_model_page_turn_budget">单轮总时间预算</string>
   <string name="setting_model_page_turn_budget_desc">单个回合（含模型生成与工具执行）的墙钟总时长上限，超时强制结束。范围 1 分钟到 720 分钟（12 小时）。</string>
-  <string name="setting_termux_verify_timeout">冒烟测试验证超时</string>
-  <string name="setting_termux_verify_timeout_desc">allow-external-apps echo 冒烟测试的超时时间。范围为 3 秒到 30 秒。</string>
-  <string name="setting_termux_unit_seconds">秒</string>
-  <string name="setting_termux_unit_minutes">分钟</string>
-  <string name="setting_termux_unit_steps">步骤</string>
+  <string name="setting_generation_limits_unit_minutes">分钟</string>
+  <string name="setting_generation_limits_unit_steps">步骤</string>
   <string name="setting_model_page_max_tool_steps">每轮工具步骤数</string>
-  <string name="setting_model_page_max_tool_steps_desc">一次回复在被强制结束前最多可连续调用多少次工具。对所有工具生效（不只 Termux）。若需执行较长的安装或构建任务，可调高此值。范围为 1 到 1500；上方的回合时间预算仍然适用。</string>
-  <string name="setting_termux_unit_bytes">字节</string>
-  <string name="setting_termux_section_defaults">默认值与限制</string>
-  <string name="setting_termux_working_dir">默认工作目录</string>
-  <string name="setting_termux_max_stdout">stdout 捕获上限</string>
-  <string name="setting_termux_max_stdout_desc">每条命令返回给 AI 的 stdout 最大字节数。范围为 1000 到 64000。</string>
-  <string name="setting_termux_max_stderr">stderr 捕获上限</string>
-  <string name="setting_termux_max_stderr_desc">每条命令返回给 AI 的 stderr 最大字节数。范围为 500 到 16000。</string>
-  <string name="setting_termux_apt_wrap">自动以非交互模式包装 apt/dpkg</string>
-  <string name="setting_termux_apt_wrap_desc">在命令前添加 DEBIAN_FRONTEND=noninteractive，避免 apt 升级因等待交互式提示而卡住。</string>
-  <string name="setting_termux_section_help">设置帮助</string>
-  <string name="setting_termux_help_allow_external_apps_title">如何启用 allow-external-apps</string>
-  <string name="setting_termux_help_allow_external_apps_body">在 Termux 中运行：\n\n  mkdir -p ~/.termux\n  echo \'allow-external-apps=true\' &gt;&gt; ~/.termux/termux.properties\n\n然后从 Android 应用信息中强制停止 Termux 并重新打开。之后，点击上方的验证行以确认连接正常工作。</string>
+  <string name="setting_model_page_max_tool_steps_desc">一次回复在被强制结束前最多可连续调用多少次工具。对所有工具生效。若需执行较长的安装或构建任务，可调高此值。范围为 1 到 1500；上方的回合时间预算仍然适用。</string>
   <string name="setting_shizuku_title">Shizuku</string>
   <string name="setting_shizuku_section_status">状态</string>
   <string name="setting_shizuku_status_app">Shizuku 应用</string>
@@ -2610,14 +2553,11 @@ HARDLINE 保护仍然生效：rm -rf /、mkfs、shutdown / reboot、向块设备
   <string name="perm_desc_sms">list_sms_inbox 和 search_sms 工具使用。</string>
   <string name="perm_label_send_sms">发送短信</string>
   <string name="perm_desc_send_sms">send_sms 工具用于以程序方式发送短信。</string>
-  <string name="perm_label_termux_run">Termux RUN_COMMAND</string>
-  <string name="perm_desc_termux_run">允许 RikkaHub 在 Termux 中启动命令，供 termux_run_command 工具使用。</string>
   <string name="perm_desc_runtime_default">一个或多个已启用工具所需的运行时权限。</string>
   <string name="tool_name_location">定位</string>
   <string name="tool_name_wifi">WiFi 信息</string>
   <string name="tool_name_notif_listener">通知监听</string>
   <string name="tool_name_screen_automation">屏幕自动化</string>
-  <string name="tool_name_termux">Termux</string>
   <string name="tool_name_stt">语音转文字</string>
   <string name="tool_name_ssh">SSH</string>
   <string name="tool_name_tg_bot">Telegram 机器人</string>

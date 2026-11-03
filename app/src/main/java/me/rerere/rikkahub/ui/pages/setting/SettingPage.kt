@@ -314,7 +314,6 @@ private fun hubItemIcon(id: SettingsHubItemId): ImageVector = when (id) {
     SettingsHubItemId.NOTIF_ACCESS -> HugeIcons.Notification01
     SettingsHubItemId.PERMISSIONS -> HugeIcons.Shield01
     SettingsHubItemId.SHIZUKU -> HugeIcons.Console
-    SettingsHubItemId.TERMUX -> HugeIcons.ComputerTerminal01
     SettingsHubItemId.SSH -> HugeIcons.Link01
     SettingsHubItemId.SECRETS -> HugeIcons.Lock
     SettingsHubItemId.WEB -> HugeIcons.ServerStack01

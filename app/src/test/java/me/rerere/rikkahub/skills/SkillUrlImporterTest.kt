@@ -286,7 +286,7 @@ class ToolNameTranscoderTest {
         // Tool references in a skill body live in code spans, not prose. Only those map.
         val input = "First call `Bash` to install. Then `Read` the config. Then `Notify` the user."
         val out = ToolNameTranscoder.transcode(input)
-        assertTrue(out.contains("termux_run_command"))
+        assertTrue(out.contains("ssh_exec"))
         assertTrue(out.contains("read_file"))
         assertTrue(out.contains("post_notification"))
         assertFalse(out.contains("`Bash`"))

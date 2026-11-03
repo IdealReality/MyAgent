@@ -1,23 +1,22 @@
 package me.rerere.rikkahub.data.ai.limits
 
-import me.rerere.rikkahub.data.preferences.TermuxDefaults
+import me.rerere.rikkahub.data.datastore.SettingsStore
 
 /**
- * App-wide @Volatile runtime holder for tool execution limits that span all tool families
- * (not just Termux). Currently holds the per-turn wall-clock budget that was previously
- * hardcoded in GenerationHandler.kt.
+ * App-wide @Volatile runtime holder for tool execution limits that span all tool families.
+ * Holds the per-turn wall-clock budget and the per-turn tool-call step cap.
  *
- * Pushed from [me.rerere.rikkahub.data.preferences.TermuxPreferences.init] because the
- * Termux settings page is where the user configures it (per spec: "exposed on the Termux
- * page since that's where issue #5 raised it"). The field itself is app-wide and the
- * holder lives in data/ai/limits/ to reflect that.
+ * Values are seeded and kept live by [GenerationLimitsPreferences]; non-suspend callers
+ * (tool execution, the generation loop) read them without needing a coroutine context.
  */
 object ToolRuntimeLimits {
-    @Volatile var turnBudgetMs: Long = TermuxDefaults.DEFAULT_TURN_BUDGET_MS
+    @Volatile var turnBudgetMs: Long = GenerationLimits.DEFAULT_TURN_BUDGET_MS
 
-    /**
-     * Tool-call iterations a single turn may run before it is force-ended. Was hardcoded at 32,
-     * which truncated long Termux chains mid-task (issue #22).
-     */
-    @Volatile var maxToolSteps: Int = TermuxDefaults.DEFAULT_MAX_TOOL_STEPS
+    @Volatile var maxToolSteps: Int = GenerationLimits.DEFAULT_MAX_TOOL_STEPS
+
+    /** Push a persisted snapshot into the holders. Both values are clamped by the caller. */
+    fun apply(turnBudgetMs: Long, maxToolSteps: Int) {
+        this.turnBudgetMs = GenerationLimits.clampTurnBudgetMs(turnBudgetMs)
+        this.maxToolSteps = GenerationLimits.clampMaxToolSteps(maxToolSteps)
+    }
 }

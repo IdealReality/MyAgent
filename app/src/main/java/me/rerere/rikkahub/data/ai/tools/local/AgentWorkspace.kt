@@ -4,7 +4,7 @@ import android.content.Context
 import java.io.File
 
 /**
- * Termux-style sandbox for the on-device agent.
+ * Sandboxed `~` home for the on-device agent.
  *
  * The agent's "home" lives in `${context.filesDir}/workspace/`. Tools that take a path
  * argument expand `~` and `~/foo` to that directory before validation, so the LLM can
@@ -21,7 +21,7 @@ import java.io.File
  *    DON'T want that — workspace state should restore on device migration, not be wiped).
  *    Backup default is "include this dir"; explicit exclude only for skill secrets.
  *
- * This is the agent equivalent of Termux's `$HOME = /data/data/com.termux/files/home/`:
+ * This is the agent's `$HOME`:
  * private to the agent, no shared-storage permissions required, doesn't pollute
  * `/sdcard/Documents/` with internal scratch files. Files the user should *see* (saved
  * screenshots, exported reports) still belong on `/sdcard/...`.

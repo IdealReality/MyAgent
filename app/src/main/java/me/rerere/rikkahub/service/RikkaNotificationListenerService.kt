@@ -62,7 +62,7 @@ class RikkaNotificationListenerService : NotificationListenerService() {
     private val lastForwarded = java.util.concurrent.ConcurrentHashMap<String, Int>()
 
     // Tracks the very last (package + title + text) we forwarded across ALL keys. Persistent
-    // notifications (Termux, music players, etc.) sometimes flap between identical content
+    // notifications (terminal apps, music players, etc.) sometimes flap between identical content
     // under different StatusBarNotification keys; per-key dedup misses those, so this
     // global dedup catches "exact same payload as the previous forward" regardless of key.
     @Volatile private var lastForwardedGlobalSig: Int = 0
@@ -142,9 +142,9 @@ class RikkaNotificationListenerService : NotificationListenerService() {
         if (!tg.enabled) return
 
         // Drop forwards for *ongoing* (foreground-service) notifications from packages the
-        // agent itself just kicked off — Termux's "X sessions" pill flaps every time we run
+        // agent itself just kicked off — a shell app's "X sessions" pill flaps every time we run
         // a command, and the user does not need a Telegram ping for each. Non-ongoing
-        // notifications (e.g. a termux-notification the user explicitly asked the agent
+        // notifications (e.g. a shell-app notification the user explicitly asked the agent
         // to send) still go through.
         if (entry.ongoing &&
             me.rerere.rikkahub.data.ai.AgentTurnTracker.isFreshlyTouched(entry.packageName)) {
@@ -155,7 +155,7 @@ class RikkaNotificationListenerService : NotificationListenerService() {
         if (lastForwarded[entry.key] == signature) return  // identical update; skip
 
         // Global dedup: if the previous forward (any key) had the exact same package + title
-        // + text within the last 5 minutes, skip. Catches Termux's persistent notification
+        // + text within the last 5 minutes, skip. Catches a shell app's persistent notification
         // re-posting identical content under shifting keys.
         val globalSig = (entry.packageName + "|" + entry.title + "|" + entry.text).hashCode()
         val now = System.currentTimeMillis()

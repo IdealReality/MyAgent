@@ -1159,7 +1159,7 @@
   <string name="accessibility_service_summary">Позволяет RikkaHub нажимать, проводить, прокручивать, читать содержимое экрана и делать снимки экрана, когда LLM использует инструменты автоматизации экрана.</string>
   <string name="assistant_page_fast_path_router">Маршрутизатор быстрого пути</string>
   <string name="assistant_page_fast_path_router_desc">Пропуск LLM для высокоуверенных запросов вроде «какой у меня заряд», «который час» или «список рабочих процессов». Подходящий инструмент выполняется напрямую, и вы получаете мгновенный ответ. Консервативно — всё неоднозначное всё равно идёт к модели. Записывается в logcat (тег: FastPathRouter).</string>
-  <string name="assistant_page_local_tools_app_launcher_desc">Открытие установленных приложений по имени пакета (например, Termux, Настройки) и список доступных приложений. В сочетании с автоматизацией экрана даёт полное управление интерфейсом.</string>
+  <string name="assistant_page_local_tools_app_launcher_desc">Открытие установленных приложений по имени пакета (например, Chrome, Настройки) и список доступных приложений. В сочетании с автоматизацией экрана даёт полное управление интерфейсом.</string>
   <string name="assistant_page_local_tools_app_launcher_title">Запуск приложений</string>
   <string name="assistant_page_local_tools_audio_info_desc">Чтение режима звонка, состояния воспроизведения музыки, подключения наушников и устройств вывода.</string>
   <string name="assistant_page_local_tools_audio_info_title">Сведения об аудио</string>
@@ -1194,7 +1194,7 @@
   <string name="assistant_page_local_tools_listening_toast">Слушаю — говорите…</string>
   <string name="assistant_page_local_tools_location_desc">Чтение текущего местоположения устройства (широта, долгота, точность).</string>
   <string name="assistant_page_local_tools_location_title">Местоположение</string>
-  <string name="assistant_page_local_tools_mcp_control_desc">Позволяет ассистенту добавлять, изменять и удалять MCP-серверы. Ассистент может установить MCP в Termux или на удалённом SSH-хосте, а затем подключить его к приложению — без открытия настроек вами.</string>
+  <string name="assistant_page_local_tools_mcp_control_desc">Позволяет ассистенту добавлять, изменять и удалять MCP-серверы. Ассистент может установить MCP на удалённом SSH-хосте, а затем подключить его к приложению — без открытия настроек вами.</string>
   <string name="assistant_page_local_tools_mcp_control_title">Управление MCP</string>
   <string name="assistant_page_local_tools_media_player_desc">Воспроизведение и остановка аудио по пути к файлу или URL.</string>
   <string name="assistant_page_local_tools_media_player_title">Медиаплеер</string>
@@ -1249,22 +1249,6 @@
   <string name="assistant_page_local_tools_telegram_title">Telegram-бот</string>
   <string name="assistant_page_local_tools_telephony_desc">Чтение сведений о SIM и сети (оператор, тип сети). Требуется READ_PHONE_STATE.</string>
   <string name="assistant_page_local_tools_telephony_title">Сведения о телефонии</string>
-  <string name="assistant_page_local_tools_termux_postgrant_command">mkdir -p ~/.termux &amp;&amp; echo \'allow-external-apps=true\' &gt;&gt; ~/.termux/termux.properties</string>
-  <string name="assistant_page_local_tools_termux_postgrant_copied">Команда скопирована — вставьте её в Termux.</string>
-  <string name="assistant_page_local_tools_termux_postgrant_copy">Копировать команду</string>
-  <string name="assistant_page_local_tools_termux_postgrant_message">Разрешение RUN_COMMAND предоставлено. Termux всё ещё нужен `allow-external-apps=true` в `~/.termux/termux.properties`, прежде чем ассистент сможет выполнять команды.\n\nОткройте Termux и вставьте команду ниже, затем принудительно остановите Termux из сведений о приложении и откройте снова.\n\nСтрока станет зелёной после нажатия «Проверить».</string>
-  <string name="assistant_page_local_tools_termux_postgrant_title">Ещё один шаг для Termux</string>
-  <string name="assistant_page_local_tools_termux_status_no_permission">Включите, чтобы предоставить разрешение RUN_COMMAND</string>
-  <string name="assistant_page_local_tools_termux_status_not_installed">Termux не установлен - установите с github.com/termux/termux-app/releases</string>
-  <string name="assistant_page_local_tools_termux_status_ok">Подключено - команды выполняются с захватом вывода</string>
-  <string name="assistant_page_local_tools_termux_status_untested">Почти готово. Откройте Termux и выполните: mkdir -p ~/.termux &amp;&amp; echo \'allow-external-apps=true\' &gt;&gt; ~/.termux/termux.properties — затем принудительно остановите Termux и откройте снова. Нажмите для проверки.</string>
-  <string name="assistant_page_local_tools_termux_title">Интеграция с Termux</string>
-  <string name="assistant_page_local_tools_termux_verify">нажмите для проверки</string>
-  <string name="assistant_page_local_tools_termux_verify_no_permission">Разрешение RUN_COMMAND не предоставлено. Выключите и снова включите Termux, чтобы повторить системный запрос.</string>
-  <string name="assistant_page_local_tools_termux_verify_ok">Интеграция с Termux проверена.</string>
-  <string name="assistant_page_local_tools_termux_verify_props_missing">Termux не ответил. Откройте Termux и выполните: mkdir -p ~/.termux &amp;&amp; echo \'allow-external-apps=true\' &gt;&gt; ~/.termux/termux.properties — затем принудительно остановите Termux и откройте снова.</string>
-  <string name="assistant_page_local_tools_termux_verify_unexpected">Termux ответил, но с неожиданным выводом: %1$s</string>
-  <string name="assistant_page_local_tools_termux_verifying">Проверка интеграции…</string>
   <string name="assistant_page_local_tools_toast_desc">Показ краткого всплывающего уведомления поверх того, что сейчас на экране.</string>
   <string name="assistant_page_local_tools_toast_title">Всплывающее уведомление</string>
   <string name="assistant_page_local_tools_torch_desc">Включение и выключение вспышки камеры.</string>
@@ -1440,7 +1424,7 @@
   <string name="setting_page_browser_desc">Веб-браузер на основе ИИ и просмотрщик навыков.</string>
   <string name="setting_page_doctor">Диагностика</string>
   <string name="setting_page_doctor_copy_report">Копировать отчёт</string>
-  <string name="setting_page_doctor_desc">Диагностика и исправление приложения — разрешения, службы, база данных, сеть, Termux.</string>
+  <string name="setting_page_doctor_desc">Диагностика и исправление приложения — разрешения, службы, база данных, сеть.</string>
   <string name="setting_page_doctor_report_copied">Отчёт диагностики скопирован в буфер обмена.</string>
   <string name="setting_page_doctor_run_again">Запустить снова</string>
   <string name="setting_page_doctor_running">Выполняется…</string>

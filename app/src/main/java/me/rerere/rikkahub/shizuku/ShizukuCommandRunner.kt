@@ -16,7 +16,7 @@ import java.util.concurrent.TimeUnit
  * process Shizuku spawns for [ShizukuUserService], so it also runs (and is unit-tested) as a
  * plain JVM process launcher on the host, no device or emulator required. Reuses
  * [BoundedOutputStream] so stdout/stderr truncation behaves identically to the other shell
- * tools (SSH, Termux).
+ * tools (e.g. SSH).
  */
 internal object ShizukuCommandRunner {
 

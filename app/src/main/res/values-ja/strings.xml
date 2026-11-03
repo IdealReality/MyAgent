@@ -1159,7 +1159,7 @@ mDNSアドレス: .localホスト名を使用し、IPを知らなくても同じ
   <string name="accessibility_service_summary">LLM が画面自動化ツールを使用するとき、RikkaHub がタップ、スワイプ、スクロール、画面内容の読み取り、スクリーンショットの撮影を行えるようにします。</string>
   <string name="assistant_page_fast_path_router">ファストパスルーター</string>
   <string name="assistant_page_fast_path_router_desc">「バッテリーは？」「今何時？」「ワークフローを一覧表示」のような高信頼度のリクエストでは LLM をスキップします。一致するツールが直接実行され、即座に答えが得られます。保守的 — 曖昧なものはすべてモデルに送られます。logcat に記録（タグ：FastPathRouter）。</string>
-  <string name="assistant_page_local_tools_app_launcher_desc">パッケージ名でインストール済みアプリ（例：Termux、設定）を開き、利用可能なアプリを一覧表示します。画面自動化と組み合わせて完全な UI 制御が可能です。</string>
+  <string name="assistant_page_local_tools_app_launcher_desc">パッケージ名でインストール済みアプリ（例：Chrome、設定）を開き、利用可能なアプリを一覧表示します。画面自動化と組み合わせて完全な UI 制御が可能です。</string>
   <string name="assistant_page_local_tools_app_launcher_title">アプリランチャー</string>
   <string name="assistant_page_local_tools_audio_info_desc">着信音モード、音楽再生状態、ヘッドホン接続、出力デバイスを読み取ります。</string>
   <string name="assistant_page_local_tools_audio_info_title">オーディオ情報</string>
@@ -1194,7 +1194,7 @@ mDNSアドレス: .localホスト名を使用し、IPを知らなくても同じ
   <string name="assistant_page_local_tools_listening_toast">聞き取り中 — お話しください…</string>
   <string name="assistant_page_local_tools_location_desc">デバイスの現在地（緯度、経度、精度）を読み取ります。</string>
   <string name="assistant_page_local_tools_location_title">位置情報</string>
-  <string name="assistant_page_local_tools_mcp_control_desc">アシスタントが MCP サーバーを追加、編集、削除できます。アシスタントは Termux やリモート SSH ホストに MCP をインストールし、設定を開かずにアプリに接続できます。</string>
+  <string name="assistant_page_local_tools_mcp_control_desc">アシスタントが MCP サーバーを追加、編集、削除できます。アシスタントは リモート SSH ホストに MCP をインストールし、設定を開かずにアプリに接続できます。</string>
   <string name="assistant_page_local_tools_mcp_control_title">MCP 制御</string>
   <string name="assistant_page_local_tools_media_player_desc">ファイルパスまたは URL からオーディオを再生・停止します。</string>
   <string name="assistant_page_local_tools_media_player_title">メディアプレーヤー</string>
@@ -1249,22 +1249,6 @@ mDNSアドレス: .localホスト名を使用し、IPを知らなくても同じ
   <string name="assistant_page_local_tools_telegram_title">Telegram ボット</string>
   <string name="assistant_page_local_tools_telephony_desc">SIM とネットワーク情報（キャリア、ネットワークタイプ）を読み取ります。READ_PHONE_STATE が必要です。</string>
   <string name="assistant_page_local_tools_telephony_title">テレフォニー情報</string>
-  <string name="assistant_page_local_tools_termux_postgrant_command">mkdir -p ~/.termux &amp;&amp; echo \'allow-external-apps=true\' &gt;&gt; ~/.termux/termux.properties</string>
-  <string name="assistant_page_local_tools_termux_postgrant_copied">コマンドをコピーしました — Termux に貼り付けてください。</string>
-  <string name="assistant_page_local_tools_termux_postgrant_copy">コマンドをコピー</string>
-  <string name="assistant_page_local_tools_termux_postgrant_message">RUN_COMMAND 権限が付与されました。アシスタントがコマンドを実行できるようになる前に、Termux は `~/.termux/termux.properties` に `allow-external-apps=true` が必要です。\n\nTermux を開いて下のコマンドを貼り付け、アプリ情報から Termux を強制停止して再度開いてください。\n\n「検証」をタップすると行が緑色になります。</string>
-  <string name="assistant_page_local_tools_termux_postgrant_title">Termux のあと 1 ステップ</string>
-  <string name="assistant_page_local_tools_termux_status_no_permission">オンにして RUN_COMMAND 権限を付与</string>
-  <string name="assistant_page_local_tools_termux_status_not_installed">Termux がインストールされていません - github.com/termux/termux-app/releases からインストール</string>
-  <string name="assistant_page_local_tools_termux_status_ok">接続済み - コマンドは出力をキャプチャして実行されます</string>
-  <string name="assistant_page_local_tools_termux_status_untested">あと少しです。Termux を開いて実行：mkdir -p ~/.termux &amp;&amp; echo \'allow-external-apps=true\' &gt;&gt; ~/.termux/termux.properties — その後 Termux を強制停止して再度開いてください。タップして検証。</string>
-  <string name="assistant_page_local_tools_termux_title">Termux 統合</string>
-  <string name="assistant_page_local_tools_termux_verify">タップして検証</string>
-  <string name="assistant_page_local_tools_termux_verify_no_permission">RUN_COMMAND 権限が付与されていません。Termux をオフにしてからオンにしてシステムプロンプトを再試行してください。</string>
-  <string name="assistant_page_local_tools_termux_verify_ok">Termux 統合を検証しました。</string>
-  <string name="assistant_page_local_tools_termux_verify_props_missing">Termux が応答しませんでした。Termux を開いて実行：mkdir -p ~/.termux &amp;&amp; echo \'allow-external-apps=true\' &gt;&gt; ~/.termux/termux.properties — その後 Termux を強制停止して再度開いてください。</string>
-  <string name="assistant_page_local_tools_termux_verify_unexpected">Termux は応答しましたが、予期しない出力でした：%1$s</string>
-  <string name="assistant_page_local_tools_termux_verifying">統合を検証中…</string>
   <string name="assistant_page_local_tools_toast_desc">現在画面に表示されているものの上に短いトーストポップアップを表示します。</string>
   <string name="assistant_page_local_tools_toast_title">トースト</string>
   <string name="assistant_page_local_tools_torch_desc">カメラのフラッシュライトをオン/オフします。</string>
@@ -1440,7 +1424,7 @@ mDNSアドレス: .localホスト名を使用し、IPを知らなくても同じ
   <string name="setting_page_browser_desc">AI 駆動のウェブブラウザとスキルビューア。</string>
   <string name="setting_page_doctor">診断ツール</string>
   <string name="setting_page_doctor_copy_report">レポートをコピー</string>
-  <string name="setting_page_doctor_desc">アプリを診断して修正 — 権限、サービス、データベース、ネットワーク、Termux。</string>
+  <string name="setting_page_doctor_desc">アプリを診断して修正 — 権限、サービス、データベース、ネットワーク。</string>
   <string name="setting_page_doctor_report_copied">診断レポートをクリップボードにコピーしました。</string>
   <string name="setting_page_doctor_run_again">再実行</string>
   <string name="setting_page_doctor_running">実行中…</string>

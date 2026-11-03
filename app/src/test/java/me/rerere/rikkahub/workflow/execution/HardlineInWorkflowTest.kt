@@ -26,8 +26,8 @@ class HardlineInWorkflowTest {
         execute = { listOf(UIMessagePart.Text("ok")) },
     )
 
-    private val termuxTool = Tool(
-        name = "termux_run_command",
+    private val shellTool = Tool(
+        name = "ssh_exec",
         description = "shell",
         parameters = { InputSchema.Obj(properties = buildJsonObject {}) },
         execute = { listOf(UIMessagePart.Text("ran")) },
@@ -37,12 +37,12 @@ class HardlineInWorkflowTest {
         val runner = WorkflowActionRunner()
         val actions = listOf(
             WorkflowAction(
-                tool = "termux_run_command",
+                tool = "ssh_exec",
                 args = buildJsonObject { put("command", "rm -rf /") },
                 timeoutSeconds = 10,
             ),
         )
-        val result = runner.run(actions, listOf(termuxTool))
+        val result = runner.run(actions, listOf(shellTool))
         assertFalse("rm -rf / must not succeed", result.success)
         assertTrue(
             "expected hardline error, got ${result.error}",
