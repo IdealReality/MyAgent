@@ -53,15 +53,48 @@ object AutoLearn {
             .sortedBy { it.startTs }
             .take(MAX_SEGMENTS_PER_RUN)
 
+    /**
+     * P6 · gist 批量提示词：一次调用给全部段各生成 1-2 句要点。
+     * 输出格式（逐行）：`<段id> | <gist>`；解析失败/缺行不影响其他段。
+     */
+    fun buildGistPrompt(segments: List<EpisodeSegment>): String = buildString {
+        appendLine("为下面每段对话档案生成 1-2 句要点（gist）：这段对话做了什么、得出了什么结论。")
+        appendLine("严格按此格式逐行输出，一行一段，不要任何其他文字：")
+        appendLine("<id> | <gist>")
+        appendLine()
+        for (seg in segments) {
+            appendLine("=== ${seg.id} ===")
+            appendLine("标题: ${seg.title.ifBlank { seg.firstQuery.take(60) }}")
+            appendLine("问: ${seg.firstQuery.take(200)}")
+            if (seg.replyExcerpt.isNotBlank()) appendLine("答: ${seg.replyExcerpt.take(300)}")
+            appendLine()
+        }
+    }
+
+    /** 解析 gist 批量输出：`id | gist`；非法行跳过。 */
+    fun parseGists(response: String): Map<String, String> {
+        val out = HashMap<String, String>()
+        for (raw in response.lines()) {
+            val line = raw.trim()
+            if (line.isEmpty()) continue
+            val sep = line.indexOf('|')
+            if (sep <= 0) continue
+            val id = line.take(sep).trim()
+            val gist = line.drop(sep + 1).trim()
+            if (id.startsWith("e-") && gist.isNotEmpty()) out[id] = gist.take(300)
+        }
+        return out
+    }
+
     /** 重写 L1 的用户提示词（memory 模型角色调用；系统提示词固定）。 */
-    fun buildRewritePrompt(oldL1: String, segments: List<EpisodeSegment>): String = buildString {
+    fun buildRewritePrompt(oldL1: String, segments: List<EpisodeSegment>, l1MaxChars: Int = L1_MAX_CHARS): String = buildString {
         appendLine("你是记忆整理器。根据新对话段落更新助手的 L1 常驻摘要。")
         appendLine()
         appendLine("规则：")
         appendLine("- 保留四节结构：## 用户偏好 / ## 项目事实 / ## 进行中事务 / ## 长期约定")
         appendLine("- 只吸收下面段落里**值得长期记住**的信息；一次性细节（问候、寒暄）丢弃")
         appendLine("- 进行中事务按最新状态改写（完成的删掉，新增的加上）")
-        appendLine("- 全文不超过 ${L1_MAX_CHARS} 字")
+        appendLine("- 全文不超过 ${l1MaxChars} 字")
         appendLine("- 直接输出新的 L1 markdown 正文，不要任何解释")
         appendLine()
         appendLine("=== 当前 L1 ===")
@@ -75,22 +108,22 @@ object AutoLearn {
         }
     }
 
-    /** 解析模型返回：取 markdown 正文，截断到 L1_MAX_CHARS。 */
-    fun parseRewrite(response: String): String {
+    /** 解析模型返回：取 markdown 正文，截断到 [maxChars]（P6：per-assistant 上限）。 */
+    fun parseRewrite(response: String, maxChars: Int = L1_MAX_CHARS): String {
         var text = response.trim()
         // 剥掉代码围栏（模型常包一层 ```markdown）
         if (text.startsWith("```")) {
             text = text.removePrefix("```markdown").removePrefix("```").trim()
             if (text.endsWith("```")) text = text.dropLast(3).trim()
         }
-        return text.take(L1_MAX_CHARS)
+        return text.take(maxChars.coerceAtLeast(200))
     }
 
-    /** 整理完成后：标记 learned + 记录时间。 */
-    fun commit(store: AssistantMemoryStore, scopeId: String, segments: List<EpisodeSegment>, newL1: String, nowMs: Long) {
+    /** 整理完成后：写 gist（P6）+ 标记 learned + 记录时间。 */
+    fun commit(store: AssistantMemoryStore, scopeId: String, segments: List<EpisodeSegment>, newL1: String, nowMs: Long, gists: Map<String, String> = emptyMap()) {
         store.writeL1(scopeId, newL1)
         for (seg in segments) {
-            store.updateEpisode(scopeId, seg.copy(learned = true))
+            store.updateEpisode(scopeId, seg.copy(learned = true, gist = gists[seg.id] ?: seg.gist))
         }
         val lastFile = java.io.File(store.dirFor(scopeId), LAST_LEARNED_FILE)
         lastFile.parentFile?.mkdirs()

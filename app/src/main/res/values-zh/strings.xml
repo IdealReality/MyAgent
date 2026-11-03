@@ -2975,4 +2975,12 @@ HARDLINE 保护仍然生效：rm -rf /、mkfs、shutdown / reboot、向块设备
   <string name="memory_engine_boundary_desc">新任务开始时把已收尾的上一任务折叠成随请求注入的摘要，不落盘、界面不动</string>
   <string name="memory_engine_ccr_title">工具输出原文池（CCR）</string>
   <string name="memory_engine_ccr_desc">超长工具输出按内容寻址落盘，请求内保留智能预览与取回句柄，需要时按行号取回</string>
+  <string name="memory_engine_model_title">记忆模型（memory 角色）</string>
+  <string name="memory_engine_model_desc">autolearn 重写 L1 与生成要点用的模型；不选则跟随全局快速模型</string>
+  <string name="memory_engine_autolearn_switch">自动整理（autolearn）</string>
+  <string name="memory_engine_l1_limit">L1 摘要字数上限</string>
+  <string name="memory_engine_l1_limit_desc">autolearn 重写 L1 的字数上限</string>
+  <string name="memory_engine_snapshot_keep">快照保留份数</string>
+  <string name="memory_engine_snapshot_keep_desc">每次重写 L1 前自动快照，滚动保留最近 N 份</string>
+  <string name="memory_engine_ccr_switch">工具输出原文池（CCR）</string>
 </resources>

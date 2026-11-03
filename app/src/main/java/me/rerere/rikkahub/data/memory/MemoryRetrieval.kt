@@ -132,7 +132,7 @@ data class IndexDoc(
     val path: String,
 )
 
-/** 检索命中。 */
+/** 检索命中。text = 命中块完整正文（P6：对齐 omp，工具层再按预算裁剪展示）。 */
 data class MemoryHit(
     val docId: String,
     val layer: String,
@@ -141,6 +141,7 @@ data class MemoryHit(
     val startLine: Int,
     val snippet: String,
     val score: Double,
+    val text: String = "",
 )
 
 /** BM25 索引（进程内，构建后只读）。 */
@@ -157,6 +158,7 @@ class MemoryIndex(docs: List<IndexDoc>) {
     private data class Entry(
         val doc: IndexDoc,
         val startLine: Int,
+        val chunkText: String,
         val tf: Map<String, Int>,
         val len: Int,
     )
@@ -175,7 +177,7 @@ class MemoryIndex(docs: List<IndexDoc>) {
                 val tokens = MemoryTokenizer.tokenize("${c.title}\n${c.text}")
                 val tf = HashMap<String, Int>()
                 for (t in tokens) tf[t] = (tf[t] ?: 0) + 1
-                Entry(d, c.startLine, tf, tokens.size)
+                Entry(d, c.startLine, c.text, tf, tokens.size)
             }
         }.flatten()
         entries = built
@@ -256,7 +258,8 @@ class MemoryIndex(docs: List<IndexDoc>) {
                 title = e.doc.title.ifBlank { e.doc.path },
                 path = e.doc.path,
                 startLine = e.startLine,
-                snippet = e.doc.text.take(200),
+                snippet = e.chunkText.take(200),
+                text = e.chunkText,
                 score = scores[idx] * boost,
             )
         }
@@ -320,5 +323,28 @@ object MemoryCatalog {
         }
 
         return docs
+    }
+}
+
+/**
+ * P6 · 索引新鲜度令牌：scope 目录（除 snapshots/）全部文件的
+ * `相对路径:mtime:size` 串接哈希。文件未变 → 令牌不变 → 复用进程内索引。
+ */
+object MemoryFreshness {
+    fun token(root: File): String {
+        if (!root.exists()) return "empty"
+        val parts = ArrayList<String>()
+        root.walkTopDown()
+            .filter { it.isFile }
+            .filter { f -> !f.relativeTo(root).path.startsWith("snapshots/") }
+            .filter { f -> !f.name.endsWith(".tmp") }
+            .take(2000)
+            .forEach { f ->
+                parts.add(f.relativeTo(root).path + ":" + f.lastModified() + ":" + f.length())
+            }
+        val joined = parts.sorted().joinToString("|")
+        return java.security.MessageDigest.getInstance("SHA-256")
+            .digest(joined.toByteArray(Charsets.UTF_8))
+            .joinToString("") { "%02x".format(it) }
     }
 }

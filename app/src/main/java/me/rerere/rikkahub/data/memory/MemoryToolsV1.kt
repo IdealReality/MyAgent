@@ -36,16 +36,30 @@ object MemoryToolsV1 {
         val scopeId = engine.scopeIdOf(assistant)
         val store = engine.store(scopeId)
 
+        // P6 · 命中展示预算：单块上限 + 总预算（对齐 omp 的块级返回，而不是 200 字摘要）。
+        val PER_HIT_CHARS = 900
+        val TOTAL_CHARS = 4200
+
         fun renderHits(hits: List<MemoryHit>): String = buildString {
             if (hits.isEmpty()) {
                 append("No memory hits. Either the memory has no related content, or the query has no verbatim anchor into it.")
                 append(" Use memory_guide() to browse what exists, or rephrase with distinctive words.")
             } else {
                 appendLine("Found ${hits.size} memory hits:")
+                var used = 0
                 hits.forEachIndexed { i, h ->
-                    appendLine("[$i] layer=${h.layer} path=${h.path}:L${h.startLine} score=%.3f".format(h.score))
+                    if (used >= TOTAL_CHARS) {
+                        appendLine("[$i] layer=${h.layer} path=${h.path}:L${h.startLine} — omitted (output budget reached; re-query with a narrower layer or smaller k)")
+                        return@forEachIndexed
+                    }
+                    val remaining = TOTAL_CHARS - used
+                    val body = h.text.ifBlank { h.snippet }
+                    val clipped = body.take(minOf(PER_HIT_CHARS, remaining))
+                    used += clipped.length
+                    appendLine("[$i] layer=${h.layer} path=${h.path}:L${h.startLine}-${h.startLine + body.lines().size - 1} score=%.3f".format(h.score))
                     appendLine("    title: ${h.title.take(80)}")
-                    appendLine("    ${h.snippet.replace("\n", " ").take(180)}")
+                    appendLine(clipped)
+                    if (body.length > clipped.length) appendLine("    …(clipped; full text: read ${h.path} near line ${h.startLine})")
                 }
             }
         }
@@ -91,8 +105,8 @@ object MemoryToolsV1 {
                     val layer = params["layer"]?.jsonPrimitive?.contentOrNull
                     val k = (params["k"]?.jsonPrimitive?.intOrNull ?: DEFAULT_K).coerceIn(1, MAX_K)
                     val result = runCatching {
-                        val idx = MemoryIndex(MemoryCatalog.buildDocs(store, scopeId))
-                        idx.search(query, layer = layer, limit = k)
+                        // P6：引擎级缓存索引（freshnessToken 命中时零重建）
+                        engine.index(scopeId).search(query, layer = layer, limit = k)
                     }.getOrElse { e ->
                         return@Tool listOf(
                             UIMessagePart.Text("memory_recall: index unavailable (${e.javaClass.simpleName}); falling back to memory_guide().")

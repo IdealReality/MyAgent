@@ -3262,4 +3262,12 @@ HARDLINE protections still apply: rm -rf /, mkfs, shutdown / reboot, dd to block
   <string name="memory_engine_boundary_desc">When a new task starts, folds the finished prior task into a request-only digest; nothing is written to the conversation</string>
   <string name="memory_engine_ccr_title">Tool output pool (CCR)</string>
   <string name="memory_engine_ccr_desc">Oversized tool outputs are content-addressed to disk with a smart preview and a handle for on-demand retrieval</string>
+  <string name="memory_engine_model_title">Memory model</string>
+  <string name="memory_engine_model_desc">Model used by autolearn to rewrite L1 and generate gists. Empty = follow the global fast model</string>
+  <string name="memory_engine_autolearn_switch">Autolearn</string>
+  <string name="memory_engine_l1_limit">L1 summary limit (chars)</string>
+  <string name="memory_engine_l1_limit_desc">Upper bound of the L1 summary autolearn writes</string>
+  <string name="memory_engine_snapshot_keep">Snapshot count to keep</string>
+  <string name="memory_engine_snapshot_keep_desc">Rolling snapshots taken before each L1 rewrite</string>
+  <string name="memory_engine_ccr_switch">Tool output pool (CCR)</string>
 </resources>

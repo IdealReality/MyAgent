@@ -33,6 +33,11 @@ data class Assistant(
     val useGlobalMemory: Boolean = false, // 使用全局共享记忆而非助手隔离记忆
     // 记忆引擎 v1（P3）：本助手 autolearn 用的 memory 模型角色；null = 回退全局 settings.memoryModelId。
     val memoryModelId: Uuid? = null,
+    // 记忆引擎 v1（P6）：per-assistant 记忆增强设置（自动化优先的默认档）。
+    val autoLearnEnabled: Boolean = true,
+    val memoryL1MaxChars: Int = 2000,
+    val memorySnapshotKeep: Int = 15,
+    val memoryCcrEnabled: Boolean = true,
     val enableRecentChatsReference: Boolean = false,
     val messageTemplate: String = "{{ message }}",
     val presetMessages: List<UIMessage> = emptyList(),

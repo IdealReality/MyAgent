@@ -47,11 +47,13 @@ import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Delete01
 import me.rerere.hugeicons.stroke.PencilEdit01
 import me.rerere.rikkahub.R
+import me.rerere.ai.provider.ModelType
 import me.rerere.rikkahub.data.memory.AssistantMemoryEngine
 import me.rerere.rikkahub.data.memory.EpisodeSegment
 import me.rerere.rikkahub.data.memory.MemoryPrompts
 import me.rerere.rikkahub.data.memory.MemorySnapshot
 import me.rerere.rikkahub.data.memory.TaskBoundary
+import me.rerere.rikkahub.ui.components.ai.ModelSelector
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.ui.CardGroup
 import me.rerere.rikkahub.ui.theme.CustomColors
@@ -83,6 +85,7 @@ fun AssistantMemoryPage(id: String) {
         parameters = { parametersOf(id) }
     )
     val assistant by vm.assistant.collectAsStateWithLifecycle()
+    val providers by vm.providers.collectAsStateWithLifecycle()
     val engine = koinInject<AssistantMemoryEngine>()
     val scope = rememberCoroutineScope()
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
@@ -192,6 +195,7 @@ fun AssistantMemoryPage(id: String) {
             if (tab == 4) {
                 MemorySettingsSection(
                     assistant = assistant,
+                    providers = providers,
                     onUpdateAssistant = { vm.update(it) },
                 )
             }
@@ -404,8 +408,11 @@ private fun MemorySnapshotsTab(
 @Composable
 private fun MemorySettingsSection(
     assistant: me.rerere.rikkahub.data.model.Assistant,
+    providers: List<me.rerere.ai.provider.ProviderSetting>,
     onUpdateAssistant: (me.rerere.rikkahub.data.model.Assistant) -> Unit,
 ) {
+    var l1Dialog by remember { mutableStateOf(false) }
+    var snapDialog by remember { mutableStateOf(false) }
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -436,21 +443,120 @@ private fun MemorySettingsSection(
                 },
             )
         }
-        CardGroup {
-            item(
-                headlineContent = { Text(stringResource(R.string.memory_engine_autolearn_title)) },
-                supportingContent = { Text(stringResource(R.string.memory_engine_autolearn_desc)) },
-            )
-            item(
-                headlineContent = { Text(stringResource(R.string.memory_engine_boundary_title)) },
-                supportingContent = { Text(stringResource(R.string.memory_engine_boundary_desc)) },
-            )
-            item(
-                headlineContent = { Text(stringResource(R.string.memory_engine_ccr_title)) },
-                supportingContent = { Text(stringResource(R.string.memory_engine_ccr_desc)) },
-            )
+        if (assistant.enableMemory) {
+            CardGroup {
+                // P6 · memory 模型角色（ModelSelector 与 chatModel 同组件；null=跟随全局）
+                item(
+                    headlineContent = { Text(stringResource(R.string.memory_engine_model_title)) },
+                    supportingContent = {
+                        Column {
+                            Text(stringResource(R.string.memory_engine_model_desc))
+                            ModelSelector(
+                                modelId = assistant.memoryModelId,
+                                providers = providers,
+                                type = ModelType.CHAT,
+                                onSelect = { onUpdateAssistant(assistant.copy(memoryModelId = it.id)) },
+                            )
+                        }
+                    },
+                )
+                item(
+                    headlineContent = { Text(stringResource(R.string.memory_engine_autolearn_switch)) },
+                    supportingContent = { Text(stringResource(R.string.memory_engine_autolearn_desc)) },
+                    trailingContent = {
+                        Switch(
+                            checked = assistant.autoLearnEnabled,
+                            onCheckedChange = { onUpdateAssistant(assistant.copy(autoLearnEnabled = it)) },
+                        )
+                    },
+                )
+            }
+            CardGroup {
+                item(
+                    headlineContent = { Text(stringResource(R.string.memory_engine_l1_limit)) },
+                    supportingContent = { Text(stringResource(R.string.memory_engine_l1_limit_desc)) },
+                    trailingContent = { Text(assistant.memoryL1MaxChars.toString()) },
+                    onClick = { l1Dialog = true },
+                )
+                item(
+                    headlineContent = { Text(stringResource(R.string.memory_engine_snapshot_keep)) },
+                    supportingContent = { Text(stringResource(R.string.memory_engine_snapshot_keep_desc)) },
+                    trailingContent = { Text(assistant.memorySnapshotKeep.toString()) },
+                    onClick = { snapDialog = true },
+                )
+            }
+            CardGroup {
+                item(
+                    headlineContent = { Text(stringResource(R.string.memory_engine_ccr_switch)) },
+                    supportingContent = { Text(stringResource(R.string.memory_engine_ccr_desc)) },
+                    trailingContent = {
+                        Switch(
+                            checked = assistant.memoryCcrEnabled,
+                            onCheckedChange = { onUpdateAssistant(assistant.copy(memoryCcrEnabled = it)) },
+                        )
+                    },
+                )
+                item(
+                    headlineContent = { Text(stringResource(R.string.memory_engine_boundary_title)) },
+                    supportingContent = { Text(stringResource(R.string.memory_engine_boundary_desc)) },
+                )
+            }
         }
     }
+
+    if (l1Dialog) {
+        NumberEditDialog(
+            title = stringResource(R.string.memory_engine_l1_limit),
+            initial = assistant.memoryL1MaxChars,
+            min = 500, max = 8000,
+            onConfirm = { onUpdateAssistant(assistant.copy(memoryL1MaxChars = it)) },
+            onDismiss = { l1Dialog = false },
+        )
+    }
+    if (snapDialog) {
+        NumberEditDialog(
+            title = stringResource(R.string.memory_engine_snapshot_keep),
+            initial = assistant.memorySnapshotKeep,
+            min = 1, max = 50,
+            onConfirm = { onUpdateAssistant(assistant.copy(memorySnapshotKeep = it)) },
+            onDismiss = { snapDialog = false },
+        )
+    }
+}
+
+@Composable
+private fun NumberEditDialog(
+    title: String,
+    initial: Int,
+    min: Int,
+    max: Int,
+    onConfirm: (Int) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    var text by remember { mutableStateOf(initial.toString()) }
+    val value = text.toIntOrNull()?.takeIf { it in min..max }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(title) },
+        text = {
+            TextField(
+                value = text,
+                onValueChange = { text = it },
+                singleLine = true,
+                isError = value == null,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                supportingText = { Text("$min - $max") },
+            )
+        },
+        confirmButton = {
+            TextButton(enabled = value != null, onClick = { value?.let(onConfirm); onDismiss() }) {
+                Text(stringResource(R.string.assistant_page_confirm))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.assistant_page_cancel)) }
+        },
+    )
 }
 
 @Composable

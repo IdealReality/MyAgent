@@ -31,6 +31,10 @@ class AssistantMemoryEngine(
 
     private val stores = ConcurrentHashMap<String, AssistantMemoryStore>()
 
+    // P6 · 进程内索引缓存：scope -> (freshnessToken, index)。文件未变时直接复用，
+    // 避免 memory_recall 每次全量重建；快照目录不计入令牌（快照写入不应作废索引）。
+    private val indexCache = ConcurrentHashMap<String, Pair<String, MemoryIndex>>()
+
     /** scope -> store。scope 目录内文件读写全走 store；跨 scope 无共享状态。 */
     fun store(scopeId: String): AssistantMemoryStore =
         stores.computeIfAbsent(scopeId) { AssistantMemoryStore(memoryRoot(context)) }
@@ -40,6 +44,21 @@ class AssistantMemoryEngine(
 
     /** 助手 -> EpisodeWriter（挂在 ChatService 生命周期上）。 */
     fun writer(assistant: Assistant): EpisodeWriter = EpisodeWriter(store(scopeIdOf(assistant)))
+
+    /**
+     * P6 · scope 检索索引（带 freshnessToken 缓存）：文件未变时复用同一实例。
+     * 索引构建失败的降级纪律由调用方（MemoryToolsV1）负责。
+     */
+    fun index(scopeId: String): MemoryIndex {
+        val store = store(scopeId)
+        val token = MemoryFreshness.token(memoryRoot(context).resolve(scopeId))
+        indexCache[scopeId]?.let { (t, idx) ->
+            if (t == token) return idx
+        }
+        val built = MemoryIndex(MemoryCatalog.buildDocs(store, scopeId))
+        indexCache[scopeId] = token to built
+        return built
+    }
 
     /**
      * 记忆引擎 v1（P2）：enableMemory 时返回 memory_recall / memory_guide / memory_write

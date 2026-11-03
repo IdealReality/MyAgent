@@ -45,7 +45,7 @@ object MemorySnapshot {
     }
 
     /** 创建快照；返回快照目录。已存在同毫秒目录时顺延。 */
-    fun create(store: AssistantMemoryStore, scopeId: String, nowMs: Long): File? {
+    fun create(store: AssistantMemoryStore, scopeId: String, nowMs: Long, keep: Int = KEEP): File? {
         return runCatching {
             val scopeDir = store.dirFor(scopeId)
             if (!scopeDir.exists()) return null
@@ -82,16 +82,17 @@ object MemorySnapshot {
             manifest.append("\n}\n")
             File(snapDir, "manifest.json").writeText(manifest.toString())
             File(snapDir, "meta.txt").writeText("timestamp=$ts\nfiles=${entries.size}\ncopied=$copied\n")
-            prune(snapRoot)
+            prune(snapRoot, keep)
             snapDir
         }.getOrNull()
     }
 
-    /** 滚动保留最近 KEEP 份。 */
-    fun prune(snapRoot: File) {
+    /** 滚动保留最近 [keep] 份（P6：per-assistant 可配）。 */
+    fun prune(snapRoot: File, keep: Int = KEEP) {
+        val n = keep.coerceAtLeast(1)
         val dirs = snapRoot.listFiles { f -> f.isDirectory }?.sortedBy { it.name } ?: return
-        if (dirs.size <= KEEP) return
-        dirs.take(dirs.size - KEEP).forEach { it.deleteRecursively() }
+        if (dirs.size <= n) return
+        dirs.take(dirs.size - n).forEach { it.deleteRecursively() }
     }
 
     /** 快照列表（GUI 恢复入口用）。 */

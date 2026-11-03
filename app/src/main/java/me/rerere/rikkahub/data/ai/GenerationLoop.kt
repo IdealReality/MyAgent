@@ -1374,6 +1374,7 @@ class GenerationLoop(
                                     output = result,
                                     hasShellAccess = hasShellAccess,
                                     maxTokens = assistant.toolResultMaxTokens,
+                                    ccrEnabled = assistant.memoryCcrEnabled,
                                 )
                             )
                         }.onFailure {
@@ -2026,6 +2027,7 @@ class GenerationLoop(
         output: List<UIMessagePart>,
         hasShellAccess: Boolean,
         maxTokens: Int? = null,
+        ccrEnabled: Boolean = true,
     ): List<UIMessagePart> {
         val textParts = output.filterIsInstance<UIMessagePart.Text>()
         val nonTextParts = output.filter { it !is UIMessagePart.Text }
@@ -2041,8 +2043,10 @@ class GenerationLoop(
             // 原文按 sha256 内容寻址落盘（cache/tool-output/<handle>.txt，同内容去重），
             // 请求内保留智能头尾预览 + handle/sed 行号取回提示。
             // CCR 落盘失败时降级旧 truncateToolResult 管线（绝不因池故障丢工具结果）。
-            val ccrHandled: List<UIMessagePart>? = maxTokens?.let { budget ->
-                runCatching {
+            val ccrHandled: List<UIMessagePart>? = when {
+                !ccrEnabled -> null
+                else -> maxTokens?.let { budget ->
+                    runCatching {
                     val kind = ToolOutputPool.detectKind(fullText)
                     val originalTokens = ContextCompactionPlanner.estimateTokens(fullText)
                     if (originalTokens <= budget) return@let null
@@ -2073,6 +2077,7 @@ class GenerationLoop(
                         UIMessagePart.Text(notice)
                     ) + nonTextParts
                 }.getOrNull()
+                }
             }
             if (ccrHandled != null) return ccrHandled
             val outcome = truncateToolResult(text = fullText, maxTokens = maxTokens)

@@ -38,6 +38,7 @@ class AutoLearnWorker(
             val settings = settingsStore.settingsFlow.first()
             for (assistant in settings.assistants) {
                 if (!assistant.enableMemory) continue
+                if (!assistant.autoLearnEnabled) continue // P6：per-assistant autolearn 开关
                 runCatching { learnForAssistant(settings, assistant) }
                     .onFailure { MemLog.w(TAG, "autolearn ${assistant.id}: ${it.message}") }
             }
@@ -65,26 +66,38 @@ class AutoLearnWorker(
         val provider = model.findProvider(settings.providers) ?: return
         if (!provider.enabled) return
 
-        // snapshot before the destructive L1 rewrite (safety net)
-        MemorySnapshot.create(store, scopeId, System.currentTimeMillis())
+        // snapshot before the destructive L1 rewrite (safety net; P6: keep count per-assistant)
+        MemorySnapshot.create(store, scopeId, System.currentTimeMillis(), keep = assistant.memorySnapshotKeep)
+
+        val handler = providerManager.getProviderByType(provider)
+        val params = TextGenerationParams(
+            model = model,
+            reasoningLevel = ReasoningLevel.OFF,
+            customHeaders = model.customHeaders,
+            customBody = model.customBodies,
+        )
+
+        // P6 · gist 批量生成（一次调用；失败静默跳过，不阻塞 L1 重写）
+        val gists: Map<String, String> = runCatching {
+            val gistCall = handler.generateText(
+                providerSetting = provider,
+                messages = listOf(UIMessage.user(prompt = AutoLearn.buildGistPrompt(segments))),
+                params = params,
+            )
+            AutoLearn.parseGists(gistCall.message.toText())
+        }.getOrDefault(emptyMap())
 
         val oldL1 = store.readL1(scopeId)
-        val prompt = AutoLearn.buildRewritePrompt(oldL1, segments)
-        val handler = providerManager.getProviderByType(provider)
+        val prompt = AutoLearn.buildRewritePrompt(oldL1, segments, l1MaxChars = assistant.memoryL1MaxChars)
         val result = handler.generateText(
             providerSetting = provider,
             messages = listOf(UIMessage.user(prompt = prompt)),
-            params = TextGenerationParams(
-                model = model,
-                reasoningLevel = ReasoningLevel.OFF,
-                customHeaders = model.customHeaders,
-                customBody = model.customBodies,
-            ),
+            params = params,
         )
-        val newL1 = AutoLearn.parseRewrite(result.message.toText())
+        val newL1 = AutoLearn.parseRewrite(result.message.toText(), maxChars = assistant.memoryL1MaxChars)
         if (newL1.isBlank()) return
-        AutoLearn.commit(store, scopeId, segments, newL1, System.currentTimeMillis())
-        MemLog.d(TAG, "autolearn ok scope=$scopeId segs=${segments.size}")
+        AutoLearn.commit(store, scopeId, segments, newL1, System.currentTimeMillis(), gists = gists)
+        MemLog.d(TAG, "autolearn ok scope=$scopeId segs=${segments.size} gists=${gists.size}")
     }
 
     companion object {
