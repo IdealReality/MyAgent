@@ -50,7 +50,8 @@ object MemorySnapshot {
             val scopeDir = store.dirFor(scopeId)
             if (!scopeDir.exists()) return null
             val snapRoot = File(scopeDir, SNAPSHOTS_DIR)
-            val filesDir = File(snapRoot, "files")
+            // P6 修复：files/ 副本放进本快照目录内（snapshots/<ts>/files/），
+            // 之前建在 snapRoot 下会被 prune/list 当成一份快照参与排序/计数。
             var ts = nowMs
             var snapDir = File(snapRoot, ts.toString())
             while (snapDir.exists()) {
@@ -58,6 +59,7 @@ object MemorySnapshot {
                 snapDir = File(snapRoot, ts.toString())
             }
             snapDir.mkdirs()
+            val filesDir = File(snapDir, "files")
             filesDir.mkdirs()
 
             val entries = mutableListOf<Pair<File, String>>()

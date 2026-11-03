@@ -336,11 +336,15 @@ object MemoryFreshness {
         val parts = ArrayList<String>()
         root.walkTopDown()
             .filter { it.isFile }
-            .filter { f -> !f.relativeTo(root).path.startsWith("snapshots/") }
-            .filter { f -> !f.name.endsWith(".tmp") }
+            // 文件级过滤：snapshots/ 快照树与 *.tmp 不进令牌（invariantSeparatorsPath
+            // 统一 '/'，Windows 下 File.path 是 '\'）；快照内容变化不致作废索引缓存。
+            .filter { f ->
+                val rel = f.relativeTo(root).invariantSeparatorsPath
+                !rel.startsWith("snapshots/") && !f.name.endsWith(".tmp")
+            }
             .take(2000)
             .forEach { f ->
-                parts.add(f.relativeTo(root).path + ":" + f.lastModified() + ":" + f.length())
+                parts.add(f.relativeTo(root).invariantSeparatorsPath + ":" + f.lastModified() + ":" + f.length())
             }
         val joined = parts.sorted().joinToString("|")
         return java.security.MessageDigest.getInstance("SHA-256")

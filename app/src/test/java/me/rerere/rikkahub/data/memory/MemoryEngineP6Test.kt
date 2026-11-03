@@ -86,8 +86,13 @@ class MemoryEngineP6Test {
     fun `prune respects custom keep`() {
         val store = AssistantMemoryStore(tmp.newFolder("mem2"))
         store.writeL1("s2", "# L1") // create() 要求 scope 目录已存在
-        repeat(5) { i -> MemorySnapshot.create(store, "s2", nowMs = 1000L + i) }
-        MemorySnapshot.prune(File(store.dirFor("s2"), "snapshots"), keep = 2)
+        repeat(5) { i ->
+            val dir = MemorySnapshot.create(store, "s2", nowMs = 1000L + i)
+            checkNotNull(dir) { "create #$i returned null" }
+        }
+        val snapRoot = File(store.dirFor("s2"), "snapshots")
+        check(snapRoot.listFiles { f -> f.isDirectory }?.size == 5) { "expected 5 snap dirs before prune" }
+        MemorySnapshot.prune(snapRoot, keep = 2)
         assertEquals(2, MemorySnapshot.list(store, "s2").size)
     }
 
