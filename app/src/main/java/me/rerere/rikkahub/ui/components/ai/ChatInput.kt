@@ -130,7 +130,6 @@ import me.rerere.rikkahub.utils.SoundEffectPlayer
 import org.koin.compose.koinInject
 import me.rerere.rikkahub.ui.pages.chat.VoicePhase
 import me.rerere.rikkahub.ui.pages.chat.VoiceSessionState
-import me.rerere.rikkahub.ui.theme.LocalAccentBrush
 import me.rerere.rikkahub.ui.theme.LocalDarkMode
 import kotlin.math.roundToInt
 import kotlin.uuid.Uuid
@@ -262,9 +261,9 @@ fun ChatInput(
     // smaller, flatter 14dp card.
     val containerCorner by animateDpAsState(
         targetValue = when {
-            cleanLayout -> 18.dp
-            expanded -> 20.dp
-            else -> 30.dp
+            cleanLayout -> 14.dp
+            expanded -> 16.dp
+            else -> 28.dp
         },
         animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing),
         label = "chatInputCorner",
@@ -313,8 +312,8 @@ fun ChatInput(
                                 input = HazeInput.Sources(hazeState),
                                 style = rikkaGlassStyle(
                                     containerShape,
-                                    blurRadius = 18.dp,
-                                    depth = 0.55f,
+                                    blurRadius = 12.dp,
+                                    depth = 0.4f,
                                     tintStrength = cleanOpacity,
                                 ),
                             )
@@ -325,7 +324,7 @@ fun ChatInput(
                 shape = containerShape,
                 tonalElevation = 0.dp,
                 color = if (useGlass) Color.Transparent else cleanCardColor,
-                border = if (useGlass) null else BorderStroke(1.dp, cleanCardOutline.copy(alpha = 0.75f)),
+                border = if (useGlass) null else BorderStroke(1.dp, cleanCardOutline),
             ) {
                 Column(
                     // Extra inset so the round buttons stay clear of the capsule's edge; the
@@ -692,7 +691,6 @@ private fun SendButton(
         empty -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
         else -> MaterialTheme.colorScheme.onPrimary
     }
-    val accentBrush = LocalAccentBrush.current
     Box(
         contentAlignment = Alignment.Center,
         modifier = modifier
@@ -705,28 +703,17 @@ private fun SendButton(
                 onLongClick = onLongClick,
             )
     ) {
-        // 可发送时用三色渐变代替纯主色：这是整个聊天流程里最高频的一次点击，也是
-        // 「整体渐变」最需要被看见的位置。
-        if (!showStop && !empty) {
-            Box(
-                modifier = Modifier
-                    .size(30.dp)
-                    .clip(CircleShape)
-                    .background(accentBrush)
-            )
-        } else {
-            Surface(
-                modifier = Modifier.size(26.dp),
-                shape = CircleShape,
-                color = containerColor,
-                content = {},
-            )
-        }
+        Surface(
+            modifier = Modifier.size(26.dp),
+            shape = CircleShape,
+            color = containerColor,
+            content = {},
+        )
         Icon(
             imageVector = if (showStop) HugeIcons.Cancel01 else HugeIcons.ArrowUp02,
             contentDescription = stringResource(if (showStop) R.string.stop else R.string.send),
             tint = contentColor,
-            modifier = Modifier.size(17.dp)
+            modifier = Modifier.size(16.dp)
         )
     }
 }

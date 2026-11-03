@@ -142,10 +142,6 @@ import me.rerere.rikkahub.ui.pages.share.handler.ShareHandlerPage
 import me.rerere.rikkahub.ui.pages.stats.StatsPage
 import me.rerere.rikkahub.ui.pages.translator.TranslatorPage
 import me.rerere.rikkahub.ui.pages.webview.WebViewPage
-import me.rerere.rikkahub.ui.theme.LocalAmbientBrush
-import me.rerere.rikkahub.ui.theme.LocalAuraBrush
-import me.rerere.rikkahub.ui.theme.LocalUnderglowBrush
-import me.rerere.rikkahub.ui.theme.MyAgentGradient
 import me.rerere.rikkahub.ui.theme.LocalDarkMode
 import me.rerere.rikkahub.ui.theme.RikkahubTheme
 import me.rerere.rikkahub.utils.CrashHandler
@@ -362,20 +358,8 @@ class RouteActivity : ComponentActivity() {
                     modifier = Modifier
                         .fillMaxSize()
                         .semantics { testTagsAsResourceId = true }
-                        .background(LocalAmbientBrush.current)
+                        .background(MaterialTheme.colorScheme.background)
                 ) {
-                    // 光晕层：纵向渐变之上再叠一层顶部玫红光 + 底部蓝光，制造「光从上方来」
-                    // 的空间纵深感。两层都随主题明暗切换，且透明度很低，不影响可读性。
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .background(LocalAuraBrush.current)
-                    )
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .background(LocalUnderglowBrush.current)
-                    )
                     NavDisplay(
                         backStack = backStack,
                         entryDecorators = listOf(

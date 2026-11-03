@@ -43,7 +43,7 @@ internal const val CleanInputPaddingMaxDp = 24f
  */
 @Composable
 internal fun cleanPanelFill(opacity: Float): Color =
-    MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = cleanPanelAlpha(opacity))
+    MaterialTheme.colorScheme.surfaceContainerLowest.copy(alpha = cleanPanelAlpha(opacity))
 
 /**
  * Hairline around a panel. It deliberately does not fade with [cleanPanelFill]'s opacity: at 0%
@@ -52,7 +52,7 @@ internal fun cleanPanelFill(opacity: Float): Color =
 @Composable
 internal fun cleanPanelOutline(darkTheme: Boolean): Color =
     if (darkTheme) {
-        Color.White.copy(alpha = 0.16f)
+        Color.White.copy(alpha = 0.12f)
     } else {
         MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f)
     }

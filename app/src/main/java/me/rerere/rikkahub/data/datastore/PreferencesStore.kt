@@ -529,7 +529,7 @@ class SettingsStore(
                     )
                 }.getOrDefault(SubAgentDispatchProfile.NEVER),
                 dynamicColor = preferences[DYNAMIC_COLOR] == true,
-                themeId = preferences[THEME_ID] ?: "myagent",
+                themeId = preferences[THEME_ID] ?: PresetThemes[0].id,
                 customThemes = preferences[CUSTOM_THEMES]?.let { raw ->
                     runCatching { JsonInstant.decodeFromString<List<CustomTheme>>(raw) }.getOrElse {
                         Log.w(TAG, "Failed to decode customThemes, using default", it)
