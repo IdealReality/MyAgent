@@ -148,15 +148,10 @@ class ToolCatalogTest {
         assertEquals(4, outcome.activeCount)
     }
 
-    @Test
-    fun `activate caps the total number of active schemas`() {
-        // 2026-11-07: 原来的断言写死了「总上限 6」（先开 4 再开 3，只 2 个成功）。上限改成 20
-        // 之后这条就挂了。测试应当跟随常量，而不是把常量抄一份——否则每次调参都要改测试，
-        // 而「测试挂了」和「实现坏了」长得一模一样，容易被顺手改断言糊过去。
+    /** Fills the active set to the cap by activating t_1..t_cap through the real API. */
+    private fun fillToCap(activation: ToolActivationState, catalog: ToolCatalog): Int {
         val cap = TOOL_CATALOG_MAX_ACTIVE_SCHEMAS
         val perCall = TOOL_CATALOG_MAX_OPEN_PER_CALL
-        val catalog = ToolCatalog((1..(cap + perCall)).map { entry("t_$it") })
-        val activation = ToolActivationState()
         var filled = 0
         while (filled < cap) {
             val upTo = minOf(filled + perCall, cap)
@@ -164,11 +159,70 @@ class ToolCatalogTest {
             filled = upTo
         }
         assertEquals(cap, activation.active().size)
-        // One past the cap must be refused rather than silently dropped.
+        return cap
+    }
+
+    @Test
+    fun `a full activation set evicts the least recently used schema instead of refusing`() {
+        // 2026-11-07: the cap used to be a one-way wall — once full, every further tool_open was
+        // rejectedOverCap forever and the model could not tell which of the 20 to release.
+        // The set is LRU now: the oldest touch makes room and is reported in `evicted`.
+        val cap = TOOL_CATALOG_MAX_ACTIVE_SCHEMAS
+        val perCall = TOOL_CATALOG_MAX_OPEN_PER_CALL
+        val catalog = ToolCatalog((1..(cap + perCall)).map { entry("t_$it") })
+        val activation = ToolActivationState()
+        fillToCap(activation, catalog)
+
         val outcome = activation.activate(catalog, listOf("t_${cap + 1}"))
-        assertEquals(emptyList<String>(), outcome.activated)
-        assertEquals(listOf("t_${cap + 1}"), outcome.rejectedOverCap)
+        assertEquals(listOf("t_${cap + 1}"), outcome.activated)
+        assertEquals(listOf("t_1"), outcome.evicted)
+        assertEquals(emptyList<String>(), outcome.rejectedOverCap)
         assertEquals(cap, outcome.activeCount)
+        assertFalse("t_1 must actually be gone", "t_1" in activation.active())
+        assertTrue("t_${cap + 1} must actually be in", "t_${cap + 1}" in activation.active())
+    }
+
+    @Test
+    fun `re-opening an active schema moves it to the newest end and protects it`() {
+        val cap = TOOL_CATALOG_MAX_ACTIVE_SCHEMAS
+        val perCall = TOOL_CATALOG_MAX_OPEN_PER_CALL
+        val catalog = ToolCatalog((1..(cap + 2)).map { entry("t_$it") })
+        val activation = ToolActivationState()
+        fillToCap(activation, catalog)
+
+        // Touch t_1: it is now the most recently used, so t_2 becomes the victim.
+        activation.activate(catalog, listOf("t_1"))
+        val outcome = activation.activate(catalog, listOf("t_${cap + 1}"))
+        assertEquals(listOf("t_2"), outcome.evicted)
+        assertTrue("t_1 was just touched, it must survive", "t_1" in activation.active())
+    }
+
+    @Test
+    fun `a single call never evicts a name it is activating`() {
+        val cap = TOOL_CATALOG_MAX_ACTIVE_SCHEMAS
+        val perCall = TOOL_CATALOG_MAX_OPEN_PER_CALL
+        val catalog = ToolCatalog((1..(cap + 2)).map { entry("t_$it") })
+        val activation = ToolActivationState()
+        fillToCap(activation, catalog)
+
+        val outcome = activation.activate(catalog, listOf("t_20", "t_${cap + 1}"))
+        assertEquals(listOf("t_20"), outcome.alreadyActive)
+        assertEquals(listOf("t_${cap + 1}"), outcome.activated)
+        // t_20 is in the same call, so the oldest untouched name must go instead.
+        assertEquals(listOf("t_1"), outcome.evicted)
+        assertTrue("t_20 stays", "t_20" in activation.active())
+    }
+
+    @Test
+    fun `eviction is reported to the model, never silent`() {
+        val cap = TOOL_CATALOG_MAX_ACTIVE_SCHEMAS
+        val perCall = TOOL_CATALOG_MAX_OPEN_PER_CALL
+        val catalog = ToolCatalog((1..(cap + 1)).map { entry("t_$it") })
+        val activation = ToolActivationState()
+        fillToCap(activation, catalog)
+        val json = activation.activate(catalog, listOf("t_${cap + 1}")).toJson()
+        assertTrue(json.contains("\"evicted\":[\"t_1\"]"))
+        assertTrue("the note must say re-opening is required", json.contains("tool_open again"))
     }
 
     @Test
@@ -220,6 +274,7 @@ class ToolCatalogTest {
         val json = outcome.toJson()
         assertTrue(json.contains("\"alreadyActive\":[]"))
         assertTrue(json.contains("\"rejectedOverCap\":[]"))
+        assertTrue(json.contains("\"evicted\":[]"))
         assertTrue(json.contains("\"activeCount\":1"))
     }
 

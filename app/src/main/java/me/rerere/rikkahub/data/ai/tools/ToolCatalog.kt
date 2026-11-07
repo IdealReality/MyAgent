@@ -87,10 +87,24 @@ data class ToolOpenOutcome(
     val unknown: List<String>,
     val rejectedOverCap: List<String>,
     val activeCount: Int,
+    /**
+     * Names pushed out of the active set to make room (least recently used first).
+     *
+     * 2026-11-07: the cap used to be a one-way wall — once 20 schemas were active, every
+     * further `tool_open` came back `rejectedOverCap` forever, and the model had no way to
+     * know which of the 20 to release. The set is now LRU: opening a new tool evicts the
+     * oldest one that is not part of this very call, and says so here.
+     */
+    val evicted: List<String> = emptyList(),
 ) {
     fun toJson(): String {
         val note = buildString {
             append("Activated schemas become callable from your NEXT turn, not this one.")
+            if (evicted.isNotEmpty()) {
+                append(" Evicted to stay under the cap (they need tool_open again before use): ")
+                append(evicted.joinToString(", "))
+                append(".")
+            }
             if (activated.isEmpty()) {
                 if (unknown.isEmpty() && alreadyActive.isEmpty() && rejectedOverCap.isEmpty()) {
                     append(" No tool names were provided, so nothing was activated. Call tool_search")
@@ -108,6 +122,7 @@ data class ToolOpenOutcome(
                 put("alreadyActive", JsonArray(alreadyActive.map { JsonPrimitive(it) }))
                 put("unknown", JsonArray(unknown.map { JsonPrimitive(it) }))
                 put("rejectedOverCap", JsonArray(rejectedOverCap.map { JsonPrimitive(it) }))
+                put("evicted", JsonArray(evicted.map { JsonPrimitive(it) }))
                 put("activeCount", activeCount)
                 put("note", note)
             },
@@ -131,6 +146,8 @@ data class ToolSearchOutcome(
      * (and for re-activating after the cap evicted something).
      */
     val autoActivated: List<String> = emptyList(),
+    /** Least-recently-used names the auto-activation pushed out, if it filled the cap. */
+    val evicted: List<String> = emptyList(),
 ) {
     fun toJson(): String = Json.encodeToString(
         JsonObject.serializer(),
@@ -145,13 +162,27 @@ data class ToolSearchOutcome(
                     put("source", hit.source.name)
                 }
             }))
+            if (evicted.isNotEmpty()) {
+                put("evicted", JsonArray(evicted.map { JsonPrimitive(it) }))
+            }
             if (autoActivated.isNotEmpty()) {
                 put("autoActivated", JsonArray(autoActivated.map { JsonPrimitive(it) }))
-                put(
-                    "note",
-                    "The top matches were activated automatically and are callable from your " +
-                        "NEXT turn. Use tool_open only for names not activated here.",
-                )
+            }
+            val activationNote = buildString {
+                if (autoActivated.isNotEmpty()) {
+                    append("The top matches were activated automatically and are callable from")
+                    append(" your NEXT turn. Use tool_open only for names not activated here.")
+                }
+                if (evicted.isNotEmpty()) {
+                    if (isNotEmpty()) append(' ')
+                    append("Auto-activation filled the cap, so the least recently used schema(s)")
+                    append(" were released: ")
+                    append(evicted.joinToString(", "))
+                    append(". Re-open them with tool_open if you still need them.")
+                }
+            }
+            if (activationNote.isNotEmpty()) {
+                put("note", activationNote)
             }
             if (hits.isEmpty()) {
                 put("note", "No tools matched. Try different keywords, or use broader terms.")
@@ -207,18 +238,27 @@ class ToolActivationState {
     fun retain(knownNames: Set<String>) = synchronized(lock) { activeNames.retainAll(knownNames) }
 
     /**
-     * Activate [names] in the order given.
+     * Activate [names] in the order given, evicting the **least recently used** active
+     * schema when the cap is already full.
      *
      * Duplicate handling: the first occurrence is the one that activates; any later
      * occurrence is reported in [ToolOpenOutcome.alreadyActive], because by then the
      * name is already (or just became) active. Unknown names never consume the per-call
      * budget, and the per-call budget is applied first-come-first-served.
+     *
+     * LRU, not rejection (2026-11-07): `activeNames` is a [LinkedHashSet] in touch order
+     * (oldest first). Re-activating a name moves it to the newest end, and a new name that
+     * would overflow evicts the oldest entry **that is not named in this same call** — so a
+     * batch can never evict something it is about to use. Evicted names are reported so the
+     * model knows they need `tool_open` again; nothing is dropped silently.
      */
     fun activate(catalog: ToolCatalog, names: List<String>): ToolOpenOutcome = synchronized(lock) {
         val activated = mutableListOf<String>()
         val alreadyActive = mutableListOf<String>()
         val unknown = mutableListOf<String>()
         val rejectedOverCap = mutableListOf<String>()
+        val evicted = mutableListOf<String>()
+        val inThisCall = names.toSet()
         var openedThisCall = 0
         for (name in names) {
             if (catalog.entry(name) == null) {
@@ -226,6 +266,9 @@ class ToolActivationState {
                 continue
             }
             if (name in activeNames) {
+                // Touch: remove+add moves it to the newest end without changing the set.
+                activeNames.remove(name)
+                activeNames.add(name)
                 alreadyActive.add(name)
                 continue
             }
@@ -233,7 +276,16 @@ class ToolActivationState {
                 rejectedOverCap.add(name)
                 continue
             }
+            while (activeNames.size >= TOOL_CATALOG_MAX_ACTIVE_SCHEMAS) {
+                // LinkedHashSet iteration is insertion order, so first() is the oldest touch.
+                val victim = activeNames.firstOrNull { it !in inThisCall } ?: break
+                activeNames.remove(victim)
+                evicted.add(victim)
+            }
             if (activeNames.size >= TOOL_CATALOG_MAX_ACTIVE_SCHEMAS) {
+                // Only reachable when every active name is also in this call, i.e. the
+                // caller asked for more than the cap in one go — refuse rather than
+                // thrash. The per-call budget makes this practically unreachable.
                 rejectedOverCap.add(name)
                 continue
             }
@@ -247,6 +299,7 @@ class ToolActivationState {
             unknown = unknown,
             rejectedOverCap = rejectedOverCap,
             activeCount = activeNames.size,
+            evicted = evicted,
         )
     }
 
@@ -329,6 +382,7 @@ fun buildToolCatalogTools(
                 total = all.size,
                 truncated = all.size > limited.size,
                 autoActivated = activationOutcome.activated,
+                evicted = activationOutcome.evicted,
             )
             listOf(UIMessagePart.Text(outcome.toJson()))
         },
@@ -339,6 +393,10 @@ fun buildToolCatalogTools(
             Activate tools by name so their schemas become callable. Names must be exact
             matches returned by tool_search. Activation takes effect on your NEXT turn,
             not the current one. Do not re-open a tool that is already active.
+            If the active set is already full, the least recently used schema is released
+            automatically to make room and is listed in the evicted field — re-open it with
+            tool_open if you still need it. tool_close is only needed when you want to free a
+            slot without activating something else.
         """.trimIndent(),
         parameters = {
             InputSchema.Obj(
