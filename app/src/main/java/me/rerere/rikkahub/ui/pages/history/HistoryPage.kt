@@ -8,6 +8,7 @@ import me.rerere.hugeicons.stroke.Delete01
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -53,6 +54,8 @@ import me.rerere.rikkahub.Screen
 import me.rerere.rikkahub.data.model.Conversation
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.context.LocalNavController
+import me.rerere.rikkahub.ui.theme.Hairline
+import me.rerere.rikkahub.ui.theme.Radius
 import me.rerere.rikkahub.utils.navigateToChatPage
 import me.rerere.rikkahub.utils.plus
 import me.rerere.rikkahub.utils.toLocalDateTime
@@ -227,10 +230,17 @@ private fun ConversationItem(
     onTogglePin: () -> Unit = {},
     onClick: () -> Unit = {},
 ) {
+    // 排版跟随 moxw：层级靠色阶 + 极淡描边，不靠阴影（阴影在浅色主题几乎看不见，
+    // 深色主题又像脏污）；圆角收到 Radius.card 一档，和设置页/抽屉里的卡片同一尺度。
+    val cardColor = MaterialTheme.colorScheme.surfaceContainerLow
     Surface(
         onClick = onClick,
-        tonalElevation = 2.dp,
-        shape = RoundedCornerShape(25),
+        color = cardColor,
+        border = BorderStroke(
+            1.dp,
+            MaterialTheme.colorScheme.outlineVariant.copy(alpha = Hairline.BORDER_ALPHA),
+        ),
+        shape = RoundedCornerShape(Radius.card),
         modifier = modifier
     ) {
         ListItem(

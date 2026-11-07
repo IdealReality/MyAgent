@@ -82,6 +82,7 @@ dependencies {
     api(libs.ktor.server.content.negotiation)
     api(libs.ktor.server.status.pages)
     api(libs.ktor.server.sse)
+    api(libs.ktor.server.websockets)
     api(libs.ktor.server.cio)
 
     testImplementation(libs.junit)

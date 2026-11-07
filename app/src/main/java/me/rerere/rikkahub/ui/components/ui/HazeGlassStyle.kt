@@ -13,6 +13,7 @@ import dev.chrisbanes.haze.glass.RefractionProfile
 import dev.chrisbanes.haze.glass.SurfaceProfile
 import dev.chrisbanes.haze.glass.material3.Material3
 import me.rerere.rikkahub.ui.theme.LocalDarkMode
+import me.rerere.rikkahub.ui.theme.LocalMonoTheme
 
 /**
  * Liquid glass recipe for floating surfaces (chat input bar and top-bar glass buttons).
@@ -40,6 +41,8 @@ fun rikkaGlassStyle(
     val base = MaterialTheme.colorScheme.surfaceContainer
     val appearance = glassAppearance(darkTheme = LocalDarkMode.current)
     val strength = tintStrength.coerceIn(0f, 1f)
+    // mono：玻璃只留灰度折射与高光，不放色散。
+    val mono = LocalMonoTheme.current
     return GlassStyle.Material3(
         containerColor = base.copy(alpha = 0.26f * strength),
         tint = base.copy(alpha = 0.16f * strength),
@@ -61,7 +64,8 @@ fun rikkaGlassStyle(
         surfaceProfile(SurfaceProfile.Squircle)
         specularIntensity(0.48f * strength)
         specularExponent(32f)
-        chromaticAberrationStrength(0.16f * strength)
+        // 色散会把白光拆成彩色边——mono 主题里那一圈彩虹边是唯一的彩色残留，直接关掉。
+        chromaticAberrationStrength(if (mono) 0f else 0.16f * strength)
         edgeShadow(Color.Black.copy(alpha = 0.08f * strength))
         // Haze starts every glass style from its built-in light or dark response, picked from the
         // *system* night mode (LocalConfiguration.uiMode). Overwrite those values from the app theme,
@@ -69,7 +73,7 @@ fun rikkaGlassStyle(
         ambientResponse(appearance.ambientResponse)
         contrast(appearance.contrast)
         whitePoint(appearance.whitePoint)
-        chromaMultiplier(appearance.chromaMultiplier)
+        chromaMultiplier(if (mono) 1f else appearance.chromaMultiplier)
         shape(containerShape)
     }
 }

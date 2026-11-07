@@ -74,7 +74,7 @@ class LocalToolsFilterTest {
         assertEquals(
             setOf("read_file"),
             LocalToolFilter.applicableDisabledNames(
-                setOf("read_file", "web_fetch", "web_extract", "check_app_updates"),
+                setOf("read_file", "web_fetch", "web_extract", "generate_bug_report"),
             ),
         )
         assertEquals(
@@ -89,12 +89,12 @@ class LocalToolsFilterTest {
             tool("read_file"),
             tool("web_fetch"),
             tool("web_extract"),
-            tool("check_app_updates"),
+            tool("generate_bug_report"),
         )
         LocalToolFilter.removeDisabled(
             tools,
             LocalToolFilter.applicableDisabledNames(setOf("web_fetch", "web_extract", "read_file")),
         )
-        assertEquals(listOf("web_fetch", "web_extract", "check_app_updates"), tools.map { it.name })
+        assertEquals(listOf("web_fetch", "web_extract", "generate_bug_report"), tools.map { it.name })
     }
 }

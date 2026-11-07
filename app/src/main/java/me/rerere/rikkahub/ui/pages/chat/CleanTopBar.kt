@@ -193,7 +193,7 @@ internal fun CleanTopBarPanel(
     content: @Composable () -> Unit,
 ) {
     val darkTheme = LocalDarkMode.current
-    val glass = settings.displaySetting.cleanLayoutGlass
+    val glass = false // 顶栏不再走玻璃材质：模糊 + 深色 tint 会在内容上方压出一块黑区
     val opacity = settings.displaySetting.cleanLayoutTopOpacity
     val shape = cleanHeaderShape()
     Surface(
@@ -217,7 +217,7 @@ internal fun CleanTopBarPanel(
             ),
         shape = shape,
         tonalElevation = 0.dp,
-        color = if (glass) Color.Transparent else cleanPanelFill(opacity),
+        color = Color.Transparent,
         border = if (glass) null else BorderStroke(1.dp, cleanPanelOutline(darkTheme)),
         content = content,
     )
@@ -235,3 +235,5 @@ private fun CleanTopBarButtonSize(content: @Composable () -> Unit) {
         content = content,
     )
 }
+
+

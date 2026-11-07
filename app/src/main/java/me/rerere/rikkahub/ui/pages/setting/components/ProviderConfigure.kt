@@ -4,6 +4,7 @@ import android.provider.OpenableColumns
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.FlowRow
@@ -23,9 +24,11 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.LocalContentColor
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
@@ -93,7 +96,9 @@ fun ProviderConfigure(
         verticalArrangement = Arrangement.spacedBy(8.dp),
         modifier = modifier
     ) {
-        if (!provider.builtIn) {
+        // 协议转换只对三种 key 型 provider 有意义：它们之间切类型能保留 API key 并改写 endpoint。
+        // OAuth / 端侧不在 Types 里，因此这些行不显示这一段。
+        if (provider::class in ProviderSetting.Types) {
             SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
                 ProviderSetting.Types.forEachIndexed { index, type ->
                     SegmentedButton(
@@ -137,7 +142,6 @@ fun ProviderConfigure(
             is ProviderSetting.Codex -> Unit
             is ProviderSetting.Grok -> Unit
             is ProviderSetting.GeminiOAuth -> Unit
-            is ProviderSetting.AgentsAnywhere -> Unit
         }
     }
 }
@@ -155,7 +159,6 @@ fun ProviderSetting.convertTo(type: KClass<out ProviderSetting>): ProviderSettin
         is ProviderSetting.Codex -> "" // OAuth, no API key
         is ProviderSetting.Grok -> "" // OAuth, no API key
         is ProviderSetting.GeminiOAuth -> "" // OAuth, no API key
-        is ProviderSetting.AgentsAnywhere -> "" // 远端 agent，无 API key
     }
     val sourceBaseUrl = when (this) {
         is ProviderSetting.OpenAI -> this.baseUrl
@@ -167,7 +170,6 @@ fun ProviderSetting.convertTo(type: KClass<out ProviderSetting>): ProviderSettin
         is ProviderSetting.Codex -> "" // OAuth, no base URL
         is ProviderSetting.Grok -> "" // OAuth, no base URL
         is ProviderSetting.GeminiOAuth -> "" // OAuth, no base URL
-        is ProviderSetting.AgentsAnywhere -> "" // 远端 agent，无 base URL
     }
     val targetDefaultBaseUrl = when (type) {
         ProviderSetting.OpenAI::class -> ProviderSetting.OpenAI().baseUrl
@@ -181,20 +183,17 @@ fun ProviderSetting.convertTo(type: KClass<out ProviderSetting>): ProviderSettin
     return when (type) {
         ProviderSetting.OpenAI::class -> ProviderSetting.OpenAI(
             id = this.id, enabled = this.enabled, name = this.name, models = this.models,
-            balanceOption = this.balanceOption, customHeaders = this.customHeaders, builtIn = this.builtIn,
-            description = this.description, shortDescription = this.shortDescription,
+            balanceOption = this.balanceOption, customHeaders = this.customHeaders,
             apiKey = apiKey, baseUrl = convertedBaseUrl
         )
         ProviderSetting.Google::class -> ProviderSetting.Google(
             id = this.id, enabled = this.enabled, name = this.name, models = this.models,
-            balanceOption = this.balanceOption, customHeaders = this.customHeaders, builtIn = this.builtIn,
-            description = this.description, shortDescription = this.shortDescription,
+            balanceOption = this.balanceOption, customHeaders = this.customHeaders,
             apiKey = apiKey, baseUrl = convertedBaseUrl
         )
         ProviderSetting.Claude::class -> ProviderSetting.Claude(
             id = this.id, enabled = this.enabled, name = this.name, models = this.models,
-            balanceOption = this.balanceOption, customHeaders = this.customHeaders, builtIn = this.builtIn,
-            description = this.description, shortDescription = this.shortDescription,
+            balanceOption = this.balanceOption, customHeaders = this.customHeaders,
             apiKey = apiKey, baseUrl = convertedBaseUrl
         )
 
@@ -204,9 +203,6 @@ fun ProviderSetting.convertTo(type: KClass<out ProviderSetting>): ProviderSettin
             name = this.name,
             models = this.models,
             balanceOption = this.balanceOption,
-            builtIn = this.builtIn,
-            description = this.description,
-            shortDescription = this.shortDescription,
         )
 
         else -> error("Unsupported provider type: $type")
@@ -226,7 +222,6 @@ internal fun ProviderSetting.defaultBaseUrlForReset(): String {
             is ProviderSetting.Codex -> return "" // OAuth, no base URL
             is ProviderSetting.Grok -> return "" // OAuth, no base URL
             is ProviderSetting.GeminiOAuth -> return "" // OAuth, no base URL
-            is ProviderSetting.AgentsAnywhere -> return "" // 远端 agent，无 base URL
         }
     }
     return when (this) {
@@ -239,7 +234,6 @@ internal fun ProviderSetting.defaultBaseUrlForReset(): String {
         is ProviderSetting.Codex -> ""
         is ProviderSetting.Grok -> ""
         is ProviderSetting.GeminiOAuth -> ""
-        is ProviderSetting.AgentsAnywhere -> ""
     }
 }
 
@@ -255,7 +249,6 @@ internal fun ProviderSetting.resetBaseUrlToDefault(): ProviderSetting {
         is ProviderSetting.Codex -> this // no base URL to reset
         is ProviderSetting.Grok -> this // no base URL to reset
         is ProviderSetting.GeminiOAuth -> this // no base URL to reset
-        is ProviderSetting.AgentsAnywhere -> this // no base URL to reset
     }
 }
 
@@ -270,7 +263,6 @@ internal fun ProviderSetting.isUsingDefaultBaseUrl(): Boolean {
         is ProviderSetting.Codex -> return true // no base URL concept
         is ProviderSetting.Grok -> return true // no base URL concept
         is ProviderSetting.GeminiOAuth -> return true // no base URL concept
-        is ProviderSetting.AgentsAnywhere -> return true // no base URL concept
     }
     return baseUrl == defaultBaseUrlForReset()
 }
@@ -323,7 +315,6 @@ private fun ProviderConfigureOpenAI(
 ) {
     val toaster = LocalToaster.current
 
-    provider.description()
 
     OutlinedTextField(
         value = provider.name,
@@ -368,7 +359,7 @@ private fun ProviderConfigureOpenAI(
         },
         label = { Text(stringResource(R.string.setting_provider_page_api_path)) },
         modifier = Modifier.fillMaxWidth(),
-        enabled = !provider.builtIn,
+        enabled = true,
     )
 
     Row(
@@ -434,6 +425,36 @@ private fun ProviderConfigureOpenAI(
             checked = provider.includeHistoryReasoning,
             onCheckedChange = { onEdit(provider.copy(includeHistoryReasoning = it)) }
         )
+    }
+    // Replaying EVERY historical thinking block was a large share of a real device's ~165k
+    // average prompt. Bounded replay keeps the useful part (the immediately preceding steps of
+    // a tool loop) without letting old reasoning crowd out the live task.
+    if (provider.includeHistoryReasoning) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(stringResource(R.string.setting_provider_page_history_reasoning_turns))
+                Text(
+                    text = stringResource(R.string.setting_provider_page_history_reasoning_turns_desc),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            OutlinedTextField(
+                value = (provider.historyReasoningTurns
+                    ?: ProviderSetting.OpenAI.DEFAULT_HISTORY_REASONING_TURNS).toString(),
+                onValueChange = { text ->
+                    val turns = text.trim().toIntOrNull() ?: return@OutlinedTextField
+                    onEdit(provider.copy(historyReasoningTurns = turns.coerceIn(0, 50)))
+                },
+                modifier = Modifier.width(88.dp),
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+            )
+        }
     }
 }
 
@@ -594,7 +615,6 @@ private fun ProviderConfigureClaude(
     provider: ProviderSetting.Claude,
     onEdit: (provider: ProviderSetting.Claude) -> Unit
 ) {
-    provider.description()
 
     OutlinedTextField(
         value = provider.name,
@@ -706,7 +726,6 @@ private fun ProviderConfigureGoogle(
         }
     }
 
-    provider.description()
 
     OutlinedTextField(
         value = provider.name,
@@ -838,7 +857,6 @@ private fun ColumnScope.ProviderConfigureAICore(
     provider: ProviderSetting.AICore,
     onEdit: (provider: ProviderSetting.AICore) -> Unit,
 ) {
-    provider.description()
 
     Row(
         verticalAlignment = Alignment.CenterVertically
@@ -902,7 +920,6 @@ private fun ColumnScope.ProviderConfigureLiteRT(
     val visionUnavailableSet by vm.visionUnavailableSet.collectAsStateWithLifecycle()
     val perfTelemetry by vm.perfTelemetry.collectAsStateWithLifecycle()
 
-    provider.description()
 
     // Friendly post-crash banner. Default tone is "we handled it", not "panic".
     crashRecoveryAccel?.let { accel ->
@@ -1179,7 +1196,6 @@ private fun ColumnScope.ProviderConfigureLlamaCpp(
         vm.installPickedFile(inputStream, fileName)
     }
 
-    provider.description()
 
     Row(verticalAlignment = Alignment.CenterVertically) {
         Text(stringResource(id = R.string.setting_provider_page_enable), modifier = Modifier.weight(1f))

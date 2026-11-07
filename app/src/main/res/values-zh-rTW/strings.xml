@@ -1,11 +1,8 @@
 <?xml version='1.0' encoding='UTF-8'?>
 <resources>
-  <string name="about_page_github">Github</string>
-  <string name="about_page_license">授權條款</string>
   <string name="about_page_system">系統</string>
   <string name="about_page_title">關於</string>
   <string name="about_page_version">版本</string>
-  <string name="about_page_website">專案位址</string>
   <string name="add">添加</string>
   <string name="app_name">My Agent</string>
   <string name="asr_button_content_description">語音辨識</string>
@@ -714,8 +711,6 @@
   <string name="setting_display_page_show_thinking_content_title">顯示思考內容</string>
   <string name="setting_display_page_show_token_usage_desc">顯示token用量和消息數量</string>
   <string name="setting_display_page_show_token_usage_title">顯示Token和上下文統計</string>
-  <string name="setting_display_page_show_updates_desc">是否顯示應用更新通知</string>
-  <string name="setting_display_page_show_updates_title">顯示更新</string>
   <string name="setting_display_page_show_user_avatar_desc">是否在聊天消息中顯示用戶頭像</string>
   <string name="setting_display_page_clean_layout_title">簡潔版面</string>
   <string name="setting_display_page_clean_layout_desc">扁平頂欄，標題下方顯示模型名稱；輸入框分兩行，工具按鈕在輸入框下方</string>
@@ -816,7 +811,7 @@
   <string name="setting_page_hub_chat_actions">聊天操作</string>
   <string name="setting_page_hub_chat_actions_desc">傳送、捲動、貼上、觸感、載入指示</string>
   <string name="setting_page_hub_app_alerts">應用提醒</string>
-  <string name="setting_page_hub_app_alerts_desc">更新提醒與生成完成通知</string>
+  <string name="setting_page_hub_app_alerts_desc">生成完成通知</string>
   <string name="setting_page_hub_notif_access">通知讀取</string>
   <string name="setting_page_hub_notif_access_desc">讀取系統通知與 Telegram 自動轉發白名單</string>
   <string name="setting_page_hub_network_desc">代理、User-Agent、重試與串流逾時</string>
@@ -880,7 +875,6 @@
   <string name="setting_page_thinking_tools_settings">思考與工具</string>
   <string name="setting_page_font_display_settings">字型</string>
   <string name="setting_page_model_and_services">模型與服務</string>
-  <string name="setting_page_no_share_app">找不到分享應用</string>
   <string name="setting_page_providers">提供商</string>
   <string name="setting_page_providers_desc">配置AI提供商</string>
   <string name="setting_page_request_logs">請求記錄</string>
@@ -902,7 +896,6 @@
   <string name="setting_page_search_title">搜尋服務</string>
   <string name="setting_page_share">分享</string>
   <string name="setting_page_share_desc">分享本APP給朋友</string>
-  <string name="setting_page_share_text">RikkaHub Agent · Pure - 開源安卓AI助手\n\n專案位址: https://github.com/wuyhong715/rikkahub-agent-pure/releases/latest</string>
   <string name="setting_page_theme_setting">自訂主題</string>
   <string name="setting_page_theme_setting_desc">自訂應用配色方案</string>
   <string name="setting_theme_page_preset_themes">預設主題</string>
@@ -1007,6 +1000,8 @@
   <string name="setting_provider_page_scan_error">錯誤: %s</string>
   <string name="setting_provider_page_scan_qr_code">掃描二維碼</string>
   <string name="setting_provider_page_search_providers">搜尋提供者</string>
+  <string name="setting_provider_page_empty">還沒有服務商。點右上角 + 新增一個。</string>
+  <string name="setting_provider_page_search_empty">沒有符合的服務商。</string>
   <string name="setting_provider_page_select_all">全選 (%1$d)</string>
   <string name="setting_provider_page_select_from_gallery">從相簿選擇</string>
   <string name="setting_provider_page_service_account_email">服務帳戶郵箱</string>
@@ -1154,6 +1149,7 @@
   <string name="text_area_import_success">檔案匯入成功</string>
   <string name="text_area_save">儲存</string>
   <string name="theme_name_autumn">秋葉黃</string>
+  <string name="theme_name_mono">黑白</string>
   <string name="theme_name_black">中性黑</string>
   <string name="theme_name_minimal">極簡白</string>
   <string name="theme_name_ocean">海灣藍</string>
@@ -1925,12 +1921,6 @@
   <string name="search_picker_model_description">模型提供者內建的雲端搜尋</string>
   <string name="search_picker_select_provider">選擇搜尋提供者</string>
   <string name="search_picker_turn_off">關閉搜尋</string>
-  <string name="setting_update_reminder_enabled">更新提醒已啟用</string>
-  <string name="setting_update_reminder_paused_until">已暫停至 %1$s</string>
-  <string name="setting_update_reminder_pause_title">暫停更新提醒</string>
-  <string name="setting_update_reminder_pause_description">選擇暫停更新提醒的時長。它們會自動恢復。</string>
-  <string name="setting_update_reminder_pause_days">%1$d 天</string>
-  <string name="setting_update_reminder_resume_now">立即恢復</string>
   <string name="reasoning_max">極致</string>
   <string name="imggen_page_image_missing">圖片檔案遺失，可能未從備份中還原</string>
   <string name="safe_mode_enter_app">進入應用程式</string>
@@ -2135,8 +2125,6 @@
   <string name="accessibility_clear_model_selection">清除模型選取</string>
   <string name="accessibility_refresh_page">重新整理頁面</string>
   <string name="accessibility_forward">前進</string>
-  <string name="accessibility_qq">QQ</string>
-  <string name="accessibility_discord">Discord</string>
   <string name="accessibility_developer_options">開發人員選項</string>
   <string name="accessibility_add_provider">新增提供者</string>
   <string name="accessibility_copy_table">複製表格</string>

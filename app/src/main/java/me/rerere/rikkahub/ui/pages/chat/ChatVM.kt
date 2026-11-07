@@ -54,8 +54,6 @@ import me.rerere.rikkahub.service.ChatError
 import me.rerere.rikkahub.service.ChatService
 import me.rerere.rikkahub.ui.hooks.writeStringPreference
 import me.rerere.rikkahub.ui.hooks.ChatInputState
-import me.rerere.rikkahub.utils.UiState
-import me.rerere.rikkahub.utils.UpdateInfo
 import java.util.Locale
 import kotlin.uuid.Uuid
 
@@ -272,13 +270,6 @@ class ChatVM(
             settingsStore.updateModelReasoningLevel(model.id, reasoningLevel)
         }
     }
-
-    // Update checker — 已停用：应用层不再向上游（自建 UPDATE_API_URL / GitHub Releases）
-    // 发起版本检查请求。保持 updateState 恒为 Loading，UpdateCard 的 Loading 分支不渲染，
-    // 卡片因此永远不显示。保留该属性是为了不破坏 UpdateCard/ChatDrawer 的现有调用面。
-    // 如需手动了解上游版本，交给 agent 的 check_app_updates 工具（ReliabilityTools）。
-    val updateState: StateFlow<UiState<UpdateInfo>> =
-        MutableStateFlow(UiState.Loading)
 
     /**
      * 处理消息发送

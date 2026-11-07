@@ -5,6 +5,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import me.rerere.rikkahub.ui.theme.LocalDarkMode
 
 // The clean layout's two panels — the header at the top and the composer card at the bottom — are
 // one material: same corner radius, same hairline, same fill. They are also the two places the
@@ -42,8 +43,16 @@ internal const val CleanInputPaddingMaxDp = 24f
  * dark theme instead of a white slab.
  */
 @Composable
-internal fun cleanPanelFill(opacity: Float): Color =
-    MaterialTheme.colorScheme.surfaceContainerLowest.copy(alpha = cleanPanelAlpha(opacity))
+internal fun cleanPanelFill(opacity: Float): Color {
+    // 暗色下 surfaceContainerLowest（Mono 是 #080808）压在 #1A1A1A 级的页面底上会凹成一块黑洞，
+    // 层次与亮色正好相反。暗色改用 surfaceContainer，与底色同层、靠 hairline 描边区分。
+    val base = if (LocalDarkMode.current) {
+        MaterialTheme.colorScheme.surfaceContainerHigh
+    } else {
+        MaterialTheme.colorScheme.surfaceContainerLowest
+    }
+    return base.copy(alpha = if (LocalDarkMode.current) maxOf(cleanPanelAlpha(opacity), 0.85f) else cleanPanelAlpha(opacity))
+}
 
 /**
  * Hairline around a panel. It deliberately does not fade with [cleanPanelFill]'s opacity: at 0%
@@ -56,3 +65,5 @@ internal fun cleanPanelOutline(darkTheme: Boolean): Color =
     } else {
         MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f)
     }
+
+

@@ -7,6 +7,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -111,6 +112,8 @@ import me.rerere.rikkahub.ui.pages.chat.assistantTextNeedsPhotoPlate
 import me.rerere.rikkahub.ui.pages.chat.chatPhotoShown
 import me.rerere.rikkahub.ui.pages.chat.effectiveBackground
 import me.rerere.rikkahub.ui.theme.LocalChatFontFamily
+import me.rerere.rikkahub.ui.theme.Radius
+import me.rerere.rikkahub.ui.theme.Spacing
 import me.rerere.rikkahub.ui.theme.LocalDarkMode
 import me.rerere.rikkahub.ui.theme.rememberChatFontFamily
 import me.rerere.rikkahub.ui.theme.extendColors
@@ -166,7 +169,8 @@ fun ChatMessage(
     val textStyle = LocalTextStyle.current.copy(
         fontSize = LocalTextStyle.current.fontSize * settings.fontSizeRatio,
         lineHeight = LocalTextStyle.current.lineHeight * settings.fontSizeRatio,
-        fontFamily = chatFontFamily
+        fontFamily = chatFontFamily,
+        color = if (LocalDarkMode.current) MaterialTheme.colorScheme.onSurface else LocalTextStyle.current.color,
     )
     var showActionsSheet by remember { mutableStateOf(false) }
     var showSelectCopySheet by remember { mutableStateOf(false) }
@@ -430,6 +434,25 @@ private fun MessagePartsBlock(
                         ),
                         collapsedAdaptiveWidth = isReasoningOnlyBlock,
                         forceExpanded = hasPendingApproval,
+                        // 排版跟随 moxw：思考/工具活动默认压成一行「N 步 · 最新动作」，
+                        // 而不是尾部留两步可见——后者在长回合里仍然占掉半屏。
+                        // 有工具待审批时不压缩：那一步必须被看见。
+                        compactSummary = if (hasPendingApproval) null else {
+                            val latestStep = block.steps.last()
+                            val latestLabel = when (latestStep) {
+                                is ThinkingStep.ReasoningStep ->
+                                    latestStep.reasoning.reasoning.trim().lineSequence().firstOrNull().orEmpty()
+                                is ThinkingStep.ToolStep -> latestStep.tool.toolName
+                                is ThinkingStep.ServerToolStep -> latestStep.tool.toolName
+                                is ThinkingStep.NarrationStep ->
+                                    latestStep.text.text.trim().lineSequence().firstOrNull().orEmpty()
+                            }.ifBlank { "…" }
+                            stringResource(
+                                R.string.chain_of_thought_compact_summary,
+                                block.steps.size,
+                                latestLabel,
+                            )
+                        },
                         showTimeline = !capsuleToolOnly,
                         maskIcons = !capsuleToolOnly,
                         shape = RoundedCornerShape(if (capsuleToolOnly) 20.dp else 16.dp),
@@ -811,11 +834,25 @@ private fun UserMessageBubble(
     val collapsed = showToggle && !expanded
     Surface(
         modifier = Modifier.animateContentSize(),
-        shape = RoundedCornerShape(16.dp),
+        // 排版跟随 moxw：不对称圆角——朝着说话人的那个角收紧（6dp），其余三角 18dp。
+        // 四角一律 16dp 时，一屏上下十几个气泡排下来像一排胶囊，看不出谁在说话；
+        // 收紧的那个角就是一个不占地方的「尾巴」。
+        shape = RoundedCornerShape(
+            topStart = Radius.card + 2.dp,
+            topEnd = Radius.card + 2.dp,
+            bottomEnd = Radius.chip - 2.dp,
+            bottomStart = Radius.card + 2.dp,
+        ),
         color = bubbleColor,
+        // 用户气泡是唯一带底色的消息块，用一条极淡描边把它「钉」在纸面上：
+        // primaryContainer 在浅色主题下只比背景深一点，没有边界时会显得发灰。
+        border = BorderStroke(
+            1.dp,
+            MaterialTheme.colorScheme.primary.copy(alpha = 0.14f),
+        ),
         onClick = onClick,
     ) {
-        Column(modifier = Modifier.padding(8.dp)) {
+        Column(modifier = Modifier.padding(horizontal = Spacing.md + 2.dp, vertical = Spacing.sm + 2.dp)) {
             Box(
                 modifier = Modifier
                     .clipToBounds()
@@ -928,3 +965,5 @@ internal fun InterjectionCard(
     }
     return true
 }
+
+

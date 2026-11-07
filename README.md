@@ -254,6 +254,22 @@ Pure 不删任何功能，只让长跑变得**可存活、可观察、可封顶*
    - 工作流密钥：设置 → 工作流 → 打开一个 → **API secrets**
    - 看账单：聊天抽屉 → **统计**
 
+### Web 端管理 SSH 主机（WebSocket）
+
+设置 → **Web 服务器** 启动后，网页版侧栏底部的 **服务器图标** 打开「SSH 主机」面板。它走
+`/api/ssh/hosts/ws`（Ktor WebSocket），与设置页共用一个数据源和同一套探测实现：
+
+| op | 作用 |
+|---|---|
+| `list` / `get` | 读主机清单（只含 `hasPassword`/`hasPrivateKey` 布尔，**从不回传密钥**） |
+| `save` | 新增/编辑；`secret` 留空＝沿用已存凭据；`originalName` 区分改名与重名 |
+| `delete` | 删除 |
+| `test` | 真实 JSch 握手（与设置页「测试连接」同一条代码路径） |
+| `known_hosts` / `forget_host_key` | 查看 / 忘记已信任的主机密钥 |
+
+任一客户端改动都会广播 `hosts_changed`，其它已打开的页面自动重取清单。鉴权沿用
+`/api` 的 JWT：开启访问密码后，socket 握手必须带 `?access_token=<token>`。
+
 ### 构建
 
 需要 **JDK 17**、Android SDK（`platform-tools`）、`PATH` 上的 **bun** 与 **pnpm**。

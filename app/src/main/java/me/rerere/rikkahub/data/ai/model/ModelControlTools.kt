@@ -70,7 +70,6 @@ internal fun providerKind(provider: ProviderSetting): String = when (provider) {
     is ProviderSetting.Codex -> "codex"
     is ProviderSetting.Grok -> "grok"
     is ProviderSetting.GeminiOAuth -> "gemini_oauth"
-    is ProviderSetting.AgentsAnywhere -> "agents_anywhere"
 }
 
 internal fun modelTypeWire(type: ModelType): String = when (type) {
@@ -152,7 +151,6 @@ private fun providerToJson(provider: ProviderSetting, models: List<Model>): Json
     put("name", provider.name)
     put("kind", providerKind(provider))
     put("enabled", provider.enabled)
-    put("built_in", provider.builtIn)
     put("models", buildJsonArray { models.forEach { add(modelToJson(it)) } })
 }
 

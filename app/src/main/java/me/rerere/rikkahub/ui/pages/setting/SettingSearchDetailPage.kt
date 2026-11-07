@@ -55,6 +55,7 @@ import me.rerere.rikkahub.ui.context.LocalNavController
 import me.rerere.rikkahub.ui.theme.CustomColors
 import me.rerere.rikkahub.ui.theme.JetbrainsMono
 import me.rerere.rikkahub.ui.theme.LocalDarkMode
+import me.rerere.rikkahub.ui.theme.LocalMonoTheme
 import me.rerere.rikkahub.utils.plus
 import me.rerere.search.DoubaoSearchMode
 import me.rerere.search.SearchCommonOptions
@@ -990,7 +991,8 @@ internal fun CustomJsOptions(
             visualTransformation = HighlightCodeVisualTransformation(
                 language = "javascript",
                 highlighter = highlighter,
-                darkMode = darkMode
+                darkMode = darkMode,
+                mono = LocalMonoTheme.current
             ),
             textStyle = MaterialTheme.typography.bodySmall.merge(fontFamily = JetbrainsMono),
         )
@@ -1022,7 +1024,8 @@ internal fun CustomJsOptions(
             visualTransformation = HighlightCodeVisualTransformation(
                 language = "javascript",
                 highlighter = highlighter,
-                darkMode = darkMode
+                darkMode = darkMode,
+                mono = LocalMonoTheme.current
             ),
             textStyle = MaterialTheme.typography.bodySmall.merge(fontFamily = JetbrainsMono),
         )

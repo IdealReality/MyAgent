@@ -122,7 +122,6 @@ import me.rerere.rikkahub.ui.hooks.useEditState
 import me.rerere.rikkahub.ui.pages.assistant.detail.CustomBodies
 import me.rerere.rikkahub.ui.pages.assistant.detail.CustomHeaders
 import me.rerere.rikkahub.ui.pages.setting.components.ProviderConfigure
-import me.rerere.rikkahub.ui.pages.setting.components.AgentsAnywhereProviderConfigure
 import me.rerere.rikkahub.ui.pages.setting.components.CodexProviderConfigure
 import me.rerere.rikkahub.ui.pages.setting.components.GeminiProviderConfigure
 import me.rerere.rikkahub.ui.pages.setting.components.GrokProviderConfigure
@@ -312,13 +311,6 @@ private fun SettingProviderConfigPage(
         )
         return
     }
-    if (provider is ProviderSetting.AgentsAnywhere) {
-        AgentsAnywhereProviderConfigure(
-            provider = provider,
-            onEdit = { onEdit(it) },
-        )
-        return
-    }
     var internalProvider by remember(provider) { mutableStateOf(provider) }
     var showDeleteDialog by remember { mutableStateOf(false) }
 
@@ -357,14 +349,13 @@ private fun SettingProviderConfigPage(
 
             Spacer(Modifier.weight(1f))
 
-            if (!internalProvider.builtIn) {
-                IconButton(
-                    onClick = {
-                        showDeleteDialog = true
-                    },
-                ) {
-                    Icon(HugeIcons.Delete01, null)
-                }
+            // 每一行都是用户自己建的：没有不可删的内置行。
+            IconButton(
+                onClick = {
+                    showDeleteDialog = true
+                },
+            ) {
+                Icon(HugeIcons.Delete01, null)
             }
 
             IconButton(
@@ -1631,9 +1622,7 @@ private fun ProviderOverrideSettings(
                 onClick = {
                     editingProvider = parentProvider?.copyProvider(
                         id = Uuid.random(),
-                        builtIn = false,
                         models = emptyList(), // 这里必须设置为空，不然会导致循环依赖JSON
-                        description = {},
                     )
                     showProviderConfig = true
                 },

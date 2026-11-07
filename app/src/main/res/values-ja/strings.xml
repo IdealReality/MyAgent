@@ -1,11 +1,8 @@
 <?xml version='1.0' encoding='UTF-8'?>
 <resources>
-  <string name="about_page_github">Github</string>
-  <string name="about_page_license">ライセンス</string>
   <string name="about_page_system">システム</string>
   <string name="about_page_title">アプリについて</string>
   <string name="about_page_version">バージョン</string>
-  <string name="about_page_website">プロジェクト</string>
   <string name="add">追加</string>
   <string name="app_name">My Agent</string>
   <string name="asr_button_content_description">音声認識</string>
@@ -703,8 +700,6 @@
   <string name="setting_display_page_show_thinking_content_title">思考内容を表示</string>
   <string name="setting_display_page_show_token_usage_desc">トークン使用量とメッセージ数を表示</string>
   <string name="setting_display_page_show_token_usage_title">トークンとコンテキスト統計を表示</string>
-  <string name="setting_display_page_show_updates_desc">アプリのアップデート通知を表示するかどうか</string>
-  <string name="setting_display_page_show_updates_title">アップデートを表示</string>
   <string name="setting_display_page_show_user_avatar_desc">チャットメッセージにユーザーアバターを表示するかどうか</string>
   <string name="setting_display_page_clean_layout_title">シンプルレイアウト</string>
   <string name="setting_display_page_clean_layout_desc">フラットなトップバーでタイトルの下にモデル名を表示し、入力欄は2行でツールボタンを入力欄の下に配置します</string>
@@ -834,7 +829,6 @@
   <string name="setting_page_mcp_desc">MCPサーバーを設定</string>
   <string name="setting_page_message_display_settings">メッセージ表示</string>
   <string name="setting_page_model_and_services">モデルとサービス</string>
-  <string name="setting_page_no_share_app">共有アプリが見つかりません</string>
   <string name="setting_page_providers">プロバイダー</string>
   <string name="setting_page_providers_desc">AIプロバイダーを設定</string>
   <string name="setting_page_request_logs">リクエストログ</string>
@@ -856,7 +850,6 @@
   <string name="setting_page_search_title">検索サービス</string>
   <string name="setting_page_share">共有</string>
   <string name="setting_page_share_desc">このアプリを友達と共有</string>
-  <string name="setting_page_share_text">RikkaHub Agent · Pure - オープンソースAndroid AIアシスタント\n\nプロジェクト: https://github.com/wuyhong715/rikkahub-agent-pure/releases/latest</string>
   <string name="setting_page_theme_setting">テーマ</string>
   <string name="setting_page_theme_setting_desc">アプリの配色をカスタマイズ</string>
   <string name="setting_theme_page_preset_themes">プリセットテーマ</string>
@@ -961,6 +954,8 @@ mDNSアドレス: .localホスト名を使用し、IPを知らなくても同じ
   <string name="setting_provider_page_scan_error">エラー: %s</string>
   <string name="setting_provider_page_scan_qr_code">QRコードをスキャン</string>
   <string name="setting_provider_page_search_providers">プロバイダーを検索</string>
+  <string name="setting_provider_page_empty">プロバイダーがまだありません。右上の + から追加してください。</string>
+  <string name="setting_provider_page_search_empty">一致するプロバイダーがありません。</string>
   <string name="setting_provider_page_select_all">すべて選択 (%1$d)</string>
   <string name="setting_provider_page_select_from_gallery">ギャラリーから選択</string>
   <string name="setting_provider_page_service_account_email">サービスアカウントメール</string>
@@ -1087,6 +1082,7 @@ mDNSアドレス: .localホスト名を使用し、IPを知らなくても同じ
   <string name="text_area_import_success">ファイルが正常にインポートされました</string>
   <string name="text_area_save">保存</string>
   <string name="theme_name_autumn">秋の黄色</string>
+  <string name="theme_name_mono">モノクロ</string>
   <string name="theme_name_black">ニュートラルブラック</string>
   <string name="theme_name_minimal">ミニマルホワイト</string>
   <string name="theme_name_ocean">オーシャンブルー</string>
@@ -1855,12 +1851,6 @@ mDNSアドレス: .localホスト名を使用し、IPを知らなくても同じ
   <string name="search_picker_model_description">モデルプロバイダー内蔵のクラウド検索</string>
   <string name="search_picker_select_provider">検索プロバイダを選択</string>
   <string name="search_picker_turn_off">検索をオフにする</string>
-  <string name="setting_update_reminder_enabled">アップデート通知が有効になっています</string>
-  <string name="setting_update_reminder_paused_until">%1$sまで一時停止</string>
-  <string name="setting_update_reminder_pause_title">更新リマインダーを一時停止</string>
-  <string name="setting_update_reminder_pause_description">更新リマインダーを一時停止する期間を選択してください。自動的に再開されます。</string>
-  <string name="setting_update_reminder_pause_days">%1$d日間</string>
-  <string name="setting_update_reminder_resume_now">今すぐ再開</string>
   <string name="reasoning_max">極致</string>
   <string name="backup_page_import_overwrite_confirm">バックアップをインポートするとアプリデータが上書きされます。続行しますか？</string>
   <string name="setting_page_preferences_network">ネットワーク</string>

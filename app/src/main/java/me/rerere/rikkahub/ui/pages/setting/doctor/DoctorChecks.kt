@@ -1073,10 +1073,6 @@ class DoctorChecks(
                     is me.rerere.ai.provider.ProviderSetting.Codex -> p.enabled  // OAuth, no API key
                     is me.rerere.ai.provider.ProviderSetting.Grok -> p.enabled  // OAuth, no API key
                     is me.rerere.ai.provider.ProviderSetting.GeminiOAuth -> p.enabled  // OAuth, no API key
-                    // 远端 agent（Agents Anywhere）：填齐定位信息才算可用。
-                    is me.rerere.ai.provider.ProviderSetting.AgentsAnywhere ->
-                        p.enabled && p.normalizedOrigin().isNotEmpty() &&
-                            p.connectorId.isNotBlank() && p.runtimeId.isNotBlank()
                 }
             }
             add(

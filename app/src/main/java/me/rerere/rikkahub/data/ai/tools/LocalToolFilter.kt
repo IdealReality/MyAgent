@@ -31,14 +31,12 @@ object LocalToolFilter {
     /**
      * Names [LocalTools.getTools] appends no matter which group was requested.
      *
-     * `check_app_updates` is the app's own update check. `web_fetch` and `web_extract` are
-     * gated by Search settings (`enableWebFetchTools`), not by a [LocalToolOption] — the old
-     * per-assistant entries were removed and are dropped on decode. A per-group inventory is
-     * built with `getTools(listOf(oneGroup))`, so without this set every category lists the
-     * two web tools.
+     * `web_fetch` and `web_extract` are gated by Search settings (`enableWebFetchTools`),
+     * not by a [LocalToolOption] — the old per-assistant entries were removed and are
+     * dropped on decode. A per-group inventory is built with `getTools(listOf(oneGroup))`,
+     * so without this set every category lists the two web tools.
      */
     val UNGROUPED_TOOL_NAMES: Set<String> = setOf(
-        "check_app_updates",
         "web_fetch",
         "web_extract",
     )

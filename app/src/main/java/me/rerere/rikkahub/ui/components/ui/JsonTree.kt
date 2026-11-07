@@ -48,6 +48,8 @@ import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.ArrowDown01
 import me.rerere.hugeicons.stroke.ArrowRight01
 import me.rerere.rikkahub.ui.theme.JetbrainsMono
+import me.rerere.rikkahub.ui.theme.LocalMonoTheme
+import me.rerere.rikkahub.ui.theme.extendColors
 
 @Composable
 fun JsonTree(
@@ -292,8 +294,16 @@ private fun KeyText(key: String) {
     )
 }
 
+/** 选择 JSON 值色：mono 用语义色板，其它主题用原有的类 Darcula 配色。 */
+@Composable
+private fun jsonValueColor(monoColor: Color, colored: Color): Color =
+    if (LocalMonoTheme.current) monoColor else colored
+
 @Composable
 private fun ValueText(primitive: JsonPrimitive, onClick: (() -> Unit)? = null) {
+    // mono 主题下 JSON 的三种值色沿用语义色族：字符串绿、布尔橙、数字蓝（8 级，正文对比度）。
+    // 值色的作用就是「一眼分清类型」，压成灰阶等于把这条信息删掉。
+    val extend = MaterialTheme.extendColors
     val (text, color) = when {
         primitive.isString -> {
             val content = (primitive.contentOrNull ?: "")
@@ -301,15 +311,24 @@ private fun ValueText(primitive: JsonPrimitive, onClick: (() -> Unit)? = null) {
                 .replace("\n", "\\n")
                 .replace("\r", "\\r")
                 .replace("\t", "\\t")
-            "\"$content\"" to Color(0xFF6A8759)
+            "\"$content\"" to jsonValueColor(
+                monoColor = extend.green8,
+                colored = Color(0xFF6A8759),
+            )
         }
 
         primitive.booleanOrNull != null -> {
-            primitive.content to Color(0xFFCC7832)
+            primitive.content to jsonValueColor(
+                monoColor = extend.orange8,
+                colored = Color(0xFFCC7832),
+            )
         }
 
         primitive.longOrNull != null || primitive.doubleOrNull != null -> {
-            primitive.content to Color(0xFF6897BB)
+            primitive.content to jsonValueColor(
+                monoColor = extend.blue8,
+                colored = Color(0xFF6897BB),
+            )
         }
 
         else -> {

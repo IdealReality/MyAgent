@@ -62,6 +62,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.paging.compose.collectAsLazyPagingItems
@@ -91,6 +92,8 @@ import me.rerere.rikkahub.ui.components.ui.AppMenuEntry
 import me.rerere.rikkahub.Screen
 import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.data.datastore.getCurrentAssistant
+import me.rerere.rikkahub.ui.components.ui.FrostedPlateSpec
+import me.rerere.rikkahub.ui.components.ui.conversationDrawerSurface
 import me.rerere.rikkahub.ui.theme.LocalDarkMode
 import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.data.model.Conversation
@@ -101,7 +104,6 @@ import me.rerere.rikkahub.ui.components.ui.BackupReminderCard
 import me.rerere.rikkahub.ui.components.ui.Tooltip
 import me.rerere.rikkahub.ui.components.ui.AssistantAvatar
 import me.rerere.rikkahub.ui.components.ui.UIAvatar
-import me.rerere.rikkahub.ui.components.ui.UpdateCard
 import me.rerere.rikkahub.ui.components.ui.frostedPlate
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithContent
@@ -109,8 +111,8 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.CompositingStrategy
+import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.unit.Dp
 import me.rerere.rikkahub.ui.context.LocalToaster
 import me.rerere.rikkahub.ui.context.Navigator
 import com.dokar.sonner.ToastType
@@ -121,7 +123,6 @@ import dev.chrisbanes.haze.blur.hazeBlur
 import dev.chrisbanes.haze.blur.material3.Material3
 import me.rerere.rikkahub.ui.hooks.EditStateContent
 import me.rerere.rikkahub.ui.hooks.readBooleanPreference
-import me.rerere.rikkahub.ui.hooks.rememberIsPlayStoreVersion
 import me.rerere.rikkahub.ui.hooks.useEditState
 import me.rerere.rikkahub.utils.navigateToChatPage
 import me.rerere.rikkahub.utils.toDp
@@ -136,11 +137,13 @@ fun ChatDrawerContent(
     settings: Settings,
     current: Conversation,
     hazeState: HazeState,
+    // 抽屉宽度 = 聊天页被推开的距离，两边都从 conversationDrawerWidthFor 推导，
+    // 接缝处才不会各走各的。
+    drawerWidth: Dp = 320.dp,
 ) {
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
     val toaster = LocalToaster.current
-    val isPlayStore = rememberIsPlayStoreVersion()
     val repo = koinInject<ConversationRepository>()
 
     val activity = context as ComponentActivity
@@ -237,51 +240,17 @@ fun ChatDrawerContent(
     // Menu popup 状态
     var showMenuPopup by remember { mutableStateOf(false) }
 
-    val updateCheckDisabledUntil = settings.displaySetting.updateCheckDisabledUntilEpochMillis
-    var updateChecksEnabled by remember(updateCheckDisabledUntil) {
-        mutableStateOf(updateCheckDisabledUntil <= System.currentTimeMillis())
-    }
-    LaunchedEffect(updateCheckDisabledUntil) {
-        while (true) {
-            val remaining = updateCheckDisabledUntil - System.currentTimeMillis()
-            if (remaining <= 0) {
-                updateChecksEnabled = true
-                break
-            }
-            updateChecksEnabled = false
-            delay(minOf(remaining, 60 * 60 * 1_000L))
-        }
-    }
-
     var bottomBarHeightPx by remember { mutableStateOf(0) }
     val bottomBarHeight = with(LocalDensity.current) { bottomBarHeightPx.toDp() }
     // 上方功能区固定悬浮在顶部，对话列表从其下方滚过；用实测高度给列表留出顶部空间。
     var topAreaHeightPx by remember { mutableStateOf(0) }
     val topAreaHeight = with(LocalDensity.current) { topAreaHeightPx.toDp() }
 
-    // 整块抽屉做成磨砂：面板半透明，背后的聊天页被均匀虚化；上下的通透玻璃卡片与它拉开层次。
-    val drawerShape = RoundedCornerShape(topEnd = 16.dp, bottomEnd = 16.dp)
-    val drawerBlurStyle = HazeBlurStyle.Material3 {
-        blurRadius(24.dp)
-    }
-    // 聊天页显示照片壁纸时（API 31+），抽屉里的卡片改成磨砂：模糊背后的页面再叠一层半透明色，
-    // 不再是不透明白块。没有壁纸或系统不支持模糊时保持原样。
+    // 画风收敛：抽屉已经是实心底板（conversationDrawerSurface），卡片上再叠一层磨砂只会
+    // 让「上/下」两层都变成半透明，层级反而糊掉。这里固定走 rikkahub 原版的实心卡片分支；
+    // 磨砂实现（DrawerFrost.kt）保留，需要时把这一行换回 drawerFrostedPlateSpec(...) 即可。
     val drawerAssistant = settings.getCurrentAssistant()
-    // 叠色比全局磨砂更淡（见 DrawerFrost.kt），卡片与面板融为一体，靠细描边区分。
-    val drawerFrost = drawerFrostedPlateSpec(
-        photoShown = chatPhotoShown(
-            effectiveBackground(
-                darkTheme = LocalDarkMode.current,
-                background = drawerAssistant.background,
-                darkBackground = drawerAssistant.darkBackground,
-                lightBackground = drawerAssistant.lightBackground,
-                mode = drawerAssistant.backgroundMode,
-            ),
-            drawerAssistant.useGradientBackground,
-        ),
-        sdkInt = Build.VERSION.SDK_INT,
-        darkTheme = LocalDarkMode.current,
-    )
+    val drawerFrost: FrostedPlateSpec? = null
     val drawerFrostBorder = if (drawerFrost != null) {
         BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = DRAWER_FROST_OUTLINE_ALPHA))
     } else {
@@ -294,12 +263,8 @@ fun ChatDrawerContent(
     val drawerCapsules = settings.displaySetting.drawerCapsules
     val topBarShape = RoundedCornerShape(20.dp)
 
-    // 顶部两条提醒卡两种做法下都保留：它们是内容，不是控件底板。
+    // 顶部提醒卡：内容，不是控件底板。
     val drawerBanners: @Composable () -> Unit = {
-        if (updateChecksEnabled && !isPlayStore) {
-            UpdateCard(vm)
-        }
-
         BackupReminderCard(
             settings = settings,
             onClick = { navController.navigate(Screen.Backup) },
@@ -447,15 +412,14 @@ fun ChatDrawerContent(
         }
     }
 
+    // 排版跟随 moxw：抽屉是被压住的那块底板，聊天页是被推开的那张盖板（见 PushDrawerContent）。
+    // 所以这里刻意不做「浮起来」的暗示——直角、无右侧圆角、面色比聊天页暗一档、无磨砂。
+    val drawerSurface = conversationDrawerSurface(LocalDarkMode.current)
     ModalDrawerSheet(
         modifier = Modifier
-            .width(300.dp)
-            .clip(drawerShape)
-            .hazeBlur(
-                input = HazeInput.Sources(hazeState),
-                style = drawerBlurStyle,
-            ),
-        drawerShape = drawerShape,
+            .width(drawerWidth)
+            .background(drawerSurface),
+        drawerShape = RectangleShape,
         drawerContainerColor = Color.Transparent,
         drawerContentColor = MaterialTheme.colorScheme.onSurface,
         drawerTonalElevation = 0.dp,

@@ -61,6 +61,7 @@ import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.data.model.Avatar
 import me.rerere.rikkahub.ui.components.ai.useCropLauncher
 import me.rerere.rikkahub.ui.hooks.rememberAvatarShape
+import me.rerere.rikkahub.ui.theme.LocalMonoTheme
 import org.koin.compose.koinInject
 import java.io.File
 
@@ -403,8 +404,11 @@ fun AssistantAvatar(
 
 @Composable
 private fun ProceduralAvatar(name: String, modifier: Modifier = Modifier) {
-    val (fromColor, toColor) = remember(name) {
-        vercelAvatarColors(name.ifBlank { "?" })
+    // mono 主题下程序化头像保留「按名字决定的身份色」，只把饱和度压到主题允许的密度：
+    // 头像本来就是识别符，抹成灰等于把这条信息删掉；留着色相又能与灰阶界面拉开层次。
+    val mono = LocalMonoTheme.current
+    val (fromColor, toColor) = remember(name, mono) {
+        vercelAvatarColors(name.ifBlank { "?" }, mono = mono)
     }
     Canvas(modifier = modifier) {
         drawRect(
@@ -417,10 +421,19 @@ private fun ProceduralAvatar(name: String, modifier: Modifier = Modifier) {
     }
 }
 
-private fun vercelAvatarColors(name: String): Pair<Color, Color> {
+private fun vercelAvatarColors(name: String, mono: Boolean = false): Pair<Color, Color> {
     val bytes = MessageDigest.getInstance("SHA-1").digest(name.toByteArray(Charsets.UTF_8))
     val sum = bytes.fold(0) { acc, b -> acc + (b.toInt() and 0xFF) }
     val hue = (sum % 360).toFloat()
+    if (mono) {
+        // 色相不变（仍然是「这个名字的颜色」），饱和度从 0.65 砍到 0.32、亮度收到中间段，
+        // 让头像在灰阶界面里显得有颜色又不抢注意力。
+        val start = 0.42f + (sum % 12) / 100f
+        return Pair(
+            hslToColor(hue, 0.32f, start),
+            hslToColor((hue + 120f) % 360f, 0.28f, (start - 0.12f).coerceAtLeast(0.22f)),
+        )
+    }
     return Pair(
         hslToColor(hue, 0.65f, 0.55f),
         hslToColor((hue + 120f) % 360f, 0.65f, 0.55f)

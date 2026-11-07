@@ -23,8 +23,9 @@ class LoadingIndicatorStyleTest {
     }
 
     @Test
-    fun `fresh settings reproduce the old default`() {
-        assertEquals(LoadingIndicatorStyle.APP_ICON, DisplaySetting().effectiveLoadingIndicatorStyle)
+    fun `fresh settings use the M3 indicator`() {
+        // 画风对齐 rikkahub 原版后默认是 M3 的 ContainedLoadingIndicator；兔子图标要手动选。
+        assertEquals(LoadingIndicatorStyle.DEFAULT, DisplaySetting().effectiveLoadingIndicatorStyle)
     }
 
     @Test
@@ -34,7 +35,7 @@ class LoadingIndicatorStyleTest {
         assertFalse(DisplaySetting().withLoadingIndicatorStyle(LoadingIndicatorStyle.DEFAULT).useAppIconStyleLoadingIndicator)
         // Shimmer has no legacy equivalent: the switch is left as it was.
         assertFalse(off.withLoadingIndicatorStyle(LoadingIndicatorStyle.SHIMMER).useAppIconStyleLoadingIndicator)
-        assertTrue(DisplaySetting().withLoadingIndicatorStyle(LoadingIndicatorStyle.SHIMMER).useAppIconStyleLoadingIndicator)
+        assertFalse(DisplaySetting().withLoadingIndicatorStyle(LoadingIndicatorStyle.SHIMMER).useAppIconStyleLoadingIndicator)
         assertEquals(
             LoadingIndicatorStyle.SHIMMER,
             off.withLoadingIndicatorStyle(LoadingIndicatorStyle.SHIMMER).effectiveLoadingIndicatorStyle,
@@ -47,6 +48,6 @@ class LoadingIndicatorStyleTest {
         val picked = off.withLoadingIndicatorStyle(LoadingIndicatorStyle.SPARKLE)
         assertFalse(picked.useAppIconStyleLoadingIndicator)
         assertEquals(LoadingIndicatorStyle.SPARKLE, picked.effectiveLoadingIndicatorStyle)
-        assertTrue(DisplaySetting().withLoadingIndicatorStyle(LoadingIndicatorStyle.SPARKLE).useAppIconStyleLoadingIndicator)
+        assertFalse(DisplaySetting().withLoadingIndicatorStyle(LoadingIndicatorStyle.SPARKLE).useAppIconStyleLoadingIndicator)
     }
 }

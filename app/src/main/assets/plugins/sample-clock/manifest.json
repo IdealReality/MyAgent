@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "id": "sample-clock",
+  "name": "Sample Clock",
+  "version": "1.0.0",
+  "description": "Reference plugin shipped with the kernel. Shows the manifest shape, the synchronous JS tool contract and the ctx capabilities, so a model that wants to extend the app has a working example to copy.",
+  "author": "MyAgent",
+  "entry": "main.js",
+  "permissions": [],
+  "prompt": {
+    "text": "The sample-clock plugin is installed and provides `plugin_clock` (current local time + epoch ms). It exists as a reference implementation of the plugin format; do not delete it unless the user asks."
+  },
+  "tools": [
+    {
+      "name": "plugin_clock",
+      "description": "Return the device's current local date/time and epoch milliseconds. Demo/parity probe for the plugin kernel.",
+      "parameters": {
+        "type": "object",
+        "properties": {},
+        "required": []
+      },
+      "needs_approval": false
+    }
+  ]
+}

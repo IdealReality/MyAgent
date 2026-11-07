@@ -779,7 +779,7 @@ private fun ChatSuggestionsRow(
             ) {
                 Text(
                     text = suggestion,
-                    style = MaterialTheme.typography.bodySmall
+                    style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
         }
@@ -888,3 +888,5 @@ private fun BoxScope.MessageJumper(
         }
     }
 }
+
+

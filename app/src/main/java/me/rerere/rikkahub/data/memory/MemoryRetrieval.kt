@@ -151,8 +151,8 @@ class MemoryIndex(docs: List<IndexDoc>) {
         private const val B = 0.75
         private const val STOPWORD_DF_RATIO = 0.6
         val LAYER_BOOST = mapOf("L1" to 1.35, "L2" to 1.25, "L3" to 1.2, "L4" to 1.0)
-        private const val ANCHOR_LATIN_MIN = 5
-        private const val ANCHOR_CJK_MIN = 5
+        private const val ANCHOR_LATIN_MIN = 2
+        private const val ANCHOR_CJK_MIN = 2
     }
 
     private data class Entry(
@@ -207,7 +207,7 @@ class MemoryIndex(docs: List<IndexDoc>) {
         val out = ArrayList<String>()
         for (m in Regex("[A-Za-z0-9_][A-Za-z0-9_\\-/.]*").findAll(query)) {
             val w = m.value.lowercase()
-            if (w.length >= ANCHOR_LATIN_MIN && w in latinVocab) out.add(w)
+            if (w.length >= ANCHOR_LATIN_MIN) out.add(w)
         }
         for (run in Regex("[\\u3400-\\u9FFF\\uF900-\\uFAFF]+").findAll(query)) {
             val cs = run.value
@@ -233,7 +233,7 @@ class MemoryIndex(docs: List<IndexDoc>) {
         if (query.isBlank() || entries.isEmpty()) return emptyList()
         val qTokens = MemoryTokenizer.tokenize(query).distinct().filter { it !in stop }
         if (qTokens.isEmpty()) return emptyList()
-        if (minAnchors > 0 && anchors(query).size < minAnchors) return emptyList()
+        val anchorGap = minAnchors > 0 && anchors(query).size < minAnchors
 
         val n = entries.size
         val scores = DoubleArray(n)
@@ -260,7 +260,7 @@ class MemoryIndex(docs: List<IndexDoc>) {
                 startLine = e.startLine,
                 snippet = e.chunkText.take(200),
                 text = e.chunkText,
-                score = scores[idx] * boost,
+                score = scores[idx] * boost * (if (anchorGap) 0.5 else 1.0),
             )
         }
             .filter { layer == null || it.layer == layer }
@@ -352,3 +352,4 @@ object MemoryFreshness {
             .joinToString("") { "%02x".format(it) }
     }
 }
+

@@ -1,11 +1,8 @@
 <?xml version='1.0' encoding='UTF-8'?>
 <resources>
-  <string name="about_page_github">Github</string>
-  <string name="about_page_license">라이선스</string>
   <string name="about_page_system">시스템</string>
   <string name="about_page_title">정보</string>
   <string name="about_page_version">버전</string>
-  <string name="about_page_website">프로젝트</string>
   <string name="add">추가</string>
   <string name="app_name">My Agent</string>
   <string name="asr_button_content_description">음성 인식</string>
@@ -703,8 +700,6 @@
   <string name="setting_display_page_show_thinking_content_title">생각 내용 표시</string>
   <string name="setting_display_page_show_token_usage_desc">토큰 사용량과 메시지 수를 표시합니다</string>
   <string name="setting_display_page_show_token_usage_title">토큰 및 컨텍스트 통계 표시</string>
-  <string name="setting_display_page_show_updates_desc">앱 업데이트 알림을 표시할지 여부</string>
-  <string name="setting_display_page_show_updates_title">업데이트 표시</string>
   <string name="setting_display_page_show_user_avatar_desc">채팅 메시지에 사용자 아바타를 표시할지 여부</string>
   <string name="setting_display_page_clean_layout_title">간결한 레이아웃</string>
   <string name="setting_display_page_clean_layout_desc">평평한 상단 바에 제목 아래 모델 이름을 표시하고, 입력창을 두 줄로 나눠 도구 버튼을 입력창 아래에 둡니다</string>
@@ -834,7 +829,6 @@
   <string name="setting_page_mcp_desc">MCP 서버 구성</string>
   <string name="setting_page_message_display_settings">메시지 표시</string>
   <string name="setting_page_model_and_services">모델 및 서비스</string>
-  <string name="setting_page_no_share_app">공유 앱을 찾을 수 없습니다</string>
   <string name="setting_page_providers">제공업체</string>
   <string name="setting_page_providers_desc">AI 제공업체 구성</string>
   <string name="setting_page_request_logs">요청 로그</string>
@@ -856,7 +850,6 @@
   <string name="setting_page_search_title">검색 서비스</string>
   <string name="setting_page_share">공유</string>
   <string name="setting_page_share_desc">앱을 친구들과 공유하기</string>
-  <string name="setting_page_share_text">RikkaHub Agent · Pure - 오픈소스 Android AI 어시스턴트\n\n프로젝트: https://github.com/wuyhong715/rikkahub-agent-pure/releases/latest</string>
   <string name="setting_page_theme_setting">테마</string>
   <string name="setting_page_theme_setting_desc">앱 색상 구성 사용자 지정</string>
   <string name="setting_theme_page_preset_themes">프리셋 테마</string>
@@ -961,6 +954,8 @@ mDNS 주소: .local 호스트네임을 사용하며, IP를 몰라도 같은 네�
   <string name="setting_provider_page_scan_error">오류: %s</string>
   <string name="setting_provider_page_scan_qr_code">QR 코드 스캔</string>
   <string name="setting_provider_page_search_providers">공급자 검색</string>
+  <string name="setting_provider_page_empty">아직 프로바이더가 없습니다. 오른쪽 위 + 를 눌러 추가하세요.</string>
+  <string name="setting_provider_page_search_empty">일치하는 프로바이더가 없습니다.</string>
   <string name="setting_provider_page_select_all">전체 선택 (%1$d)</string>
   <string name="setting_provider_page_select_from_gallery">갤러리에서 선택</string>
   <string name="setting_provider_page_service_account_email">서비스 계정 이메일</string>
@@ -1087,6 +1082,7 @@ mDNS 주소: .local 호스트네임을 사용하며, IP를 몰라도 같은 네�
   <string name="text_area_import_success">파일이 성공적으로 가져왔습니다</string>
   <string name="text_area_save">저장</string>
   <string name="theme_name_autumn">가을 노랑</string>
+  <string name="theme_name_mono">모노</string>
   <string name="theme_name_black">중립 검정</string>
   <string name="theme_name_minimal">미니멀 화이트</string>
   <string name="theme_name_ocean">해양 청색</string>
@@ -1855,12 +1851,6 @@ mDNS 주소: .local 호스트네임을 사용하며, IP를 몰라도 같은 네�
   <string name="search_picker_model_description">모델 제공자에 내장된 클라우드 검색</string>
   <string name="search_picker_select_provider">검색 제공자 선택</string>
   <string name="search_picker_turn_off">검색 끄기</string>
-  <string name="setting_update_reminder_enabled">업데이트 알림이 사용 설정되어 있습니다.</string>
-  <string name="setting_update_reminder_paused_until">%1$s까지 일시 중지됨</string>
-  <string name="setting_update_reminder_pause_title">업데이트 알림 일시중지</string>
-  <string name="setting_update_reminder_pause_description">업데이트 알림을 얼마나 오랫동안 일시 중지할지 선택하세요. 자동으로 다시 시작됩니다.</string>
-  <string name="setting_update_reminder_pause_days">%1$d일</string>
-  <string name="setting_update_reminder_resume_now">지금 재개</string>
   <string name="reasoning_max">최대</string>
   <string name="backup_page_import_overwrite_confirm">백업을 가져오면 앱 데이터가 덮어써집니다. 계속하시겠습니까?</string>
   <string name="setting_page_preferences_network">네트워크</string>

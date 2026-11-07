@@ -8,6 +8,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import me.rerere.rikkahub.data.datastore.DEFAULT_ASSISTANT_ID
+import me.rerere.rikkahub.data.datastore.DEFAULT_ASSISTANTS_IDS
 import me.rerere.rikkahub.data.datastore.getAssistantById
 import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.data.datastore.SettingsStore
@@ -90,7 +91,8 @@ class AssistantVM(
             val settings = settings.value
             val remaining = settings.assistants.filter { it.id != assistant.id }
             // 至少保留一个助手：AssistantResolver.current 在空列表上会抛异常，
-            // 删光会让所有 getCurrentAssistant() 调用点崩溃。
+            // 删光会让所有 getCurrentAssistant() 调用点崩溃。UI 在只剩一个时已经禁用
+            // 删除入口，这里是并发/过期快照下的第二道闸。
             if (remaining.isEmpty()) return@launch
 
             val fallback = settings
@@ -104,9 +106,15 @@ class AssistantVM(
             folderRepository.deleteFoldersOfAssistant(assistant.id)
 
             // 3) 一次落盘：移除助手 + 当前选中助手安全切换 + 清掉归档文件夹槽位
+            //    + 记下内置助手的删除（否则 PreferencesStore 的 re-seed 下次读设置就把它加回来）
             settingsStore.update { current ->
                 current.copy(
                     assistants = current.assistants.filter { it.id != assistant.id },
+                    deletedBuiltInAssistantIds = if (assistant.id in DEFAULT_ASSISTANTS_IDS) {
+                        current.deletedBuiltInAssistantIds + assistant.id
+                    } else {
+                        current.deletedBuiltInAssistantIds
+                    },
                     assistantId = if (current.assistantId == assistant.id) {
                         fallback.id
                     } else {

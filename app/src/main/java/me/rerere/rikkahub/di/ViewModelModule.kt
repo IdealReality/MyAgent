@@ -16,6 +16,7 @@ import me.rerere.rikkahub.ui.pages.videogen.VideoGenVM
 import me.rerere.rikkahub.ui.pages.extensions.PromptVM
 import me.rerere.rikkahub.ui.pages.extensions.QuickMessagesVM
 import me.rerere.rikkahub.ui.pages.extensions.skills.SkillDetailVM
+import me.rerere.rikkahub.ui.pages.extensions.plugins.PluginsVM
 import me.rerere.rikkahub.ui.pages.extensions.skills.SkillsVM
 import me.rerere.rikkahub.ui.pages.extensions.workspace.WorkspaceDetailVM
 import me.rerere.rikkahub.ui.pages.extensions.workspace.WorkspaceVM
@@ -77,6 +78,10 @@ val viewModelModule = module {
     viewModelOf(::VideoGenVM)
     viewModelOf(::PromptVM)
     viewModelOf(::QuickMessagesVM)
+    viewModel<PluginsVM> {
+        PluginsVM(registry = get())
+    }
+
     viewModel<SkillsVM> {
         SkillsVM(
             context = get(),

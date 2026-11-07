@@ -21,6 +21,7 @@ import {
   Plus,
   RefreshCw,
   LogOut,
+  Server,
   Sun,
   Trash2,
 } from "lucide-react";
@@ -68,6 +69,7 @@ import {
   type Theme,
 } from "~/components/theme-provider";
 import { ConversationSearchButton } from "~/components/conversation-search-button";
+import { SshHostsDialog } from "~/components/ssh-hosts-panel";
 import { CustomThemeDialog } from "~/components/custom-theme-dialog";
 import { getAssistantDisplayName } from "~/lib/display";
 import { cn } from "~/lib/utils";
@@ -790,6 +792,7 @@ export const ConversationSidebar = React.memo(
     const [switchingAssistantId, setSwitchingAssistantId] = React.useState<string | null>(null);
     const [switchError, setSwitchError] = React.useState<string | null>(null);
     const [showBackToTop, setShowBackToTop] = React.useState(false);
+    const [sshHostsOpen, setSshHostsOpen] = React.useState(false);
 
     const currentTheme = theme;
     const currentThemeOption =
@@ -1127,6 +1130,8 @@ export const ConversationSidebar = React.memo(
             onSave={handleCustomThemeSave}
           />
 
+          <SshHostsDialog open={sshHostsOpen} onOpenChange={setSshHostsOpen} />
+
           <div className="flex items-center gap-2">
             {webAuthEnabled && (
               <Button
@@ -1141,6 +1146,18 @@ export const ConversationSidebar = React.memo(
                 <LogOut className="size-4" />
               </Button>
             )}
+
+            <Button
+              variant="outline"
+              size="icon-sm"
+              className="text-foreground"
+              type="button"
+              onClick={() => setSshHostsOpen(true)}
+              aria-label={t("conversation_sidebar.ssh_hosts")}
+              title={t("conversation_sidebar.ssh_hosts")}
+            >
+              <Server className="size-4" />
+            </Button>
 
             <LanguageSwitcher />
 

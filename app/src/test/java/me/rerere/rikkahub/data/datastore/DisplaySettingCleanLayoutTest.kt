@@ -33,16 +33,17 @@ class DisplaySettingCleanLayoutTest {
     }
 
     @Test
-    fun `clean layout glass defaults to true`() {
-        assertTrue(DisplaySetting().cleanLayoutGlass)
+    fun `clean layout glass defaults to off`() {
+        // 画风对齐 rikkahub 原版后，输入条默认是 surfaceContainerLow 实心卡；液态玻璃要手动开。
+        assertFalse(DisplaySetting().cleanLayoutGlass)
     }
 
     @Test
-    fun `stored settings without cleanLayoutGlass read back as true`() {
+    fun `stored settings without cleanLayoutGlass read back as off`() {
         val legacy = """{"cleanLayout":true}"""
         val decoded = JsonInstant.decodeFromString<DisplaySetting>(legacy)
         assertTrue(decoded.cleanLayout)
-        assertTrue(decoded.cleanLayoutGlass)
+        assertFalse(decoded.cleanLayoutGlass)
     }
 
     @Test

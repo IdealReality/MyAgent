@@ -62,6 +62,8 @@ import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.ui.CardGroup
 import me.rerere.rikkahub.ui.context.LocalToaster
 import me.rerere.rikkahub.ui.theme.CustomColors
+import me.rerere.rikkahub.ui.theme.LocalMonoTheme
+import me.rerere.rikkahub.ui.theme.extendColors
 import org.koin.compose.koinInject
 
 /**
@@ -124,7 +126,11 @@ fun SettingNotificationsPage() {
                         Text(
                             if (bound) stringResource(R.string.setting_page_notifications_status_connected)
                             else stringResource(R.string.setting_page_notifications_status_not_connected),
-                            color = if (bound) Color(0xFF22C55E) else MaterialTheme.colorScheme.onSurfaceVariant,
+                            color = when {
+                                !bound -> MaterialTheme.colorScheme.onSurfaceVariant
+                                LocalMonoTheme.current -> MaterialTheme.extendColors.green7
+                                else -> Color(0xFF22C55E)
+                            },
                         )
                     },
                     supportingContent = if (!bound) ({

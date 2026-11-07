@@ -20,5 +20,7 @@ data class SshHostEntity(
     val password: String? = null,
     val privateKey: String? = null,
     val passphrase: String? = null,
+    /** Optional web terminal URL (ttyd/wetty); shown as an open-terminal action on the host row. */
+    val webTerminalUrl: String? = null,
     val createdAtMs: Long,
 )

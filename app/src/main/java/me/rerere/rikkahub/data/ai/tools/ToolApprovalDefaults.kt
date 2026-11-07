@@ -181,7 +181,6 @@ object ToolApprovalDefaults {
         // Reliability bundle — generate_bug_report writes a file to disk that includes
         // a redacted logcat dump. The redactor catches the common token shapes; we still
         // gate so the user can review what's being created and decide whether to share.
-        // check_app_updates is read-only and has no entry here.
         "generate_bug_report",
 
         // Sub-agents — subagent_dispatch spawns an autonomous LLM run with the parent's

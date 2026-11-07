@@ -32,36 +32,51 @@ class WallpaperContrastTest {
         assertEquals(0.50f, scrim.bottomAlpha, 0f)
     }
 
-    @Test fun `title fade is unchanged without a photo and in the dark theme`() {
+    @Test fun `title fade stays translucent so the top bar is transparent like the bottom`() {
+        // 2026-11-04: the top dissolve was a near-solid slab (1f -> 0.75f), which killed the
+        // transparency the bottom bar now has. It is now in the same magnitude as the bottom
+        // fade: top holds a light cover for status icons, mid is a dissolve hint, bottom clears.
         val noPhoto = titleBarFade(darkTheme = false, photoShown = false)
         val darkPhoto = titleBarFade(darkTheme = true, photoShown = true)
-        val historical = TitleBarFade(topAlpha = 1f, midAlpha = 0.75f, bottomAlpha = 0f)
-        assertEquals(historical, noPhoto)
-        assertEquals(historical, darkPhoto)
+        assertEquals(0f, noPhoto.bottomAlpha, 0f)
+        assertEquals(0f, darkPhoto.bottomAlpha, 0f)
+        assertTrue("top must stay translucent, not a solid slab", noPhoto.topAlpha <= 0.5f)
+        assertTrue("top must stay translucent in the dark theme too", darkPhoto.topAlpha <= 0.5f)
+        assertTrue(noPhoto.midAlpha < noPhoto.topAlpha)
     }
 
-    @Test fun `light photo fade covers the status icons and clears at the bottom`() {
+    @Test fun `light photo fade keeps a light cover for status icons and clears at the bottom`() {
         val fade = titleBarFade(darkTheme = false, photoShown = true)
-        assertTrue(fade.topAlpha >= 0.7f)
-        assertTrue(fade.midAlpha < 0.75f)
         assertEquals(0f, fade.bottomAlpha, 0f)
+        assertTrue("status icons still legible at the very top", fade.topAlpha <= 0.5f)
+        assertTrue(fade.midAlpha < fade.topAlpha)
     }
 
-    @Test fun `bottom fade starts transparent and reaches maximum alpha at screen edge`() {
+    @Test fun `bottom fade starts transparent and stays translucent at the screen edge`() {
         val noPhoto = bottomBarFade(darkTheme = false, photoShown = false)
         val darkPhoto = bottomBarFade(darkTheme = true, photoShown = true)
         assertEquals(0f, noPhoto.topAlpha, 0f)
         assertEquals(0f, darkPhoto.topAlpha, 0f)
-        assertTrue(noPhoto.midAlpha in 0.5f..0.8f)
-        assertTrue(noPhoto.bottomAlpha > 0.9f)
         assertEquals(noPhoto, darkPhoto)
+        // The bottom of the page is transparent: the dissolve hints at content sliding under the
+        // bar, it does not paint a solid surface behind it.
+        assertTrue(noPhoto.midAlpha < 0.4f)
+        assertTrue(noPhoto.bottomAlpha <= 0.5f)
     }
 
     @Test fun `light photo bottom fade keeps a softer veil`() {
         val lightPhoto = bottomBarFade(darkTheme = false, photoShown = true)
+        val noPhoto = bottomBarFade(darkTheme = false, photoShown = false)
         assertEquals(0f, lightPhoto.topAlpha, 0f)
-        assertTrue(lightPhoto.midAlpha < 0.5f)
-        assertTrue(lightPhoto.bottomAlpha < 0.8f)
+        assertTrue(lightPhoto.midAlpha < noPhoto.midAlpha)
+        assertTrue(lightPhoto.bottomAlpha < noPhoto.bottomAlpha)
+    }
+
+    @Test fun `bottom elements are translucent but still readable`() {
+        // 0.72: strong enough for body text over a wallpaper, weak enough that the page behind
+        // the input bar still shows through.
+        assertTrue(CHAT_BOTTOM_SURFACE_ALPHA in 0.6f..0.8f)
+        assertTrue(CHAT_BOTTOM_SURFACE_ALPHA < 1f)
     }
 
     @Test fun `bare assistant text gets a plate only on a light-theme photo`() {

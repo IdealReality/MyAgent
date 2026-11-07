@@ -64,7 +64,7 @@ import me.rerere.rikkahub.workflow.db.WorkflowRunEntity
         WorkspaceEntity::class,
         FolderEntity::class,
     ],
-    version = 31,
+    version = 32,
     autoMigrations = [
         AutoMigration(from = 1, to = 2),
         AutoMigration(from = 2, to = 3),
@@ -113,6 +113,8 @@ import me.rerere.rikkahub.workflow.db.WorkflowRunEntity
         // AppDatabaseFactory) instead of a plain auto-migration: a database restored from an
         // upstream 2.5.x backup can already carry this column, and an unconditional ADD COLUMN
         // crash-loops the app on every launch (issue #105).
+        // v32: optional web terminal URL on ssh_hosts (nullable column, pure ADD COLUMN).
+        AutoMigration(from = 31, to = 32),
     ]
 )
 @TypeConverters(TokenUsageConverter::class)

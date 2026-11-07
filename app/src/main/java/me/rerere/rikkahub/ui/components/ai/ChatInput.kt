@@ -128,6 +128,7 @@ import me.rerere.rikkahub.ui.context.LocalToaster
 import me.rerere.rikkahub.ui.hooks.ChatInputState
 import me.rerere.rikkahub.utils.SoundEffectPlayer
 import org.koin.compose.koinInject
+import me.rerere.rikkahub.ui.pages.chat.CHAT_BOTTOM_SURFACE_ALPHA
 import me.rerere.rikkahub.ui.pages.chat.VoicePhase
 import me.rerere.rikkahub.ui.pages.chat.VoiceSessionState
 import me.rerere.rikkahub.ui.theme.LocalDarkMode
@@ -168,6 +169,10 @@ fun ChatInput(
     val toaster = LocalToaster.current
     val assistant = settings.getCurrentAssistant()
     val effectiveChatModel = settings.resolveChatModel(conversationChatModelId, assistant.id)
+    // 思考强度独立入口（2026-11-04）：此前 reasoning 藏在模型图标右下角 12dp 圆点里，
+    // collapsed + OFF 时直接消失——用户反馈「思考强度的条目不见了」。现在底栏 left row
+    // 常驻一个 ReasoningButton（有模型即显示），图标按档位着色。
+    val reasoningLevel = effectiveChatModel?.reasoningLevel ?: assistant.reasoningLevel
 
     val keyboardController = LocalSoftwareKeyboardController.current
     val focusManager = LocalFocusManager.current
@@ -254,7 +259,11 @@ fun ChatInput(
     // Clean layout (DisplaySetting.cleanLayout, off by default) keeps the open two-row box all the
     // time: full-width field on top, tools underneath, "+" moved to the right next to send.
     val cleanLayout = settings.displaySetting.cleanLayout
-    val useGlass = !cleanLayout || settings.displaySetting.cleanLayoutGlass
+    // 材质收敛：默认走 rikkahub 原版那套「surfaceContainerLow 实心卡 + 一条 hairline」，液态玻璃
+    // 只在用户显式打开「背景模糊」(DisplaySetting.enableBlurEffect) 时才启用。玻璃的实现留着，
+    // 但不再默认生效——它此前是整条输入栏最主要的「不像 rikkahub」的来源。
+    val useGlass = settings.displaySetting.enableBlurEffect &&
+        (!cleanLayout || settings.displaySetting.cleanLayoutGlass)
     val expanded = cleanLayout || naturallyExpanded
     // Animate the corner along with the layout change below, so the pill does not snap between
     // its 28dp and 16dp radii while the bar is growing. Clean layout is always open and uses a
@@ -275,11 +284,13 @@ fun ChatInput(
     // rikkaGlassStyle's tintStrength (0 = clear, 1 = the recipe's own tint).
     val darkTheme = LocalDarkMode.current
     val cleanOpacity = if (cleanLayout) settings.displaySetting.cleanLayoutBottomOpacity else 1f
-    val cleanCardColor = cleanPanelFill(cleanOpacity)
+    // 底部整体透明后，输入卡不能是实心面：简洁布局的 cleanPanelFill 乘上上限，
+    // 这样「输入面板浓度」拉满（1.0）时卡片仍是半透明，而不是退回一块实心板。
+    val cleanCardColor = cleanPanelFill(cleanOpacity * CHAT_BOTTOM_SURFACE_ALPHA)
     val cleanCardOutline = cleanPanelOutline(darkTheme)
 
     Surface(
-        color = Color.Transparent,
+        color = Color.Transparent, contentColor = MaterialTheme.colorScheme.onSurface,
     ) {
         Column(
             modifier = modifier
@@ -323,8 +334,23 @@ fun ChatInput(
                     ),
                 shape = containerShape,
                 tonalElevation = 0.dp,
-                color = if (useGlass) Color.Transparent else cleanCardColor,
-                border = if (useGlass) null else BorderStroke(1.dp, cleanCardOutline),
+                // 非简洁布局走 rikkahub 原版：surfaceContainerLow 面 + outlineVariant 0.5 的描边。
+                // 简洁布局保留它自己那套可调浓度的平面材质（cleanPanelFill / cleanPanelOutline）。
+                color = when {
+                    useGlass -> Color.Transparent
+                    cleanLayout -> cleanCardColor
+                    // 半透明：底部是透明的，输入卡不能把它重新盖回实心色块。
+                    else -> MaterialTheme.colorScheme.surfaceContainerLow
+                        .copy(alpha = CHAT_BOTTOM_SURFACE_ALPHA)
+                },
+                border = when {
+                    useGlass -> null
+                    cleanLayout -> BorderStroke(1.dp, cleanCardOutline)
+                    else -> BorderStroke(
+                        1.dp,
+                        MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
+                    )
+                },
             ) {
                 Column(
                     // Extra inset so the round buttons stay clear of the capsule's edge; the
@@ -403,6 +429,20 @@ fun ChatInput(
                                     onUpdateChatModel = onUpdateChatModel,
                                     onUpdateModelReasoningLevel = onUpdateModelReasoningLevel,
                                 )
+                                // 思考强度独立入口：有模型就常驻（collapsed pill 也显示），不再只靠
+                                // 模型图标右下角 12dp 圆点——用户反馈「思考强度的条目不见了」的
+                                // 根因就是 collapsed + OFF 时角标消失。图标按档位着色（OFF 灰），
+                                // 打开就是档位 slider。
+                                if (effectiveChatModel != null) {
+                                    ReasoningButton(
+                                        onlyIcon = true,
+                                        reasoningLevel = reasoningLevel,
+                                        onUpdateReasoningLevel = { newLevel ->
+                                            // effectiveChatModel 非 null 已由上方 if 保证。
+                                            onUpdateModelReasoningLevel(effectiveChatModel, newLevel)
+                                        },
+                                    )
+                                }
 
                                 // Clean layout groups the tools on the left: model, then search.
                                 if (cleanLayout) searchButton()
@@ -532,7 +572,7 @@ private fun ModelReasoningChip(
         onClick = { modelListState.open() },
         modifier = Modifier.height(30.dp),
         shape = CircleShape,
-        color = Color.Transparent,
+        color = Color.Transparent, contentColor = MaterialTheme.colorScheme.onSurface,
         tonalElevation = 0.dp,
     ) {
         Row(
@@ -556,27 +596,11 @@ private fun ModelReasoningChip(
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
-                if (showReasoning && level.isEnabled) {
-                    Box(
-                        modifier = Modifier
-                            .align(Alignment.BottomEnd)
-                            .size(12.dp)
-                            .clip(CircleShape)
-                            .background(MaterialTheme.colorScheme.surface),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        CompositionLocalProvider(
-                            LocalContentColor provides MaterialTheme.colorScheme.primary,
-                        ) {
-                            ReasoningIcon(level = level, modifier = Modifier.size(10.dp))
-                        }
-                    }
-                }
             }
             // Name only on the open bar. On the pill it stole the hint's line.
             if (expanded) {
                 Text(
-                    text = label,
+                    text = label, color = MaterialTheme.colorScheme.onSurface,
                     style = MaterialTheme.typography.labelMedium,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
@@ -729,6 +753,9 @@ private fun ActionIconButton(
         shape = CircleShape,
         tonalElevation = 0.dp,
         color = Color.Transparent,
+        // 半透明输入卡上，默认 contentColor 不总是可读：暗色 mono 下 onSurfaceVariant 是 #9E9E9E，
+        // 在透出来的深色壁纸上几乎看不见。强制 onSurface（暗色 #EDEDED / 亮色 #111111）。
+        contentColor = MaterialTheme.colorScheme.onSurface,
     ) {
         Box(
             modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center
@@ -988,7 +1015,7 @@ private fun CompletionPopup(
                 Surface(
                     onClick = { onItemClick(item) },
                     modifier = Modifier.fillMaxWidth(),
-                    color = Color.Transparent,
+                    color = Color.Transparent, contentColor = MaterialTheme.colorScheme.onSurface,
                 ) {
                     Row(
                         modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
@@ -1066,7 +1093,7 @@ private fun QuickMessageButton(
                         state.appendText(quickMessage.content)
                         expanded = false
                     },
-                    color = Color.Transparent,
+                    color = Color.Transparent, contentColor = MaterialTheme.colorScheme.onSurface,
                     modifier = Modifier.fillMaxWidth(),
                 ) {
                     Column(
@@ -1159,3 +1186,8 @@ private fun FullScreenEditor(
         }
     }
 }
+
+
+
+
+

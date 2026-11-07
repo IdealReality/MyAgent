@@ -6,6 +6,7 @@ import me.rerere.rikkahub.ui.theme.presets.AutumnThemePreset
 import me.rerere.rikkahub.ui.theme.presets.BlackThemePreset
 import me.rerere.rikkahub.ui.theme.presets.ClaudeThemePreset
 import me.rerere.rikkahub.ui.theme.presets.MinimalThemePreset
+import me.rerere.rikkahub.ui.theme.presets.MonoThemePreset
 import me.rerere.rikkahub.ui.theme.presets.OceanThemePreset
 import me.rerere.rikkahub.ui.theme.presets.SakuraThemePreset
 import me.rerere.rikkahub.ui.theme.presets.SpringThemePreset
@@ -23,6 +24,8 @@ data class PresetTheme(
 
 val PresetThemes by lazy {
     listOf(
+        // mono 是产品现在的默认主题（见 Settings.themeId 与 PreferencesStore 的读取路径）。
+        MonoThemePreset,
         SakuraThemePreset,
         OceanThemePreset,
         SpringThemePreset,
@@ -34,7 +37,8 @@ val PresetThemes by lazy {
 }
 
 fun findPresetTheme(id: String): PresetTheme {
-    return PresetThemes.find { it.id == id } ?: SakuraThemePreset
+    // 缺失/未知 id 回落到首位（mono），与 Settings.themeId 的默认值保持一致。
+    return PresetThemes.find { it.id == id } ?: PresetThemes.first()
 }
 
 fun findThemeById(id: String, customThemes: List<CustomTheme>): PresetTheme? {

@@ -3,6 +3,8 @@ package me.rerere.rikkahub.data.ai
 import me.rerere.ai.core.Tool
 import me.rerere.ai.provider.Modality
 import me.rerere.ai.provider.Model
+import me.rerere.rikkahub.data.ai.tools.LocalToolGroupPolicy
+import me.rerere.rikkahub.data.ai.tools.LocalToolOption
 import me.rerere.rikkahub.data.ai.tools.LocalTools
 import me.rerere.rikkahub.data.ai.tools.ToolInvocationContext
 import me.rerere.rikkahub.data.ai.tools.ToolInvocationContexts
@@ -54,6 +56,32 @@ object ToolSurfaceResolver {
         // P2-02 - the per-tool deny-list rides along with the option list it refines.
         disabledToolNames = assistant.disabledLocalTools,
     )
+
+    /**
+     * Catalog-aware variant: the cheap, frequently-used groups keep a full schema, and the rest
+     * are handed to [catalogued] so the caller can expose them through `tool_search` /
+     * `tool_open` instead of serializing every schema on every request.
+     *
+     * Returns the direct tools only. [catalogued] receives the groups that were withheld, in
+     * declaration order; it is null in [ToolSurfaceMode.DIRECT], which is the exact behaviour
+     * of the plain [resolve] above.
+     */
+    fun resolvePartitioned(
+        localTools: LocalTools,
+        assistant: Assistant,
+        context: ToolInvocationContext,
+        catalogued: ((List<LocalToolOption>) -> Unit)?,
+    ): List<Tool> = if (catalogued == null) {
+        resolve(localTools, assistant, context)
+    } else {
+        val partition = LocalToolGroupPolicy.partition(assistant.localTools)
+        catalogued(partition.catalogued)
+        localTools.getTools(
+            options = partition.direct,
+            invocationContext = context,
+            disabledToolNames = assistant.disabledLocalTools,
+        )
+    }
 
     /**
      * Interactive turn / tool-loop / rerun rebuild — the model is about to receive these

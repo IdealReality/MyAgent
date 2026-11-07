@@ -64,7 +64,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import me.rerere.hugeicons.stroke.MoreVertical
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.Screen
-import me.rerere.rikkahub.data.datastore.DEFAULT_ASSISTANTS_IDS
 import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.data.model.AssistantMemory
@@ -263,6 +262,7 @@ fun AssistantPage(vm: AssistantVM = koinViewModel()) {
     actionSheetAssistant?.let { assistant ->
         AssistantActionSheet(
             assistant = assistant,
+            settings = settings,
             onDismiss = { actionSheetAssistant = null },
             onCopy = {
                 vm.copyAssistant(assistant)
@@ -527,6 +527,7 @@ private fun AssistantItem(
 @Composable
 private fun AssistantActionSheet(
     assistant: Assistant,
+    settings: Settings,
     onDismiss: () -> Unit,
     onCopy: () -> Unit,
     onDelete: () -> Unit
@@ -576,10 +577,11 @@ private fun AssistantActionSheet(
                 colors = ListItemDefaults.colors(containerColor = Color.Transparent)
             )
 
-            // 删除选项。内置默认助手不可删（删掉会让 DEFAULT_ASSISTANT_ID 悬空，
-            // 且新一轮启动会被 PreferencesStore 的 re-seed 重新加回来，形成「删了又出现」），
-            // 所以对它们显示禁用态 + 原因，而不是让入口凭空消失。
-            val deletable = assistant.id !in DEFAULT_ASSISTANTS_IDS
+            // 删除选项。内置助手同样可删：删除会记进 deletedBuiltInAssistantIds，
+            // 下次读设置时 re-seed 会跳过它。唯一硬约束是「至少留一个」——
+            // AssistantResolver.current 在空列表上 first() 会抛，删光会让所有
+            // getCurrentAssistant() 调用点崩溃，所以对最后一个显示禁用态 + 原因。
+            val deletable = (settings.assistants.size > 1)
             ListItem(
                 headlineContent = {
                     Text(
@@ -595,7 +597,7 @@ private fun AssistantActionSheet(
                     null
                 } else {
                     {
-                        Text(stringResource(R.string.assistant_page_delete_builtin_hint))
+                        Text(stringResource(R.string.assistant_page_delete_last_hint))
                     }
                 },
                 leadingContent = {

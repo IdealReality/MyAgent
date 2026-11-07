@@ -83,6 +83,9 @@ import me.rerere.rikkahub.ui.theme.AtomOneDarkPalette
 import me.rerere.rikkahub.ui.theme.AtomOneLightPalette
 import me.rerere.rikkahub.ui.theme.JetbrainsMono
 import me.rerere.rikkahub.ui.theme.LocalDarkMode
+import me.rerere.rikkahub.ui.theme.LocalMonoTheme
+import me.rerere.rikkahub.ui.theme.MonoDarkPalette
+import me.rerere.rikkahub.ui.theme.MonoLightPalette
 import me.rerere.rikkahub.utils.toDp
 import kotlin.time.Clock
 
@@ -102,7 +105,13 @@ fun HighlightCodeBlock(
     ),
 ) {
     val darkMode = LocalDarkMode.current
-    val colorPalette = if (darkMode) AtomOneDarkPalette else AtomOneLightPalette
+    val mono = LocalMonoTheme.current
+    val colorPalette = when {
+        mono && darkMode -> MonoDarkPalette
+        mono -> MonoLightPalette
+        darkMode -> AtomOneDarkPalette
+        else -> AtomOneLightPalette
+    }
     val scrollState = rememberScrollState()
     val clipboardManager = LocalClipboard.current
     val scope = rememberCoroutineScope()
@@ -512,11 +521,19 @@ private fun buildCodePreviewHtml(code: String, language: String): String {
 class HighlightCodeVisualTransformation(
     val language: String,
     val highlighter: CodeHighlighter,
-    val darkMode: Boolean
+    val darkMode: Boolean,
+    // mono 主题用低饱和语法色（[MonoLightPalette]/[MonoDarkPalette]）：结构信息靠色相区分，
+    // 但饱和上限远低于 Atom One，观感仍是黑白编辑器。
+    val mono: Boolean = false,
 ) : VisualTransformation {
     override fun filter(text: AnnotatedString): TransformedText {
         val annotatedString = try {
-            val colorPalette = if (darkMode) AtomOneDarkPalette else AtomOneLightPalette
+            val colorPalette = when {
+                mono && darkMode -> MonoDarkPalette
+                mono -> MonoLightPalette
+                darkMode -> AtomOneDarkPalette
+                else -> AtomOneLightPalette
+            }
             if (text.text.isEmpty()) {
                 AnnotatedString("")
             } else {

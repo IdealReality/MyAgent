@@ -39,7 +39,7 @@ fun ChatMessageUserAvatar(
         ) {
             Text(
                 text = nickname.ifEmpty { stringResource(R.string.user_default_name) },
-                style = MaterialTheme.typography.labelLargeEmphasized,
+                style = MaterialTheme.typography.labelLargeEmphasized, color = MaterialTheme.colorScheme.onSurface,
                 maxLines = 1,
             )
             UIAvatar(
@@ -86,7 +86,7 @@ fun ChatMessageAssistantAvatar(
                     if (settings.displaySetting.showModelName) {
                         Text(
                             text = assistant.name.ifEmpty { stringResource(R.string.assistant_page_default_assistant) },
-                            style = MaterialTheme.typography.labelLargeEmphasized,
+                            style = MaterialTheme.typography.labelLargeEmphasized, color = MaterialTheme.colorScheme.onSurface,
                             maxLines = 1,
                         )
                     }
@@ -107,7 +107,7 @@ fun ChatMessageAssistantAvatar(
                     if (settings.displaySetting.showModelName) {
                         Text(
                             text = model.displayName,
-                            style = MaterialTheme.typography.labelLargeEmphasized,
+                            style = MaterialTheme.typography.labelLargeEmphasized, color = MaterialTheme.colorScheme.onSurface,
                             maxLines = 2,
                             overflow = TextOverflow.Ellipsis,
                         )
@@ -117,3 +117,4 @@ fun ChatMessageAssistantAvatar(
         }
     }
 }
+

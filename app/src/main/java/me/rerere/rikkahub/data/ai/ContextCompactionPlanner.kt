@@ -15,6 +15,12 @@ internal object ContextCompactionPlanner {
     private const val DEFAULT_CONTEXT_LENGTH = 8_192
     private const val PROMPT_OVERHEAD_TOKENS = 768
     private const val MIN_INPUT_BUDGET_TOKENS = 512
+    /**
+     * Payloads smaller than this are fully represented by the summary text itself, so a
+     * back-reference would be noise. Larger ones get a handle pointing at the CCR pool.
+     */
+    private const val CCR_BACK_REFERENCE_MIN_CHARS = 2_000
+
     private const val TOOL_HISTORY_HEADER = "[Tool execution history — authoritative retained context]"
     private const val TOOL_HISTORY_FOOTER = "[End tool execution history]"
     private const val TOOL_RECORD_HEADER = "[Retained tool execution record]"
@@ -385,6 +391,15 @@ internal object ContextCompactionPlanner {
                     appendLine("  Result:")
                     part.output.forEach { appendPartForSummary(it) }
                     appendLine("  Input: ${part.input}")
+                    // Compaction used to be pure loss: the summary replaced the raw output and
+                    // the model had no way back to it. The CCR pool already stores large tool
+                    // payloads by content hash; now every record says where its original lives,
+                    // so a summary can be paged back in instead of being remembered.
+                    ccrBackReferenceTag(
+                        toolCallId = part.toolCallId,
+                        text = part.output.filterIsInstance<UIMessagePart.Text>()
+                            .joinToString("\n") { it.text },
+                    )?.let { appendLine(it) }
                 }.trim()
             }
         }
@@ -395,6 +410,23 @@ internal object ContextCompactionPlanner {
             appendLine("  Input: ${part.arguments}")
         }.trim()
         else -> null
+    }
+
+    /**
+     * Where the original of a summarized tool output can be re-read, or null when the payload is
+     * small enough that the summary already carries all of it.
+     *
+     * Pure: it only computes the content-addressed handle and the relative path. Writing the
+     * file is [me.rerere.rikkahub.data.ai.GenerationLoop]'s job, and it does so for every
+     * retained record before a compaction — see `spillRetainedToolOutputs`. Keeping the two
+     * halves apart is what lets this be unit-tested without a filesystem.
+     */
+    internal fun ccrBackReferenceTag(toolCallId: String, text: String): String? {
+        if (text.length < CCR_BACK_REFERENCE_MIN_CHARS) return null
+        val handle = me.rerere.rikkahub.data.memory.ToolOutputPool.handleOf(text)
+        val lines = text.lines().size
+        return "[Full output: /tool_outputs/ccr-$handle.txt ($lines lines; read with " +
+            "`sed -n 'N,Mp' /tool_outputs/ccr-$handle.txt`, or the whole file if no shell)]"
     }
 
     private fun truncateToTokenBudget(text: String, maxTokens: Int): String {

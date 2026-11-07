@@ -1,11 +1,8 @@
 <?xml version='1.0' encoding='UTF-8'?>
 <resources>
-  <string name="about_page_github">GitHub</string>
-  <string name="about_page_license">Лицензия</string>
   <string name="about_page_system">Система</string>
   <string name="about_page_title">О приложении</string>
   <string name="about_page_version">Версия</string>
-  <string name="about_page_website">Проект</string>
   <string name="add">Добавить</string>
   <string name="app_name">My Agent</string>
   <string name="asr_button_content_description">Распознавание речи</string>
@@ -703,8 +700,6 @@
   <string name="setting_display_page_show_thinking_content_title">Показывать содержание размышлений</string>
   <string name="setting_display_page_show_token_usage_desc">Отображать использование токенов и количество сообщений</string>
   <string name="setting_display_page_show_token_usage_title">Показывать статистику токенов и контекста</string>
-  <string name="setting_display_page_show_updates_desc">Отображать ли уведомления об обновлениях приложения</string>
-  <string name="setting_display_page_show_updates_title">Показывать обновления</string>
   <string name="setting_display_page_show_user_avatar_desc">Отображать аватар пользователя в сообщениях чата</string>
   <string name="setting_display_page_clean_layout_title">Простой макет</string>
   <string name="setting_display_page_clean_layout_desc">Плоская верхняя панель с названием модели под заголовком и двухстрочное поле ввода с кнопками инструментов под ним</string>
@@ -834,7 +829,6 @@
   <string name="setting_page_mcp_desc">Настроить серверы MCP</string>
   <string name="setting_page_message_display_settings">Отображение сообщений</string>
   <string name="setting_page_model_and_services">Модели и службы</string>
-  <string name="setting_page_no_share_app">Приложение для обмена не найдено</string>
   <string name="setting_page_providers">Провайдеры</string>
   <string name="setting_page_providers_desc">Настроить поставщиков ИИ</string>
   <string name="setting_page_request_logs">Журналы запросов</string>
@@ -856,7 +850,6 @@
   <string name="setting_page_search_title">Служба поиска</string>
   <string name="setting_page_share">Поделиться</string>
   <string name="setting_page_share_desc">Поделиться этим приложением с друзьями</string>
-  <string name="setting_page_share_text">RikkaHub Agent · Pure — открытый Android-ассистент с ИИ\n\nПроект: https://github.com/wuyhong715/rikkahub-agent-pure/releases/latest</string>
   <string name="setting_page_theme_setting">Тема</string>
   <string name="setting_page_theme_setting_desc">Настроить цветовую схему приложения</string>
   <string name="setting_theme_page_preset_themes">Предустановленные темы</string>
@@ -961,6 +954,8 @@
   <string name="setting_provider_page_scan_error">Ошибка: %s</string>
   <string name="setting_provider_page_scan_qr_code">Сканировать QR-код</string>
   <string name="setting_provider_page_search_providers">Поиск поставщиков</string>
+  <string name="setting_provider_page_empty">Провайдеров пока нет. Нажмите +, чтобы добавить.</string>
+  <string name="setting_provider_page_search_empty">Нет провайдеров, подходящих под запрос.</string>
   <string name="setting_provider_page_select_all">Выбрать все (%1$d)</string>
   <string name="setting_provider_page_select_from_gallery">Выбрать из галереи</string>
   <string name="setting_provider_page_service_account_email">Электронная почта служебной учётной записи</string>
@@ -1087,6 +1082,7 @@
   <string name="text_area_import_success">Файл успешно импортирован</string>
   <string name="text_area_save">Сохранить</string>
   <string name="theme_name_autumn">Осенний жёлтый</string>
+  <string name="theme_name_mono">Моно</string>
   <string name="theme_name_black">Нейтральный чёрный</string>
   <string name="theme_name_minimal">Минималистичный белый</string>
   <string name="theme_name_ocean">Океанический синий</string>
@@ -1855,12 +1851,6 @@
   <string name="search_picker_model_description">Облачный поиск, встроенный в провайдера моделей</string>
   <string name="search_picker_select_provider">Выберите провайдера поиска</string>
   <string name="search_picker_turn_off">Отключить поиск</string>
-  <string name="setting_update_reminder_enabled">Напоминания об обновлениях включены</string>
-  <string name="setting_update_reminder_paused_until">Приостановлено до %1$s</string>
-  <string name="setting_update_reminder_pause_title">Приостановить напоминания об обновлениях</string>
-  <string name="setting_update_reminder_pause_description">Выберите, как долго приостановить напоминания об обновлениях. Они возобновятся автоматически.</string>
-  <string name="setting_update_reminder_pause_days">%1$d дн.</string>
-  <string name="setting_update_reminder_resume_now">Возобновить сейчас</string>
   <string name="reasoning_max">Максимум</string>
   <string name="backup_page_import_overwrite_confirm">Импорт резервной копии перезапишет данные приложения. Продолжить?</string>
   <string name="setting_page_preferences_network">Сеть</string>

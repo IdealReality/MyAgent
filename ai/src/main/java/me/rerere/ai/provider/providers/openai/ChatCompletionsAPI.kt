@@ -293,6 +293,7 @@ class ChatCompletionsAPI(
         val messagesArray = buildMessages(
             messages = messages,
             includeHistoryReasoning = providerSetting.includeHistoryReasoning,
+            historyReasoningTurns = providerSetting.historyReasoningTurns,
             openRouterCache = openRouterCache,
             includeOpenRouterReasoningDetails = isOpenRouter,
             supportInputModalities = params.model.inputModalities,
@@ -608,17 +609,43 @@ class ChatCompletionsAPI(
     private fun buildMessages(
         messages: List<UIMessage>,
         includeHistoryReasoning: Boolean = true,
+        /**
+         * `null` = replay reasoning on every assistant message (legacy behaviour). Otherwise
+         * only the newest N assistant messages carry `reasoning_content`; `0` disables replay
+         * entirely, which is the same wire shape as `includeHistoryReasoning = false`.
+         */
+        historyReasoningTurns: Int? = null,
         openRouterCache: Boolean = false,
         includeOpenRouterReasoningDetails: Boolean = false,
         supportInputModalities: List<Modality> = listOf(Modality.TEXT, Modality.IMAGE),
     ) = buildJsonArray {
         val filteredMessages = messages.filter { it.isValidToUpload() }
 
-        filteredMessages.forEach { message ->
+        // Which assistant messages may replay reasoning. Computed up front because the answer
+        // depends on position, not on the message itself: walking backwards keeps the NEWEST N,
+        // which is the part of the history whose reasoning still informs the live step.
+        val reasoningEligible: Set<Int> = when {
+            !includeHistoryReasoning -> emptySet()
+            historyReasoningTurns == null -> filteredMessages.indices.toSet()
+            historyReasoningTurns <= 0 -> emptySet()
+            else -> {
+                val eligible = HashSet<Int>()
+                var remaining = historyReasoningTurns
+                for (index in filteredMessages.indices.reversed()) {
+                    if (filteredMessages[index].role != MessageRole.ASSISTANT) continue
+                    if (remaining == 0) break
+                    eligible += index
+                    remaining--
+                }
+                eligible
+            }
+        }
+
+        filteredMessages.forEachIndexed { index, message ->
             if (message.role == MessageRole.ASSISTANT) {
                 addAssistantMessages(
                     message = message,
-                    includeReasoning = includeHistoryReasoning,
+                    includeReasoning = index in reasoningEligible,
                     includeOpenRouterReasoningDetails = includeOpenRouterReasoningDetails,
                     supportInputModalities = supportInputModalities,
                 )

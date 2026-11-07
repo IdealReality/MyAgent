@@ -46,6 +46,8 @@ import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.ui.CardGroup
 import me.rerere.rikkahub.ui.context.LocalNavController
 import me.rerere.rikkahub.ui.theme.CustomColors
+import me.rerere.rikkahub.ui.theme.LocalMonoTheme
+import me.rerere.rikkahub.ui.theme.extendColors
 import me.rerere.rikkahub.utils.plus
 import org.koin.androidx.compose.koinViewModel
 
@@ -259,8 +261,12 @@ private fun FixButton(
 private fun severityColor(severity: Severity): Color = when (severity) {
     Severity.OK -> MaterialTheme.colorScheme.primary
     Severity.INFO -> MaterialTheme.colorScheme.tertiary
-    // Material doesn't define a stock warning colour — Google's HIG uses amber here.
-    Severity.WARN -> Color(0xFFFFB300)
+    // Material 没有内置 warning 色；mono 用语义色板里的橙 7，其它主题维持 Google HIG 的琥珀。
+    Severity.WARN -> if (LocalMonoTheme.current) {
+        MaterialTheme.extendColors.orange7
+    } else {
+        Color(0xFFFFB300)
+    }
     Severity.FAIL -> MaterialTheme.colorScheme.error
 }
 

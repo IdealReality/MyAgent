@@ -47,10 +47,12 @@ import com.dokar.sonner.ToastType
 import kotlinx.coroutines.launch
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Add01
+import me.rerere.hugeicons.stroke.Code
 import me.rerere.hugeicons.stroke.Delete01
 import me.rerere.hugeicons.stroke.Edit01
 import me.rerere.hugeicons.stroke.Play
 import me.rerere.rikkahub.R
+import me.rerere.rikkahub.Screen
 import me.rerere.rikkahub.data.db.entity.SshHostEntity
 import me.rerere.rikkahub.data.ssh.KnownHostEntry
 import me.rerere.rikkahub.data.ssh.SshAuthMethod
@@ -61,6 +63,7 @@ import me.rerere.rikkahub.data.ssh.SshHostField
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.ui.CardGroup
 import me.rerere.rikkahub.ui.components.ui.Select
+import me.rerere.rikkahub.ui.context.LocalNavController
 import me.rerere.rikkahub.ui.context.LocalToaster
 import me.rerere.rikkahub.ui.theme.CustomColors
 import me.rerere.rikkahub.utils.plus
@@ -79,6 +82,7 @@ fun SettingSshPage(vm: SettingSshViewModel = koinViewModel()) {
     val testResult by vm.testResult.collectAsStateWithLifecycle()
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     val toaster = LocalToaster.current
+    val navController = LocalNavController.current
     val scope = rememberCoroutineScope()
 
     var editorDraft by remember { mutableStateOf<SshHostDraft?>(null) }
@@ -161,7 +165,25 @@ fun SettingSshPage(vm: SettingSshViewModel = koinViewModel()) {
                                 }
                             },
                             trailingContent = {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                IconButton(
+                                    onClick = { navController.navigate(Screen.SshTerminal(hostName = host.name)) },
+                                ) {
+                                    Icon(
+                                        imageVector = HugeIcons.Code,
+                                        contentDescription = "远程终端",
+                                    )
+                                }
+                                    host.webTerminalUrl?.takeIf { it.isNotBlank() }?.let { url ->
+                                        IconButton(
+                                            onClick = { navController.navigate(Screen.WebView(url = url)) },
+                                        ) {
+                                            Icon(
+                                                imageVector = HugeIcons.Code,
+                                                contentDescription = stringResource(R.string.setting_ssh_page_open_terminal),
+                                            )
+                                        }
+                                    }
                                     if (testingName == host.name) {
                                         CircularProgressIndicator(
                                             modifier = Modifier.size(24.dp),
@@ -309,6 +331,7 @@ private fun SshHostEntity.toDraft(): SshHostDraft {
         password = password.orEmpty(),
         privateKey = privateKey.orEmpty(),
         passphrase = passphrase.orEmpty(),
+        webTerminalUrl = webTerminalUrl.orEmpty(),
     )
 }
 
@@ -466,6 +489,16 @@ private fun SshHostEditorSheet(
                     )
                 }
             }
+
+            OutlinedTextField(
+                value = draft.webTerminalUrl,
+                onValueChange = { draft = draft.copy(webTerminalUrl = it) },
+                label = { Text(stringResource(R.string.setting_ssh_page_web_terminal)) },
+                supportingText = { Text(stringResource(R.string.setting_ssh_page_web_terminal_hint)) },
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
+                modifier = Modifier.fillMaxWidth(),
+            )
 
             Row(
                 modifier = Modifier

@@ -195,8 +195,17 @@ object AssistantConfigTools {
         assistantId: String?,
     ): List<Tool> {
         fun resolveAssistant(settings: Settings, id: String?): Assistant? {
-            val uuid = id?.let { runCatching { Uuid.parse(it) }.getOrNull() } ?: return null
-            return AssistantResolver.byId(settings.assistants, uuid)
+            val uuid = id?.let { runCatching { Uuid.parse(it) }.getOrNull() }
+            if (uuid != null) {
+                AssistantResolver.byId(settings.assistants, uuid)?.let { return it }
+            }
+            // 2026-11-07: 无上下文调用路径（headless / Telegram / 工具面重建后的首轮）拿不到
+            // assistantId。原先直接 return null 让所有工具报 no_assistant，技能管理在那些
+            // 入口彻底不可用。现在回落到全局当前助手——仍是**一个确定的**助手
+            // （settings.assistantId 指向的那个），不是随机挑，也不会改错对象。
+            return runCatching {
+                AssistantResolver.current(settings.assistants, settings.assistantId)
+            }.getOrNull()
         }
 
         suspend fun refreshAssistant(): Assistant? =

@@ -268,20 +268,20 @@ class SettingLocalLlmViewModel(
         // Reconcile: any disk-side model that isn't in provider.models gets added.
         // Backfills downloads that landed before the persistence fix at commit 75ea6443.
         val targetId = providerIdForRuntime()
+        // 行不存在时 knownModelIds 视为空：磁盘上已装好的模型照样要登记并补建行，
+        // 否则没添加过该运行时行的用户永远看不到已下载的模型。
         val currentProvider = settingsStore.settingsFlow.value.providers.firstOrNull { it.id == targetId }
-        if (currentProvider != null) {
-            val knownModelIds = currentProvider.models.map { it.modelId }.toSet()
-            val missing = finalInstalled.keys.filter { it !in knownModelIds }
-            for (fileName in missing) {
-                val caps = deriveLocalModelCapabilities(runtime, fileName)
-                val model = Model(
-                    modelId = fileName,
-                    displayName = fileName,
-                    inputModalities = caps.inputModalities,
-                    abilities = caps.abilities,
-                )
-                updateMyProvider { provider -> provider.addModel(model) }
-            }
+        val knownModelIds = currentProvider?.models?.map { it.modelId }?.toSet() ?: emptySet()
+        val missing = finalInstalled.keys.filter { it !in knownModelIds }
+        for (fileName in missing) {
+            val caps = deriveLocalModelCapabilities(runtime, fileName)
+            val model = Model(
+                modelId = fileName,
+                displayName = fileName,
+                inputModalities = caps.inputModalities,
+                abilities = caps.abilities,
+            )
+            updateMyProvider { provider -> provider.addModel(model) }
         }
 
         // Restore cached accelerator so the UI can display it without re-probing.
@@ -333,16 +333,32 @@ class SettingLocalLlmViewModel(
     }
 
     /**
-     * Mutates the LiteRtLocal ProviderSetting in the persisted settings store.
+     * Mutates the local-runtime ProviderSetting in the persisted settings store.
      * Identity is established by the stable provider ID constant, not by position.
+     *
+     * Creates the row when it is missing: the app ships no pre-seeded providers, so a user who
+     * never added this runtime row would otherwise get every model download silently applied
+     * to nothing (no card to enable, no model to select).
      */
     private suspend fun updateMyProvider(transform: (ProviderSetting) -> ProviderSetting) {
         val targetId = providerIdForRuntime()
         settingsStore.update { old ->
-            old.copy(providers = old.providers.map { p ->
-                if (p.id == targetId) transform(p) else p
-            })
+            if (old.providers.none { it.id == targetId }) {
+                old.copy(providers = old.providers + localProviderForRuntime(transform))
+            } else {
+                old.copy(providers = old.providers.map { p ->
+                    if (p.id == targetId) transform(p) else p
+                })
+            }
         }
+    }
+
+    /** 端侧运行时行本身（不是它的 transform 结果）——行不存在时用它补建。 */
+    private fun localProviderForRuntime(
+        transform: (ProviderSetting) -> ProviderSetting,
+    ): ProviderSetting = when (runtime) {
+        LocalRuntime.LiteRT -> transform(ProviderSetting.LiteRtLocal())
+        LocalRuntime.LlamaCpp -> transform(ProviderSetting.LlamaCppLocal())
     }
 
     fun reDetectAccelerator() {

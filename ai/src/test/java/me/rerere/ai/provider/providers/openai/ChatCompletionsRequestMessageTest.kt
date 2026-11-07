@@ -42,6 +42,7 @@ class ChatCompletionsRequestMessageTest {
     private fun invokeBuildMessages(
         messages: List<UIMessage>,
         includeHistoryReasoning: Boolean = true,
+        historyReasoningTurns: Int? = null,
         includeOpenRouterReasoningDetails: Boolean = false,
         supportInputModalities: List<Modality> = listOf(Modality.TEXT, Modality.IMAGE),
     ): JsonArray {
@@ -49,6 +50,7 @@ class ChatCompletionsRequestMessageTest {
             "buildMessages",
             List::class.java,
             Boolean::class.javaPrimitiveType,
+            Integer::class.java,
             Boolean::class.javaPrimitiveType,
             Boolean::class.javaPrimitiveType,
             List::class.java
@@ -58,6 +60,7 @@ class ChatCompletionsRequestMessageTest {
             api,
             messages,
             includeHistoryReasoning,
+            historyReasoningTurns,
             false,
             includeOpenRouterReasoningDetails,
             supportInputModalities
@@ -707,5 +710,75 @@ class ChatCompletionsRequestMessageTest {
             input = input,
             output = listOf(UIMessagePart.Text(output))
         )
+    }
+    // --- Bounded reasoning replay ------------------------------------------------
+    //
+    // Unlimited replay was a large share of a real device's ~165k-token average prompt, and it
+    // also nudged the model into continuing an old line of reasoning. The bound must keep the
+    // NEWEST turns (the live step of a tool loop), not the oldest.
+
+    private fun assistantWithReasoning(text: String, reasoning: String) = UIMessage(
+        role = MessageRole.ASSISTANT,
+        parts = listOf(
+            UIMessagePart.Reasoning(reasoning = reasoning),
+            UIMessagePart.Text(text = text),
+        ),
+    )
+
+    private fun reasoningContents(built: JsonArray): List<String> =
+        built.map { it.jsonObject }
+            .filter { it["role"]?.jsonPrimitive?.content == "assistant" }
+            .mapNotNull { it["reasoning_content"]?.jsonPrimitive?.content }
+            .filter { it.isNotEmpty() }
+
+    @Test
+    fun `historyReasoningTurns keeps only the newest N assistant turns`() {
+        val messages = listOf(
+            UIMessage(role = MessageRole.USER, parts = listOf(UIMessagePart.Text("q1"))),
+            assistantWithReasoning("a1", "thinking-1"),
+            UIMessage(role = MessageRole.USER, parts = listOf(UIMessagePart.Text("q2"))),
+            assistantWithReasoning("a2", "thinking-2"),
+            UIMessage(role = MessageRole.USER, parts = listOf(UIMessagePart.Text("q3"))),
+            assistantWithReasoning("a3", "thinking-3"),
+        )
+
+        val built = invokeBuildMessages(messages, historyReasoningTurns = 2)
+        assertEquals(listOf("thinking-2", "thinking-3"), reasoningContents(built))
+    }
+
+    @Test
+    fun `historyReasoningTurns of zero disables replay entirely`() {
+        val messages = listOf(
+            UIMessage(role = MessageRole.USER, parts = listOf(UIMessagePart.Text("q1"))),
+            assistantWithReasoning("a1", "thinking-1"),
+        )
+        val built = invokeBuildMessages(messages, historyReasoningTurns = 0)
+        assertTrue(reasoningContents(built).isEmpty())
+    }
+
+    @Test
+    fun `a null historyReasoningTurns preserves unlimited replay`() {
+        val messages = listOf(
+            UIMessage(role = MessageRole.USER, parts = listOf(UIMessagePart.Text("q1"))),
+            assistantWithReasoning("a1", "thinking-1"),
+            UIMessage(role = MessageRole.USER, parts = listOf(UIMessagePart.Text("q2"))),
+            assistantWithReasoning("a2", "thinking-2"),
+        )
+        val built = invokeBuildMessages(messages, historyReasoningTurns = null)
+        assertEquals(listOf("thinking-1", "thinking-2"), reasoningContents(built))
+    }
+
+    @Test
+    fun `includeHistoryReasoning false wins over a positive turn bound`() {
+        val messages = listOf(
+            UIMessage(role = MessageRole.USER, parts = listOf(UIMessagePart.Text("q1"))),
+            assistantWithReasoning("a1", "thinking-1"),
+        )
+        val built = invokeBuildMessages(
+            messages,
+            includeHistoryReasoning = false,
+            historyReasoningTurns = 5,
+        )
+        assertTrue(reasoningContents(built).isEmpty())
     }
 }

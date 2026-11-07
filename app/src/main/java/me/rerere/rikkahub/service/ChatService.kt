@@ -106,6 +106,7 @@ import me.rerere.rikkahub.data.ai.tools.ColdMemoryRules
 import me.rerere.rikkahub.data.ai.tools.ColdMemoryWriteResult
 import me.rerere.rikkahub.data.ai.tools.shouldUseExternalWebSearch
 import me.rerere.rikkahub.data.preferences.isWorkspaceToolName
+import me.rerere.rikkahub.data.files.FileFolders
 import me.rerere.rikkahub.data.files.SkillManager
 import me.rerere.rikkahub.data.ai.transformers.Base64ImageToLocalFileTransformer
 import me.rerere.rikkahub.data.ai.transformers.ContextBudgetReminderTransformer
@@ -123,7 +124,6 @@ import me.rerere.rikkahub.data.event.AppEventBus
 import me.rerere.rikkahub.data.datastore.SettingsStore
 import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.data.datastore.AutoCompactionThresholdMode
-import me.rerere.rikkahub.data.datastore.DEFAULT_AUTO_MODEL_ID
 import me.rerere.rikkahub.data.datastore.findModelById
 import me.rerere.rikkahub.data.datastore.findProvider
 import me.rerere.rikkahub.data.datastore.getContextCompactionTargetTokens
@@ -148,6 +148,7 @@ import me.rerere.workspace.WorkspaceStorageArea
 import me.rerere.rikkahub.web.BadRequestException
 import me.rerere.rikkahub.web.NotFoundException
 import me.rerere.rikkahub.utils.applyPlaceholders
+import java.io.File
 import java.time.Instant
 import java.util.Locale
 import java.util.concurrent.ConcurrentHashMap
@@ -237,15 +238,12 @@ internal fun compactionContextLength(settings: Settings, model: Model): Int? =
 /**
  * Resolve the model to compress against. `settings.compressModelId` defaults to (and is
  * user-selectable as) the "Auto" placeholder, a literal [Model] owned by the built-in
- * "RikkaHub" provider, which ships disabled — so resolving it as a real model and then
- * discovering its provider is disabled used to surface as an opaque failure. Falls through, in
- * order: the configured model (unless it's the Auto placeholder or its provider is disabled),
- * the current chat model (same guard), then the first model belonging to any enabled provider.
+ * Falls through, in order: the configured model (unless its provider is disabled), the
+ * current chat model (same guard), then the first model belonging to any enabled provider.
  * Returns null only when none of those is usable.
  */
 internal fun resolveCompressionModel(settings: Settings): Model? {
     fun Model.takeIfUsable(): Model? {
-        if (id == DEFAULT_AUTO_MODEL_ID) return null
         val provider = findProvider(settings.providers) ?: return null
         return if (provider.enabled) this else null
     }
@@ -559,6 +557,97 @@ class ChatService(
      * `[untrusted]` marker matters - an MCP server's description is data we did not author, and
      * it is now the only thing the model sees before deciding to open the tool.
      */
+    /**
+     * Catalog entries for one local tool group.
+     *
+     * The schemas come from the SAME [LocalTools.getTools] call the direct surface uses, so a
+     * tool activated out of the catalog is byte-identical to one that was never catalogued —
+     * if these ever diverged, a tool would behave differently depending on how the model
+     * reached it.
+     *
+     * Summaries are the tool's own first description line, prefixed with `[local]` so the model
+     * can tell our own tools from an MCP server's when both appear in one `tool_search` result.
+     */
+    /**
+     * Persists every sizable tool payload in [messages] into the CCR pool so the compaction
+     * summary can point back at it.
+     *
+     * Compaction used to be irreversible: the summary replaced the raw output and nothing kept
+     * the original. Now each summarized record carries `/tool_outputs/ccr-<handle>.txt`, which
+     * only means something if the file is on disk — hence this pass. Content-addressed naming
+     * makes it idempotent, so re-compacting the same conversation rewrites nothing.
+     *
+     * Best-effort by design: a disk problem must never fail a compaction that would otherwise
+     * succeed. A record whose spill failed simply has no back-reference to offer — the planner
+     * computes the tag from the text alone, so the pointer is still emitted; a later successful
+     * spill (or a re-run) makes it resolvable.
+     */
+    private suspend fun spillRetainedToolOutputs(messages: List<UIMessage>) = withContext(Dispatchers.IO) {
+        val poolDir = runCatching {
+            File(context.filesDir, FileFolders.TOOL_OUTPUTS).apply { mkdirs() }
+        }.getOrNull() ?: return@withContext
+
+        val payloads = messages.flatMap { message ->
+            message.parts.mapNotNull { part ->
+                when (part) {
+                    is UIMessagePart.Tool -> part.output
+                        .filterIsInstance<UIMessagePart.Text>()
+                        .joinToString("\n") { it.text }
+                        .takeIf { it.length >= CCR_SPILL_MIN_CHARS }
+                    is UIMessagePart.ToolResult -> part.content.toString()
+                        .takeIf { it.length >= CCR_SPILL_MIN_CHARS }
+                    else -> null
+                }
+            }
+        }
+        payloads.forEach { text ->
+            runCatching {
+                val handle = me.rerere.rikkahub.data.memory.ToolOutputPool.handleOf(text)
+                val file = File(poolDir, "ccr-$handle.txt")
+                if (!file.exists()) file.writeText(text)
+            }.onFailure { Log.w(TAG, "spillRetainedToolOutputs: failed to spill a payload", it) }
+        }
+    }
+
+    private companion object {
+        /** Mirrors the planner's back-reference threshold: below this the pointer is noise. */
+        const val CCR_SPILL_MIN_CHARS = 2_000
+    }
+
+    private fun localCatalogEntries(
+        option: me.rerere.rikkahub.data.ai.tools.LocalToolOption,
+        // 2026-11-07: 必须传真实 context。用 contextless 构建的 Tool 在执行时拿不到
+        // callerAssistantId / callerConversationId，于是 subagent_dispatch 报
+        // bad-parent-assistant-id、assistant_config 组报 no-assistant。而这两个恰恰
+        // 只能经 catalog 激活进入工具面（不在 ALWAYS_DIRECT 里），所以之前必然全挂。
+        context: me.rerere.rikkahub.data.ai.tools.ToolInvocationContext,
+    ): List<ToolCatalogEntry> = runCatching {
+        localTools.getTools(
+            options = listOf(option),
+            invocationContext = context,
+        ).map { tool ->
+            val firstLine = tool.description
+                .lineSequence()
+                .firstOrNull { line -> line.isNotBlank() }
+                .orEmpty()
+                .trim()
+            ToolCatalogEntry(
+                name = tool.name,
+                summary = "[local] " + (
+                    firstLine.ifEmpty { "Local on-device tool." }
+                        .take(TOOL_CATALOG_MAX_SUMMARY_CHARS)
+                    ),
+                source = ToolCatalogSource.LOCAL,
+                tool = tool,
+            )
+        }
+    }.getOrElse { t ->
+        // 2026-11-07: 别静默吞。这个函数只在 progressive catalog 路径上被调用，
+        // 吞掉异常会让某一组工具从 catalog 里凭空消失，模型和用户都看不到原因。
+        android.util.Log.w("ChatService", "localCatalogEntries() failed; catalog entry skipped", t)
+        emptyList()
+    }
+
     private fun mcpCatalogSummary(tool: me.rerere.rikkahub.data.ai.mcp.McpTool): String {
         val firstLine = tool.description
             .orEmpty()
@@ -1898,6 +1987,171 @@ class ChatService(
                     } else ""
                 }.getOrElse { "" }
             } else ""
+            // 2026-11-07: 工具面重建器。generateText 每步调用一次，让 tool_open 的激活
+            // 在同一条消息内立即生效（旧行为要等下一条用户消息，因为工具面只在
+            // handleMessageComplete 构建一次）。每步重算会多花一点 CPU，换来的是
+            // 「激活即可用」，不再需要一轮对话的空转。
+            val buildSurfaceTools: suspend () -> List<Tool> = {
+                buildList {
+                    // Synchronise the live dispatch profile before tool resolution so
+                    // subagent_dispatch is registered when the profile != NEVER.
+                    // generateText was the missing third call site (fast-path and
+                    // buildToolsForRerun already do this).
+                    me.rerere.rikkahub.subagent.SubAgentDispatchProfileRules
+                        .setLiveDispatchProfile(settings.subAgentDispatchProfile)
+                    // P2-04 — the child's own tool surface when this conversation is a sub-agent
+                    // run that has one; otherwise this is the resolved assistant itself.
+                    val surfaceAssistant = me.rerere.rikkahub.subagent.SubAgentSurface
+                        .assistantFor(conversationId) ?: assistant
+                    if (useExternalWebSearch) {
+                        addAll(createSearchTools(settings))
+                    }
+                    // The caller context tells context-aware tools (subagent_dispatch
+                    // recursion guard, workflow_create authoring-id) who is calling.
+                    // isHeadless is read from HeadlessConversations — true iff this is a
+                    // cron / sub-agent / workflow / external-automation flow.
+                    //
+                    // In PROGRESSIVE_CATALOG mode only the always-direct groups keep a schema;
+                    // the rest are collected here and folded into the catalog further down
+                    // alongside the MCP entries, so local and remote tools share one
+                    // search/open surface instead of two different mental models.
+                    val localCatalogGroups = mutableListOf<me.rerere.rikkahub.data.ai.tools.LocalToolOption>()
+                    // 2026-11-07: 提到变量，catalog 条目构建也要用同一个真实 context（见 localCatalogEntries）。
+                    val surfaceContext = ToolSurfaceResolver.chatContext(
+                                assistant = surfaceAssistant,
+                                conversationId = conversationId,
+                                model = model,
+                                isHeadless = me.rerere.rikkahub.data.ai.tools.HeadlessConversations
+                                    .isHeadless(conversationId),
+                        appPlaybook = coldMemoryPlaybookReader(surfaceAssistant),
+                    )
+                    addAll(
+                        ToolSurfaceResolver.resolvePartitioned(
+                            localTools = localTools,
+                            assistant = surfaceAssistant,
+                            context = surfaceContext,
+                            catalogued = if (
+                                surfaceAssistant.toolSurfaceMode == ToolSurfaceMode.PROGRESSIVE_CATALOG
+                            ) {
+                                { groups -> localCatalogGroups.addAll(groups) }
+                            } else {
+                                null
+                            },
+                        )
+                    )
+                    addAll(createWorkspaceToolsIfReady(surfaceAssistant.workspaceId?.toString(), conversation.workspaceCwd))
+                    // T-06 / (7) - cold memory, mirroring the regenerate path above.
+                    addAll(createColdMemoryToolsIfConfigured(surfaceAssistant))
+                    // 记忆引擎 v1（P2）：四层记忆检索三工具（regenerate 路径同一 surface）。
+                    addAll(memoryEngine.toolsFor(surfaceAssistant))
+                    if (surfaceAssistant.enabledSkills.isNotEmpty()) {
+                        addAll(
+                            createSkillTools(
+                                enabledSkills = surfaceAssistant.enabledSkills,
+                                allSkills = skillManager.listSkills(),
+                                skillManager = skillManager,
+                                disabledSkills = SkillGroupRules.disabledSkillNames(settings.skillGroups),
+                            )
+                        )
+                    }
+                    if (surfaceAssistant.enableCompactContextTool) {
+                        // T-02 / ② - model-initiated compaction. Reuses the manual compress
+                        // pipeline end-to-end (see compactConversationFromTool) instead of
+                        // re-implementing summarisation. Default OFF: when the flag is unset
+                        // the tool list is byte-for-byte what it was before this change.
+                        addAll(
+                            buildCompactionTools(
+                                onCompact = { instructions ->
+                                    compactConversationFromTool(
+                                        conversationId = conversationId,
+                                        conversation = getConversationFlow(conversationId).value,
+                                        settings = settings,
+                                        model = model,
+                                        instructions = instructions,
+                                    )
+                                },
+                            )
+                        )
+                    }
+                    // P2-04 — an inherited child (surfaceAssistant === assistant) keeps the
+                    // global current-assistant MCP resolution; an explicitly surfaced child
+                    // resolves MCP against its own assistant.
+                    val allMcpTools = run {
+                        val raw = if (surfaceAssistant === assistant) {
+                            mcpManager.getAllAvailableTools()
+                        } else {
+                            mcpManager.getAllAvailableTools(surfaceAssistant)
+                        }
+                        // Upstream name validation: a server name that isn't pure
+                        // English+digits would produce an invalid `mcp__<name>__tool`
+                        // surface, so surface it as an error rather than emit a tool the
+                        // model can't address.
+                        // 2026-11-07: 原实现在 buildList 的 inline lambda 里用 `return` 中止
+                        // 整条消息；提取成 suspend lambda 后不允许非局部返回，改为跳过 MCP 工具
+                        // 继续构建本地工具——一个 MCP 配置错误不该让整个对话失败。
+                        val invalidNames = raw
+                            .map { it.second }
+                            .distinct()
+                            .filter { name -> name.isEmpty() || !name.all { it in 'a'..'z' || it in 'A'..'Z' || it in '0'..'9' } }
+                        if (invalidNames.isNotEmpty()) {
+                            addError(
+                                error = IllegalStateException(
+                                    context.getString(
+                                        R.string.error_mcp_invalid_server_name,
+                                        invalidNames.joinToString(", ")
+                                    )
+                                ),
+                                conversationId = conversationId,
+                            )
+                            emptyList()
+                        } else {
+                            raw
+                        }
+                    }
+                    if (surfaceAssistant.toolSurfaceMode == ToolSurfaceMode.PROGRESSIVE_CATALOG) {
+                        // T-03 / (1) - progressive tool exposure, now covering BOTH sources.
+                        //
+                        // MCP schemas are expensive by nature (one entry per remote tool, all
+                        // opaque to us). Local tools were originally exempt on the theory that
+                        // they are needed on nearly every turn — but a real device enabled 61
+                        // groups / 196 tools, and serializing all of them on every request was
+                        // a large fixed cost for tools most turns never touch. The split is now
+                        // declared in [LocalToolGroupPolicy]: cheap, constantly-used groups stay
+                        // direct, everything else is searchable. Both sources land in ONE
+                        // catalog so the model has a single discovery surface.
+                        val catalogEntries = buildList {
+                            addAll(localCatalogGroups.flatMap { option -> localCatalogEntries(option, surfaceContext) })
+                            addAll(allMcpTools.map { (serverId, serverName, tool) ->
+                                ToolCatalogEntry(
+                                    name = me.rerere.rikkahub.data.ai.mcp.buildMcpToolName(
+                                        serverId = serverId,
+                                        serverName = serverName,
+                                        toolName = tool.name,
+                                    ),
+                                    summary = mcpCatalogSummary(tool),
+                                    source = ToolCatalogSource.MCP,
+                                    tool = buildMcpTool(serverId, serverName, tool),
+                                )
+                            })
+                        }
+                        val catalog = ToolCatalog(entries = catalogEntries)
+                        val activation = toolActivationFor(conversationId)
+                        // Drop names whose tool disappeared since the last turn so a stale
+                        // activation can never attempt to inject a schema that no longer exists
+                        // (which would 400 the request).
+                        activation.retain(catalog.entries.mapTo(mutableSetOf()) { it.name })
+                        addAll(buildToolCatalogTools(catalog = catalog, activation = activation))
+                        activation.active().forEach { activeName ->
+                            catalog.entry(activeName)?.let { entry -> add(entry.tool) }
+                        }
+                    } else {
+                        allMcpTools.forEach { (serverId, serverName, tool) ->
+                            add(buildMcpTool(serverId, serverName, tool))
+                        }
+                    }
+                }.let { me.rerere.rikkahub.subagent.SubAgentSurface.apply(conversationId, it) }
+            }
+
             generationLoop.generateText(
                 settings = settings,
                 model = model,
@@ -2012,137 +2266,8 @@ class ChatService(
                     add(ContextBudgetReminderTransformer)
                 },
                 outputTransformers = outputTransformers,
-                tools = buildList {
-                    // Synchronise the live dispatch profile before tool resolution so
-                    // subagent_dispatch is registered when the profile != NEVER.
-                    // generateText was the missing third call site (fast-path and
-                    // buildToolsForRerun already do this).
-                    me.rerere.rikkahub.subagent.SubAgentDispatchProfileRules
-                        .setLiveDispatchProfile(settings.subAgentDispatchProfile)
-                    // P2-04 — the child's own tool surface when this conversation is a sub-agent
-                    // run that has one; otherwise this is the resolved assistant itself.
-                    val surfaceAssistant = me.rerere.rikkahub.subagent.SubAgentSurface
-                        .assistantFor(conversationId) ?: assistant
-                    if (useExternalWebSearch) {
-                        addAll(createSearchTools(settings))
-                    }
-                    // The caller context tells context-aware tools (subagent_dispatch
-                    // recursion guard, workflow_create authoring-id) who is calling.
-                    // isHeadless is read from HeadlessConversations — true iff this is a
-                    // cron / sub-agent / workflow / external-automation flow.
-                    addAll(
-                        ToolSurfaceResolver.resolve(
-                            localTools = localTools,
-                            assistant = surfaceAssistant,
-                            context = ToolSurfaceResolver.chatContext(
-                                assistant = surfaceAssistant,
-                                conversationId = conversationId,
-                                model = model,
-                                isHeadless = me.rerere.rikkahub.data.ai.tools.HeadlessConversations
-                                    .isHeadless(conversationId),
-                                appPlaybook = coldMemoryPlaybookReader(surfaceAssistant),
-                            ),
-                        )
-                    )
-                    addAll(createWorkspaceToolsIfReady(surfaceAssistant.workspaceId?.toString(), conversation.workspaceCwd))
-                    // T-06 / (7) - cold memory, mirroring the regenerate path above.
-                    addAll(createColdMemoryToolsIfConfigured(surfaceAssistant))
-                    // 记忆引擎 v1（P2）：四层记忆检索三工具（regenerate 路径同一 surface）。
-                    addAll(memoryEngine.toolsFor(surfaceAssistant))
-                    if (surfaceAssistant.enabledSkills.isNotEmpty()) {
-                        addAll(
-                            createSkillTools(
-                                enabledSkills = surfaceAssistant.enabledSkills,
-                                allSkills = skillManager.listSkills(),
-                                skillManager = skillManager,
-                                disabledSkills = SkillGroupRules.disabledSkillNames(settings.skillGroups),
-                            )
-                        )
-                    }
-                    if (surfaceAssistant.enableCompactContextTool) {
-                        // T-02 / ② - model-initiated compaction. Reuses the manual compress
-                        // pipeline end-to-end (see compactConversationFromTool) instead of
-                        // re-implementing summarisation. Default OFF: when the flag is unset
-                        // the tool list is byte-for-byte what it was before this change.
-                        addAll(
-                            buildCompactionTools(
-                                onCompact = { instructions ->
-                                    compactConversationFromTool(
-                                        conversationId = conversationId,
-                                        conversation = getConversationFlow(conversationId).value,
-                                        settings = settings,
-                                        model = model,
-                                        instructions = instructions,
-                                    )
-                                },
-                            )
-                        )
-                    }
-                    // P2-04 — an inherited child (surfaceAssistant === assistant) keeps the
-                    // global current-assistant MCP resolution; an explicitly surfaced child
-                    // resolves MCP against its own assistant.
-                    val allMcpTools = (if (surfaceAssistant === assistant) {
-                        mcpManager.getAllAvailableTools()
-                    } else {
-                        mcpManager.getAllAvailableTools(surfaceAssistant)
-                    }).also { allTools ->
-                        // Upstream name validation: a server name that isn't pure
-                        // English+digits would produce an invalid `mcp__<name>__tool`
-                        // surface, so surface it as an error rather than emit a tool the
-                        // model can't address.
-                        val invalidNames = allTools
-                            .map { it.second }
-                            .distinct()
-                            .filter { name -> name.isEmpty() || !name.all { it in 'a'..'z' || it in 'A'..'Z' || it in '0'..'9' } }
-                        if (invalidNames.isNotEmpty()) {
-                            addError(
-                                error = IllegalStateException(
-                                    context.getString(
-                                        R.string.error_mcp_invalid_server_name,
-                                        invalidNames.joinToString(", ")
-                                    )
-                                ),
-                                conversationId = conversationId,
-                            )
-                            return
-                        }
-                    }
-                    if (surfaceAssistant.toolSurfaceMode == ToolSurfaceMode.PROGRESSIVE_CATALOG) {
-                        // T-03 / (1) - progressive tool exposure. MCP schemas are the expensive
-                        // part of the surface (one entry per remote tool, all of them opaque to
-                        // us), so in this mode they are replaced by a two-tool discovery pair.
-                        // Local/workspace/skill tools stay directly attached: they are the ones
-                        // the model needs on nearly every turn, and keeping them stable is also
-                        // what keeps the prompt prefix cacheable.
-                        val mcpCatalog = ToolCatalog(
-                            entries = allMcpTools.map { (serverId, serverName, tool) ->
-                                ToolCatalogEntry(
-                                    name = me.rerere.rikkahub.data.ai.mcp.buildMcpToolName(
-                                        serverId = serverId,
-                                        serverName = serverName,
-                                        toolName = tool.name,
-                                    ),
-                                    summary = mcpCatalogSummary(tool),
-                                    source = ToolCatalogSource.MCP,
-                                    tool = buildMcpTool(serverId, serverName, tool),
-                                )
-                            },
-                        )
-                        val activation = toolActivationFor(conversationId)
-                        // Drop names whose server/tool disappeared since the last turn so a
-                        // stale activation can never attempt to inject a schema that no longer
-                        // exists (which would 400 the request).
-                        activation.retain(mcpCatalog.entries.mapTo(mutableSetOf()) { it.name })
-                        addAll(buildToolCatalogTools(catalog = mcpCatalog, activation = activation))
-                        activation.active().forEach { activeName ->
-                            mcpCatalog.entry(activeName)?.let { entry -> add(entry.tool) }
-                        }
-                    } else {
-                        allMcpTools.forEach { (serverId, serverName, tool) ->
-                            add(buildMcpTool(serverId, serverName, tool))
-                        }
-                    }
-                }.let { me.rerere.rikkahub.subagent.SubAgentSurface.apply(conversationId, it) },
+                tools = buildSurfaceTools(),
+                refreshTools = buildSurfaceTools,
                 continuationFromPartial = continuationFromPartial,
             ).onCompletion { completionCause ->
                 // 本轮结束时仍有未消费的插话（通常是最后一个 chunk 之后才到）：
@@ -2324,10 +2449,7 @@ class ChatService(
             val routedModel = modelRouter.nextRouteCandidate(
                 favorites = settings.favoriteModels,
                 findModel = { id -> settings.findModelById(id) },
-                isUsable = { m ->
-                    m.id != DEFAULT_AUTO_MODEL_ID &&
-                        m.findProvider(settings.providers)?.enabled == true
-                },
+                isUsable = { m -> m.findProvider(settings.providers)?.enabled == true },
                 exclude = routeExclude,
             )
             if (routedModel != null) {
@@ -3269,6 +3391,12 @@ class ChatService(
         // Reserve roughly one third of the configured target for a deterministic ledger of
         // completed tool results. This remains in the request even if the model's prose summary
         // ignores a tool record.
+        // Spill every retained tool payload that is large enough to be summarized away, BEFORE
+        // the digest is built. The digest embeds a /tool_outputs/ccr-<handle>.txt pointer per
+        // record; those pointers are only honest if the files exist. Doing this here (rather
+        // than inside the planner) keeps the planner pure and keeps the write off the request
+        // path when compaction is not running.
+        spillRetainedToolOutputs(messagesToCompress)
         val toolDigest = ContextCompactionPlanner.mandatoryToolExecutionDigest(
             messages = messagesToCompress,
             maxTokens = (targetTokens / 3).coerceAtLeast(1),

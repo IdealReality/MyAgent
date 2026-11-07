@@ -166,6 +166,7 @@ val dataSourceModule = module {
             conversationRepo = get(),
             aiLoggingManager = get(),
             systemPromptBuilder = get(),
+            pluginRegistry = get(),
         )
     }
 
@@ -414,15 +415,6 @@ val dataSourceModule = module {
                     client = get(named("gemini")),
                     repository = get<GeminiAccountRepository>(),
                     json = json,
-                )
-            )
-            // Agents Anywhere：远端 agent 直接作为一个 provider（不是一个工具面）。
-            pm.registerProvider(
-                "agents_anywhere",
-                me.rerere.rikkahub.data.agentsanywhere.AgentsAnywhereProvider(
-                    client = get(),
-                    json = json,
-                    sessions = get<me.rerere.rikkahub.data.agentsanywhere.AgentsAnywhereSessionStore>(),
                 )
             )
         }

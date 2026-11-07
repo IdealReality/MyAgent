@@ -22,7 +22,6 @@ import me.rerere.rikkahub.utils.EmojiData
 import me.rerere.rikkahub.utils.EmojiUtils
 import me.rerere.rikkahub.utils.JsonInstant
 import me.rerere.rikkahub.utils.SoundEffectPlayer
-import me.rerere.rikkahub.utils.UpdateChecker
 import me.rerere.rikkahub.web.WebServerManager
 import me.rerere.tts.provider.TTSManager
 import org.koin.dsl.module
@@ -100,7 +99,6 @@ val appModule = module {
     }
 
     // Phase 14: Reliability bundle
-    single { me.rerere.rikkahub.reliability.GitHubReleaseChecker(get()) }
     single { me.rerere.rikkahub.reliability.BugReportBuilder(get()) }
 
     // Phase 11: Sub-agents
@@ -202,7 +200,6 @@ val appModule = module {
             notificationListenerPreferences = get(),
             mcpManager = get(),
             externalAutomationConfig = get(),
-            gitHubReleaseChecker = get(),
             bugReportBuilder = get(),
             agentDefinitionRepository = get(),
             subAgentEngine = get(),
@@ -225,17 +222,6 @@ val appModule = module {
             providerManager = get(),
             filesManager = get(),
             genMediaRepository = get(),
-        )
-    }
-
-    single { me.rerere.rikkahub.data.agentsanywhere.AgentsAnywhereSessionStore(get()) }
-
-    single {
-        UpdateChecker(
-            client = get(),
-            appScope = get(),
-            // No self-hosted UPDATE_API_URL in this fork — the card reads GitHub Releases.
-            githubReleases = get(),
         )
     }
 
@@ -267,6 +253,36 @@ val appModule = module {
     single { me.rerere.locallm.LocalRuntimePreferences(get()) }
     single { me.rerere.locallm.litert.LiteRtRuntime(get()) }
     single { me.rerere.llamacpp.LlamaCppRuntime() }
+
+    // P2-40 — plugin kernel. One store + one registry for the process: the registry is the
+    // single place that parses plugin dirs, so tools, prompt and the admin surface all see
+    // the same snapshot within a turn.
+    single {
+        val context: android.content.Context = get()
+        val json: kotlinx.serialization.json.Json = get()
+        val store = me.rerere.rikkahub.plugin.PluginStore(
+            rootDir = java.io.File(context.filesDir, "plugins"),
+            json = json,
+        )
+        val bridge = me.rerere.rikkahub.plugin.PluginHostToolBridge()
+        val runtime = me.rerere.rikkahub.plugin.PluginJsRuntime(
+            store = store,
+            json = json,
+            httpClientProvider = { get<okhttp3.OkHttpClient>() },
+            hostToolInvoker = { name, args ->
+                bridge.invoker?.invoke(name, args)
+                    ?: """{"ok":false,"error":"host tool bridge not ready"}"""
+            },
+        )
+        me.rerere.rikkahub.plugin.PluginRegistry(
+            store = store,
+            runtime = runtime,
+            json = json,
+            hostToolBridge = bridge,
+            seeder = { me.rerere.rikkahub.plugin.PluginSamples.seedIfEmpty(context, it) },
+            imageResolver = { b64 -> me.rerere.rikkahub.plugin.pluginImageUrl(context, b64) },
+        )
+    }
 
     single {
         ChatToolFactory(
@@ -303,6 +319,18 @@ val appModule = module {
         )
     }
 
+    // One handler per process, not per connection: it owns the change-listener registry that
+    // fans `hosts_changed` out to every open socket.
+    single {
+        me.rerere.rikkahub.web.SshHostSocketHandler(
+            backend = me.rerere.rikkahub.web.RepositorySshHostBackend(
+                context = get(),
+                repository = get(),
+            ),
+            json = get<Json>(),
+        )
+    }
+
     single {
         WebServerManager(
             context = get(),
@@ -311,7 +339,8 @@ val appModule = module {
             conversationRepo = get(),
             folderRepo = get(),
             settingsStore = get(),
-            filesManager = get()
+            filesManager = get(),
+            sshHostSocket = get()
         )
     }
 

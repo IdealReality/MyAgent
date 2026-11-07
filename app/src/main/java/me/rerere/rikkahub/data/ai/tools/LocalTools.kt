@@ -380,7 +380,6 @@ class LocalTools(
     private val notificationListenerPreferences: me.rerere.rikkahub.data.notifications.NotificationListenerPreferences,
     private val mcpManager: me.rerere.rikkahub.data.ai.mcp.McpManager,
     private val externalAutomationConfig: me.rerere.rikkahub.automation.ExternalAutomationConfig,
-    private val gitHubReleaseChecker: me.rerere.rikkahub.reliability.GitHubReleaseChecker,
     private val bugReportBuilder: me.rerere.rikkahub.reliability.BugReportBuilder,
     // P2-06b — the expert library. Read as a blocking snapshot at tool-construction time (this
     // factory is not suspend) to list the experts `subagent_dispatch` may name, to feed
@@ -990,10 +989,6 @@ class LocalTools(
             tools.add(me.rerere.rikkahub.automation.externalAutomationAddTrustedPackageTool(externalAutomationConfig))
             tools.add(me.rerere.rikkahub.automation.externalAutomationRemoveTrustedPackageTool(externalAutomationConfig))
         }
-        // Built-in update check: always on, never a user toggle and never listed in the
-        // per-tool overrides (see [HIDDEN_TOOL_NAMES]) — it backs the app's own update
-        // path, not an optional capability. The Reliability group keeps only bug reports.
-        tools.add(me.rerere.rikkahub.reliability.checkAppUpdatesTool(gitHubReleaseChecker))
         if (options.contains(LocalToolOption.Reliability)) {
             tools.add(me.rerere.rikkahub.reliability.generateBugReportTool(context, bugReportBuilder))
         }

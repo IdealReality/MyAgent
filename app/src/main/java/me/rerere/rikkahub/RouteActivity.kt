@@ -61,6 +61,9 @@ import kotlinx.serialization.Serializable
 import me.rerere.rikkahub.data.datastore.SettingsStore
 import me.rerere.rikkahub.data.datastore.DEFAULT_CODEX_PROVIDER_ID
 import me.rerere.rikkahub.data.datastore.DEFAULT_GEMINI_OAUTH_PROVIDER_ID
+import me.rerere.ai.provider.ProviderSetting
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.launch
 import me.rerere.rikkahub.data.db.DatabaseMigrationTracker
 import me.rerere.rikkahub.data.db.MigrationState
 import me.rerere.rikkahub.data.event.AppEvent
@@ -94,6 +97,7 @@ import me.rerere.rikkahub.ui.pages.developer.DeveloperPage
 import me.rerere.rikkahub.ui.pages.extensions.ExtensionsPage
 import me.rerere.rikkahub.ui.pages.extensions.PromptPage
 import me.rerere.rikkahub.ui.pages.extensions.QuickMessagesPage
+import me.rerere.rikkahub.ui.pages.extensions.plugins.PluginsPage
 import me.rerere.rikkahub.ui.pages.extensions.skills.SkillDetailPage
 import me.rerere.rikkahub.ui.pages.extensions.skills.SkillsPage
 import me.rerere.rikkahub.ui.pages.gettingstarted.GETTING_STARTED_SEEN_KEY
@@ -131,10 +135,10 @@ import me.rerere.rikkahub.ui.pages.setting.SettingSearchDetailPage
 import me.rerere.rikkahub.ui.pages.setting.SettingSearchPage
 import me.rerere.rikkahub.ui.pages.setting.SettingsSearchPage
 import me.rerere.rikkahub.ui.pages.setting.SettingSpeechPage
-import me.rerere.rikkahub.ui.pages.setting.SettingSponsorPage
 import me.rerere.rikkahub.ui.pages.setting.SettingSubAgentsPage
 // P2-32 ssh hosts page
 import me.rerere.rikkahub.ui.pages.setting.SettingSshPage
+import me.rerere.rikkahub.ui.pages.setting.SshTerminalPage
 import me.rerere.rikkahub.ui.pages.setting.SettingSecretsPage
 import me.rerere.rikkahub.ui.pages.setting.SettingTelegramPage
 import me.rerere.rikkahub.ui.pages.setting.SettingWebPage
@@ -238,21 +242,53 @@ class RouteActivity : ComponentActivity() {
         handleIntent(intent)
     }
 
+    /**
+     * 打开 OAuth 服务商详情页，必要时先补一行。
+     *
+     * 只在 id 缺失时创建，已有行（老用户从预置版本升上来、或删掉后重新登录）原样复用，
+     * 不会覆盖已填的模型列表。
+     */
+    private fun openOAuthProvider(
+        providerId: Uuid,
+        backStack: MutableList<NavKey>,
+        create: (Uuid) -> ProviderSetting,
+    ) {
+        val open = {
+            val destination = Screen.SettingProviderDetail(providerId.toString())
+            if (backStack.lastOrNull() != destination) backStack.add(destination)
+        }
+        if (settingsStore.settingsFlow.value.providers.any { it.id == providerId }) {
+            open()
+            return
+        }
+        lifecycleScope.launch {
+            settingsStore.update { old ->
+                if (old.providers.any { it.id == providerId }) old
+                else old.copy(providers = old.providers + create(providerId))
+            }
+            open()
+        }
+    }
+
     private fun handleIntent(intent: Intent) {
         val backStack = navStack ?: run {
             // Compose hasn't created the nav back stack yet; process once it's ready.
             pendingIntents.addLast(intent)
             return
         }
+        // OAuth 回调只知道「登录成功了」，靠稳定 id 找回对应的服务商行。应用不再预置服务商，
+        // 所以用户第一次走登录时列表里根本没有这一行——不补建的话详情页找不到 id 会直接
+        // return，用户看到的是「登录成功后闪回白屏」。补建在写入生效后再入栈，避免详情页
+        // 先渲染一次空状态。
         if (intent.getBooleanExtra(EXTRA_OPEN_CODEX_SETTINGS, false)) {
-            val destination = Screen.SettingProviderDetail(DEFAULT_CODEX_PROVIDER_ID.toString())
-            if (backStack.lastOrNull() != destination) backStack.add(destination)
             intent.removeExtra(EXTRA_OPEN_CODEX_SETTINGS)
+            openOAuthProvider(DEFAULT_CODEX_PROVIDER_ID, backStack) { ProviderSetting.Codex(id = it) }
         }
         if (intent.getBooleanExtra(EXTRA_OPEN_GEMINI_SETTINGS, false)) {
-            val destination = Screen.SettingProviderDetail(DEFAULT_GEMINI_OAUTH_PROVIDER_ID.toString())
-            if (backStack.lastOrNull() != destination) backStack.add(destination)
             intent.removeExtra(EXTRA_OPEN_GEMINI_SETTINGS)
+            openOAuthProvider(DEFAULT_GEMINI_OAUTH_PROVIDER_ID, backStack) {
+                ProviderSetting.GeminiOAuth(id = it)
+            }
         }
         // A page the quick-chat panel could not open itself — tapping the eye on a code block
         // there. The panel hands the content id over rather than pushing the screen onto a stack
@@ -516,10 +552,6 @@ class RouteActivity : ComponentActivity() {
                                 SettingAboutPage()
                             }
 
-                            entry<Screen.SettingSponsor> {
-                                SettingSponsorPage()
-                            }
-
                             entry<Screen.SettingSearch> {
                                 SettingSearchPage()
                             }
@@ -543,6 +575,10 @@ class RouteActivity : ComponentActivity() {
 
                             entry<Screen.SettingSsh> {
                                 SettingSshPage()
+                            }
+
+                            entry<Screen.SshTerminal> { key ->
+                                SshTerminalPage(hostName = key.hostName)
                             }
 
                             entry<Screen.SettingSecrets> {
@@ -639,6 +675,10 @@ class RouteActivity : ComponentActivity() {
 
                             entry<Screen.Skills> {
                                 SkillsPage()
+                            }
+
+                            entry<Screen.Plugins> {
+                                PluginsPage()
                             }
 
                             entry<Screen.Workspaces> {
@@ -820,9 +860,6 @@ sealed interface Screen : NavKey {
     data object SettingAbout : Screen
 
     @Serializable
-    data object SettingSponsor : Screen
-
-    @Serializable
     data object SettingSearch : Screen
 
     @Serializable
@@ -839,6 +876,9 @@ sealed interface Screen : NavKey {
 
     @Serializable
     data object SettingSsh : Screen
+
+    @Serializable
+    data class SshTerminal(val hostName: String) : Screen
 
     @Serializable
     data object SettingSecrets : Screen
@@ -911,6 +951,9 @@ sealed interface Screen : NavKey {
 
     @Serializable
     data object Skills : Screen
+
+    @Serializable
+    data object Plugins : Screen
 
     @Serializable
     data object Workspaces : Screen

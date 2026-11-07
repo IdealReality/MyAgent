@@ -18,7 +18,20 @@ import me.rerere.ai.ui.UIMessagePart
 // catalog summaries of the same length this file enforces when it serialises search hits.
 internal const val TOOL_CATALOG_MAX_SEARCH_RESULTS = 8
 internal const val TOOL_CATALOG_MAX_OPEN_PER_CALL = 4
-internal const val TOOL_CATALOG_MAX_ACTIVE_SCHEMAS = 6
+// Raised from 6. The old value equalled the count a session pre-loads, so tool_open could
+// never activate anything: every call came back rejectedOverCap and the model was left
+// improvising without the tool it had just found. 20 leaves room for the pre-loaded set plus
+// the extra tools a long session actually reaches for.
+internal const val TOOL_CATALOG_MAX_ACTIVE_SCHEMAS = 20
+
+/**
+ * How many search hits are activated without an explicit `tool_open`.
+ *
+ * Two, not more: each activated schema is real tokens on every subsequent request, and a
+ * search that returns eight plausible names rarely means "I want all eight". The cap also
+ * keeps `tool_search` inside the same per-call activation budget `tool_open` obeys.
+ */
+internal const val TOOL_CATALOG_AUTO_ACTIVATE_LIMIT = 2
 internal const val TOOL_CATALOG_MAX_SUMMARY_CHARS = 180
 
 /**
@@ -109,6 +122,15 @@ data class ToolSearchOutcome(
     val hits: List<ToolSearchHit>,
     val total: Int,
     val truncated: Boolean,
+    /**
+     * Names activated as a side effect of this search.
+     *
+     * Searching for a tool and then having to call `tool_open` before it can be used costs a
+     * whole round-trip for information the search already had. The top hits are therefore
+     * activated immediately; `tool_open` remains for the cases the search could not predict
+     * (and for re-activating after the cap evicted something).
+     */
+    val autoActivated: List<String> = emptyList(),
 ) {
     fun toJson(): String = Json.encodeToString(
         JsonObject.serializer(),
@@ -123,6 +145,14 @@ data class ToolSearchOutcome(
                     put("source", hit.source.name)
                 }
             }))
+            if (autoActivated.isNotEmpty()) {
+                put("autoActivated", JsonArray(autoActivated.map { JsonPrimitive(it) }))
+                put(
+                    "note",
+                    "The top matches were activated automatically and are callable from your " +
+                        "NEXT turn. Use tool_open only for names not activated here.",
+                )
+            }
             if (hits.isEmpty()) {
                 put("note", "No tools matched. Try different keywords, or use broader terms.")
             }
@@ -135,6 +165,35 @@ data class ToolSearchOutcome(
  * only for the lifetime of the conversation, which is exactly the "progressive"
  * contract (activation is per-session state, not data).
  */
+/**
+ * Result of one tool_close call - the inverse bookkeeping of [ToolOpenOutcome], so the
+ * model can tell "released", "you never opened that" and "no such tool" apart.
+ *
+ * 2026-11-07: this type did not exist. tool_close had no schema, no method and no result
+ * type; only the open half of the progressive-catalog contract was implemented, which made
+ * the cap a one-way ratchet.
+ */
+data class ToolCloseOutcome(
+    val closed: List<String>,
+    val notActive: List<String>,
+    val unknown: List<String>,
+    val activeCount: Int,
+) {
+    fun toJson(): String = Json.encodeToString(
+        JsonObject.serializer(),
+        buildJsonObject {
+            put("closed", JsonArray(closed.map { JsonPrimitive(it) }))
+            put("notActive", JsonArray(notActive.map { JsonPrimitive(it) }))
+            put("unknown", JsonArray(unknown.map { JsonPrimitive(it) }))
+            put("activeCount", activeCount)
+            put(
+                "note",
+                "Released schemas stop being sent from the next turn; the slots are free now.",
+            )
+        },
+    )
+}
+
 class ToolActivationState {
     private val lock = Any()
     private val activeNames = LinkedHashSet<String>()
@@ -190,6 +249,37 @@ class ToolActivationState {
             activeCount = activeNames.size,
         )
     }
+
+    /**
+     * Release the names in [names] - the inverse of activate().
+     *
+     * 2026-11-07: both this method and the tool_close registration were missing.
+     * ToolCloseOutcome existed with a toJson() but had no producer, so an activated
+     * schema could never be released short of a process restart, and the cap could only
+     * ever fill up.
+     */
+    fun close(catalog: ToolCatalog, names: List<String>): ToolCloseOutcome = synchronized(lock) {
+        val closed = mutableListOf<String>()
+        val notActive = mutableListOf<String>()
+        val unknown = mutableListOf<String>()
+        for (name in names) {
+            if (catalog.entry(name) == null) {
+                unknown.add(name)
+                continue
+            }
+            if (activeNames.remove(name)) {
+                closed.add(name)
+            } else {
+                notActive.add(name)
+            }
+        }
+        ToolCloseOutcome(
+            closed = closed,
+            notActive = notActive,
+            unknown = unknown,
+            activeCount = activeNames.size,
+        )
+    }
 }
 
 /**
@@ -208,9 +298,9 @@ fun buildToolCatalogTools(
         description = """
             Search the tool catalog by keyword and return matching tool names with short
             summaries. Use this whenever you are unsure which tools exist. It returns
-            names and summaries ONLY — never schemas or parameters. To actually call a
-            tool, first activate it with tool_open; activation takes effect on your NEXT
-            turn, not the current one.
+            names and summaries — never full schemas. The strongest matches are activated
+            automatically (see the autoActivated field); anything else needs tool_open.
+            Activation takes effect on your NEXT turn, not the current one.
         """.trimIndent(),
         parameters = {
             InputSchema.Obj(
@@ -227,10 +317,18 @@ fun buildToolCatalogTools(
             val query = it.jsonObject["query"]?.jsonPrimitive?.contentOrNull.orEmpty()
             val all = catalog.matchAll(query)
             val limited = all.take(TOOL_CATALOG_MAX_SEARCH_RESULTS)
+            // Activate the strongest hits immediately. The caller then needs only one
+            // round-trip (search) instead of two (search, then open) for the common case of
+            // "I know roughly what I need and the search found it".
+            val activationOutcome = activation.activate(
+                catalog = catalog,
+                names = limited.take(TOOL_CATALOG_AUTO_ACTIVATE_LIMIT).map { e -> e.name },
+            )
             val outcome = ToolSearchOutcome(
                 hits = limited.map { e -> ToolSearchHit(e.name, e.summary, e.source) },
                 total = all.size,
                 truncated = all.size > limited.size,
+                autoActivated = activationOutcome.activated,
             )
             listOf(UIMessagePart.Text(outcome.toJson()))
         },
@@ -257,6 +355,31 @@ fun buildToolCatalogTools(
         execute = {
             val names = parseNames(it)
             listOf(UIMessagePart.Text(activation.activate(catalog, names).toJson()))
+        },
+    ),
+    Tool(
+        name = "tool_close",
+        description = """
+            Release tools you no longer need, freeing a slot for this conversation. Use this
+            when you are done with a capability and the active set is getting large, or before
+            tool_open if the cap is already held. The slot frees NOW, so a tool_open in the same
+            turn can reuse it.
+        """.trimIndent(),
+        parameters = {
+            InputSchema.Obj(
+                properties = buildJsonObject {
+                    put("names", buildJsonObject {
+                        put("type", "array")
+                        put("items", buildJsonObject { put("type", "string") })
+                        put("description", "Exact tool names to release.")
+                    })
+                },
+                required = listOf("names"),
+            )
+        },
+        execute = {
+            val names = parseNames(it)
+            listOf(UIMessagePart.Text(activation.close(catalog, names).toJson()))
         },
     ),
 )

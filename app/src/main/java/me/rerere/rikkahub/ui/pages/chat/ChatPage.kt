@@ -4,6 +4,7 @@ import android.net.Uri
 import android.os.Build
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -11,6 +12,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyListState
@@ -35,6 +37,7 @@ import androidx.compose.material3.adaptive.currentWindowDpSize
 import androidx.compose.material3.rememberBottomSheetState
 import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
@@ -62,15 +65,13 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.dokar.sonner.ToastType
-import dev.chrisbanes.haze.HazeInput
 import dev.chrisbanes.haze.HazeState
-import dev.chrisbanes.haze.glass.hazeGlass
 import dev.chrisbanes.haze.hazeSource
 import dev.chrisbanes.haze.rememberHazeState
-import me.rerere.rikkahub.ui.components.ui.rikkaGlassStyle
-import me.rerere.rikkahub.ui.components.ui.frostedPlate
-import me.rerere.rikkahub.ui.components.ui.frostedPlateSpec
+import me.rerere.rikkahub.ui.components.ui.PushDrawerContent
+import me.rerere.rikkahub.ui.components.ui.conversationDrawerWidthFor
 import me.rerere.rikkahub.ui.theme.LocalDarkMode
+import me.rerere.rikkahub.ui.theme.Motion
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -148,6 +149,9 @@ fun ChatPage(id: Uuid, text: String?, files: List<Uri>, nodeId: Uuid? = null) {
     val mergedStatus = listOfNotNull(processingStatus, subAgentStatus)
         .joinToString(separator = "  ·  ")
         .ifBlank { null }
+    val activeSubAgentCount = subAgentRuns.values.count {
+        it.status == SubAgentStatus.RUNNING || it.status == SubAgentStatus.PENDING
+    }
 
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     // 与抽屉共享同一个 activity 级 ChatDrawerVM，返回键才能先退出多选而不是关掉抽屉。
@@ -247,6 +251,9 @@ fun ChatPage(id: Uuid, text: String?, files: List<Uri>, nodeId: Uuid? = null) {
         }
     }
 
+    // 抽屉宽度与聊天页被推开的距离必须同一个值（moxw 的 PushDrawerContent 约定）。
+    val conversationDrawerWidth = conversationDrawerWidthFor(windowAdaptiveInfo.width)
+
     val chatListState = rememberLazyListState()
     LaunchedEffect(nodeId, conversation.messageNodes.size) {
         if (!vm.chatListInitialized && conversation.messageNodes.isNotEmpty()) {
@@ -272,6 +279,7 @@ fun ChatPage(id: Uuid, text: String?, files: List<Uri>, nodeId: Uuid? = null) {
                         vm = vm,
                         settings = setting,
                         hazeState = hazeState,
+                        drawerWidth = conversationDrawerWidth,
                     )
                 }
             ) {
@@ -280,6 +288,7 @@ fun ChatPage(id: Uuid, text: String?, files: List<Uri>, nodeId: Uuid? = null) {
                     inputState = inputState,
                     loadingJob = loadingJob,
                     processingStatus = mergedStatus,
+                    subAgentCount = activeSubAgentCount,
                     setting = setting,
                     conversation = conversation,
                     drawerState = drawerState,
@@ -300,6 +309,9 @@ fun ChatPage(id: Uuid, text: String?, files: List<Uri>, nodeId: Uuid? = null) {
         else -> {
             ModalNavigationDrawer(
                 drawerState = drawerState,
+                // 不加遮罩：这一叠里聊天页是在上层的盖板，把盖板压暗就又把两层压回一层了。
+                // 抽屉自己会压暗面色，点击遮罩关闭的行为不受影响（M3 照样合成遮罩，只是颜色透明）。
+                scrimColor = Color.Transparent,
                 drawerContent = {
                     ChatDrawerContent(
                         navController = navController,
@@ -307,14 +319,21 @@ fun ChatPage(id: Uuid, text: String?, files: List<Uri>, nodeId: Uuid? = null) {
                         vm = vm,
                         settings = setting,
                         hazeState = hazeState,
+                        drawerWidth = conversationDrawerWidth,
                     )
                 }
             ) {
+                // 推卡片：抽屉滑出时聊天页被同时推开一个抽屉宽度，前缘圆角收成一张叠在上面的卡。
+                PushDrawerContent(
+                    drawerState = drawerState,
+                    drawerWidth = conversationDrawerWidth,
+                ) {
                 ChatPageContent(
                     onStartVoiceMode = startVoiceMode,
                     inputState = inputState,
                     loadingJob = loadingJob,
                     processingStatus = mergedStatus,
+                    subAgentCount = activeSubAgentCount,
                     setting = setting,
                     conversation = conversation,
                     drawerState = drawerState,
@@ -329,6 +348,7 @@ fun ChatPage(id: Uuid, text: String?, files: List<Uri>, nodeId: Uuid? = null) {
                     onDismissError = { vm.dismissError(it) },
                     onClearAllErrors = { vm.clearAllErrors() },
                 )
+                }
             }
             BackHandler(enabled = drawerState.isOpen && multiSelectActive) {
                 drawerVm.requestExitMultiSelect()
@@ -381,6 +401,7 @@ private fun ChatPageContent(
     inputState: ChatInputState,
     loadingJob: Job?,
     processingStatus: String? = null,
+    subAgentCount: Int = 0,
     setting: Settings,
     bigScreen: Boolean,
     conversation: Conversation,
@@ -482,6 +503,31 @@ private fun ChatPageContent(
             bottomBar = {
                 val messageQueue by vm.messageQueue.collectAsStateWithLifecycle()
                 val voiceState by vm.voiceSession.state.collectAsStateWithLifecycle()
+                // The dissolve rides with the bar (it moves up with the IME), so it is drawn from
+                // inside the bottom bar and offset out of its own layout slot — anchoring it in the
+                // content area instead pushed it into the middle of the screen when the keyboard
+                // opened, because the bar's measured height then includes the IME inset.
+                Box {
+                BottomDissolve(
+                    setting = setting,
+                    modifier = Modifier
+                        .align(Alignment.TopCenter)
+                        .offset(y = -BottomDissolveHeight),
+                )
+                Column {
+                // 排版跟随 moxw：输入条上方是一条常驻的状态 / 快捷动作行——生成中显示进度与停止，
+                // 空会话时给四个起步提示。此前这一条完全没有，输入框直接贴在消息流底部。
+                ChatPageQuickActions(
+                    loading = loadingJob != null,
+                    processingStatus = listOfNotNull(processingStatus),
+                    showQuickStart = conversation.currentMessages.isEmpty(),
+                    subAgentCount = subAgentCount,
+                    onStop = vm::stopGeneration,
+                    onPromptSelected = { prompt ->
+                        inputState.editingMessage = null
+                        inputState.setMessageText(prompt)
+                    },
+                )
                 ChatInput(
                     onStartVoiceMode = onStartVoiceMode,
                     voiceState = voiceState,
@@ -582,6 +628,8 @@ private fun ChatPageContent(
                         showFilesSheet = true
                     },
                 )
+                }
+                }
             },
             containerColor = Color.Transparent,
         ) { innerPadding ->
@@ -700,7 +748,6 @@ private fun ChatPageContent(
                     darkTheme = darkTheme,
                     photoShown = photoShown,
                 )
-                val bottomFade = bottomBarFade(darkTheme = darkTheme, photoShown = photoShown)
                 val fadeColor = MaterialTheme.colorScheme.background
                 val cleanLayout = setting.displaySetting.cleanLayout
 
@@ -732,23 +779,22 @@ private fun ChatPageContent(
                     )
                 }
 
-                // Bottom dissolve: smooth fade-out as messages slide down toward the bottom bar.
-                val bottomBarHeight = innerPadding.calculateBottomPadding()
-                val bottomFadeExtension = 48.dp
-                val bottomFadeHeight = bottomBarHeight + bottomFadeExtension
-                Box(
-                    modifier = Modifier
-                        .align(Alignment.BottomCenter)
-                        .fillMaxWidth()
-                        .height(bottomFadeHeight)
-                        .background(
-                            Brush.verticalGradient(
-                                0f to Color.Transparent,
-                                (bottomFadeExtension / bottomFadeHeight).coerceIn(0.2f, 0.6f) to
-                                    fadeColor.copy(alpha = bottomFade.midAlpha),
-                                1f to fadeColor.copy(alpha = bottomFade.bottomAlpha),
-                            )
-                        )
+                // 顶栏收起进度：列表上滚 96dp 内从 0 到 1。底色、元信息行、位移共用这一条曲线，
+                // 滚动停下时不会出现「底已经实了、副标题还在」的错位。
+                val topBarCollapseTarget by remember(chatListState) {
+                    derivedStateOf {
+                        val index = chatListState.firstVisibleItemIndex
+                        if (index > 0) {
+                            1f
+                        } else {
+                            (chatListState.firstVisibleItemScrollOffset / 96f).coerceIn(0f, 1f)
+                        }
+                    }
+                }
+                val topBarCollapse by animateFloatAsState(
+                    targetValue = topBarCollapseTarget,
+                    animationSpec = Motion.emphasis(),
+                    label = "topBarCollapse",
                 )
 
                 Box(
@@ -771,6 +817,7 @@ private fun ChatPageContent(
                             )
                         }
                     } else TopBar(
+                        collapseFraction = topBarCollapse,
                         settings = setting,
                         conversation = conversation,
                         turnFooters = turnFooters,
@@ -887,6 +934,9 @@ private fun ChatFilesPickerSheet(
 
 @Composable
 private fun TopBar(
+    // 收起进度：底色浓度与元信息行共用同一个值（moxw 的做法），滚动停下时不会出现
+    // 「底已经实了但副标题还在」的错位。
+    collapseFraction: Float = 0f,
     settings: Settings,
     conversation: Conversation,
     turnFooters: Map<String, TurnFooter>,
@@ -903,15 +953,17 @@ private fun TopBar(
     val activity = LocalContext.current as ComponentActivity
     val drawerVm: ChatDrawerVM = koinViewModel(viewModelStoreOwner = activity)
 
+    // 收起时给顶栏一层极淡的 surface 底：滚上去的消息在顶栏下方渐隐，但顶栏本身要能从
+    // 满屏正文里分出来。26% 是 moxw 的取值——比实心一条更接近 rikkahub 原版的通顶观感。
+    val barColor = Color.Transparent
     TopAppBar(
-        colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
+        colors = TopAppBarDefaults.topAppBarColors(containerColor = barColor),
         navigationIcon = {
             if (!bigScreen) {
-                GlassTopBarButton(
+                ChatTopBarButton(
                     onClick = {
                         scope.launch { drawerState.open() }
                     },
-                    hazeState = hazeState,
                 ) {
                     Icon(HugeIcons.Menu03, stringResource(R.string.menu))
                 }
@@ -933,10 +985,9 @@ private fun TopBar(
                     assistant.useGradientBackground,
                 ),
             )
-            // API 31+: a frosted pill, the same full rounding as the glass buttons beside it.
-            // Older devices keep the flat 0.86 plate.
-            val titleFrost = frostedPlateSpec(titleOnPhoto, Build.VERSION.SDK_INT)
-            val titleShape = if (titleFrost != null) RoundedCornerShape(percent = 50) else RoundedCornerShape(12.dp)
+            // 画风收敛：标题不再做磨砂药丸。有壁纸时退回 rikkahub 原版那种「半透明实心色块」，
+            // 没有壁纸就完全透明——磨砂在纯色背景下没有可模糊的东西，只会让标题看起来发灰。
+            val titleShape = RoundedCornerShape(12.dp)
             Surface(
                 onClick = {
                     if (conversation.messageNodes.isNotEmpty()) {
@@ -945,23 +996,18 @@ private fun TopBar(
                         toaster.show(editTitleWarning, type = ToastType.Warning)
                     }
                 },
-                modifier = if (titleFrost != null) {
-                    Modifier.frostedPlate(hazeState, titleShape, titleFrost)
-                } else {
-                    Modifier
-                },
                 shape = titleShape,
-                color = if (titleOnPhoto && titleFrost == null) {
+                color = if (titleOnPhoto) {
                     MaterialTheme.colorScheme.surface.copy(alpha = PHOTO_TITLE_PLATE_ALPHA)
                 } else {
                     Color.Transparent
                 },
             ) {
                 Column(
-                    modifier = when {
-                        titleFrost != null -> Modifier.padding(horizontal = 14.dp, vertical = 2.dp)
-                        titleOnPhoto -> Modifier.padding(horizontal = 10.dp, vertical = 2.dp)
-                        else -> Modifier
+                    modifier = if (titleOnPhoto) {
+                        Modifier.padding(horizontal = 10.dp, vertical = 2.dp)
+                    } else {
+                        Modifier
                     },
                 ) {
                     val model = settings.resolveChatModel(conversation.chatModelId, conversation.assistantId)
@@ -996,20 +1042,18 @@ private fun TopBar(
             }
         },
         actions = {
-            GlassTopBarButton(
+            ChatTopBarButton(
                 onClick = {
                     onClickMenu()
                 },
-                hazeState = hazeState,
             ) {
                 Icon(if (previewMode) HugeIcons.Cancel01 else HugeIcons.LeftToRightListBullet, stringResource(R.string.accessibility_chat_options))
             }
 
-            GlassTopBarButton(
+            ChatTopBarButton(
                 onClick = {
                     onNewChat()
                 },
-                hazeState = hazeState,
             ) {
                 Icon(HugeIcons.MessageAdd01, stringResource(R.string.chat_page_new_message))
             }
@@ -1018,28 +1062,29 @@ private fun TopBar(
 }
 
 /**
- * The title bar keeps its transparent background (the conversation shows through); only the three
- * buttons get a glass disc each, so they stay legible over whatever scrolls behind them.
+ * The title bar keeps its transparent background (the conversation shows through); the three
+ * buttons sit on a tonal disc each, the way rikkahub draws them — a Material surface step instead
+ * of a liquid-glass lens.
+ *
+ * 2026-11-04: the disc was a solid surfaceContainerHigh, which in the dark mono theme is #212121
+ * — on a transparent top bar over a dark wallpaper that is invisible, and so were the icons.
+ * The disc is now半透明 (CHAT_BOTTOM_SURFACE_ALPHA) to match the bottom bar, and the icon tint
+ * is forced to onSurface so it stays readable over any background (the half-alpha surface no
+ * longer reliably derives a readable contentColor automatically).
  */
 @Composable
-private fun GlassTopBarButton(
+private fun ChatTopBarButton(
     onClick: () -> Unit,
-    hazeState: HazeState,
     content: @Composable () -> Unit,
 ) {
-    val glassStyle = rikkaGlassStyle(CircleShape, blurRadius = 12.dp, depth = 0.4f)
     Surface(
         onClick = onClick,
         modifier = Modifier
             .padding(horizontal = 4.dp)
-            .size(40.dp)
-            .clip(CircleShape)
-            .hazeGlass(
-                input = HazeInput.Sources(hazeState),
-                style = glassStyle,
-            ),
+            .size(40.dp),
         shape = CircleShape,
-        color = Color.Transparent,
+        color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = CHAT_BOTTOM_SURFACE_ALPHA),
+        contentColor = MaterialTheme.colorScheme.onSurface,
         tonalElevation = 0.dp,
     ) {
         Box(
@@ -1112,3 +1157,4 @@ private fun TopBarSubtitleLine(
         }
     }
 }
+

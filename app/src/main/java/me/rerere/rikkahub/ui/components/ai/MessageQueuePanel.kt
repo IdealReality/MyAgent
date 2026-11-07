@@ -34,6 +34,7 @@ import me.rerere.rikkahub.R
 import me.rerere.rikkahub.service.MessageQueueState
 import me.rerere.rikkahub.service.QueuedMessage
 import me.rerere.rikkahub.ui.hooks.ChatInputState
+import me.rerere.rikkahub.ui.pages.chat.CHAT_BOTTOM_SURFACE_ALPHA
 
 @Composable
 internal fun MessageQueuePanel(
@@ -47,7 +48,9 @@ internal fun MessageQueuePanel(
     if (state.messages.isNotEmpty()) {
         Surface(
             shape = MaterialTheme.shapes.large,
-            color = MaterialTheme.colorScheme.surfaceContainer,
+            // 与输入卡同一上限：底部透明后，队列面板也不该是实心块。
+            color = MaterialTheme.colorScheme.surfaceContainer
+                .copy(alpha = CHAT_BOTTOM_SURFACE_ALPHA),
             modifier = Modifier
                 .fillMaxWidth()
                 .testTag("chat_message_queue"),

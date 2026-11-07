@@ -11,7 +11,7 @@ import kotlinx.coroutines.launch
 import me.rerere.ai.core.MessageRole
 import me.rerere.ai.ui.UIMessage
 import me.rerere.ai.ui.UIMessagePart
-import me.rerere.rikkahub.data.datastore.DEFAULT_ASSISTANT_ID
+import me.rerere.rikkahub.data.datastore.getCurrentAssistant
 import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.data.datastore.SettingsStore
 import me.rerere.rikkahub.data.model.Assistant
@@ -128,7 +128,7 @@ class DebugVM(
 
             val conversation = Conversation(
                 id = Uuid.random(),
-                assistantId = DEFAULT_ASSISTANT_ID,
+                assistantId = settingsStore.settingsFlow.value.getCurrentAssistant().id,
                 title = "超大对话测试 (${sizeMB}MB)",
                 messageNodes = messageNodes,
             )
@@ -154,7 +154,7 @@ class DebugVM(
 
             val conversation = Conversation(
                 id = Uuid.random(),
-                assistantId = DEFAULT_ASSISTANT_ID,
+                assistantId = settingsStore.settingsFlow.value.getCurrentAssistant().id,
                 title = "${messageCount}条消息测试",
                 messageNodes = messageNodes,
             )

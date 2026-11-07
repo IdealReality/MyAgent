@@ -42,7 +42,9 @@ fun Tag(
         else -> MaterialTheme.colorScheme.tertiaryContainer
     }
     val textColor = when (type) {
-        TagType.SUCCESS -> MaterialTheme.extendColors.gray8
+        // 原先 SUCCESS 配 gray8（灰阶版色板下的折中），现在底色是真正的绿，
+        // 文字必须跟着用同族的绿 8，否则对比度掉到 3.2:1（低于 AA）。
+        TagType.SUCCESS -> MaterialTheme.extendColors.green8
         TagType.ERROR -> MaterialTheme.extendColors.red8
         TagType.WARNING -> MaterialTheme.extendColors.orange8
         TagType.INFO -> MaterialTheme.extendColors.blue8

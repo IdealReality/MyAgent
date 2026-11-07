@@ -3,23 +3,15 @@ package me.rerere.rikkahub.ui.pages.setting
 import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.jcraft.jsch.Session
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import kotlinx.serialization.json.contentOrNull
-import kotlinx.serialization.json.jsonPrimitive
-import me.rerere.rikkahub.data.ai.tools.local.SshAuth
+import me.rerere.rikkahub.data.ai.tools.local.SshHostProbe
 import me.rerere.rikkahub.data.ai.tools.local.forgetHostKey
-import me.rerere.rikkahub.data.ai.tools.local.isUsable
 import me.rerere.rikkahub.data.ai.tools.local.knownHostsFile
-import me.rerere.rikkahub.data.ai.tools.local.networkRaceSocketFactory
-import me.rerere.rikkahub.data.ai.tools.local.newJSch
-import me.rerere.rikkahub.data.ai.tools.local.openSshSession
-import me.rerere.rikkahub.data.ai.tools.local.wrapConnectError
 import me.rerere.rikkahub.data.db.entity.SshHostEntity
 import me.rerere.rikkahub.data.repository.SshHostRepository
 import me.rerere.rikkahub.data.ssh.KnownHostEntry
@@ -88,6 +80,7 @@ class SettingSshViewModel(
                 password = draft.password.takeIf { it.isNotBlank() },
                 privateKey = draft.privateKey.takeIf { it.isNotBlank() },
                 passphrase = draft.passphrase.takeIf { it.isNotBlank() },
+                webTerminalUrl = draft.webTerminalUrl.trim().takeIf { it.isNotBlank() },
                 createdAtMs = System.currentTimeMillis(),
             )
             withContext(Dispatchers.IO) {
@@ -134,64 +127,8 @@ class SettingSshViewModel(
         }
     }
 
-    private suspend fun performHandshake(host: SshHostEntity): SshTestResult =
-        withContext(Dispatchers.IO) {
-            val auth = SshAuth(
-                password = host.password,
-                privateKey = host.privateKey,
-                passphrase = host.passphrase,
-            )
-            if (!auth.isUsable()) {
-                return@withContext SshTestResult(false, "no_credentials", null)
-            }
-            val jsch = newJSch(context)
-            // Same candidate transports the exec path walks, so "test" agrees with
-            // `ssh_exec` / `ssh_exec_saved` on the very same host: a factory pinned to the
-            // default route alone cannot fall back to a physical network when the default
-            // route (an active VPN, adaptive routing, a captive portal) is the broken one, and
-            // the page then reported connect_failed for a host the tools reached fine.
-            val factory = networkRaceSocketFactory(context)
-            var session: Session? = null
-            try {
-                // [openSshSession] performs the connect. Do NOT add a second `Session.connect`
-                // after it: JSch throws "session is already connected" (a JSchException that
-                // reads like a network failure) and the page rendered that as a bogus
-                // "connect_failed" even though the handshake had just succeeded.
-                session = openSshSession(
-                    jsch, host.host, host.port, host.user, auth, TEST_TIMEOUT_MS, factory,
-                )
-                SshTestResult(ok = true)
-            } catch (e: Throwable) {
-                if (factory.winningLabel == null && factory.failures.isNotEmpty()) {
-                    // No transport reached the host at all: report what we tried, the same way
-                    // the exec path does, instead of a bare "connect_failed".
-                    SshTestResult(
-                        ok = false,
-                        errorCode = "tcp_unreachable",
-                        detail = factory.failures.joinToString("; ") { (label, reason) ->
-                            "$label: $reason"
-                        },
-                    )
-                } else {
-                    val env = wrapConnectError(host.host, e)
-                    SshTestResult(
-                        ok = false,
-                        errorCode = env["error"]?.jsonPrimitive?.contentOrNull,
-                        detail = env["raw"]?.jsonPrimitive?.contentOrNull
-                            ?: env["reason"]?.jsonPrimitive?.contentOrNull,
-                    )
-                }
-            } finally {
-                runCatching { session?.disconnect() }
-            }
-        }
-
-    private companion object {
-        /**
-         * Deliberately generous — the same ceiling `ssh_exec` uses by default. A test that gives
-         * up sooner than the tool it stands in for would report failures the tool never had: the
-         * first byte through an active VPN can take several seconds longer than over a LAN.
-         */
-        const val TEST_TIMEOUT_MS = 30_000
+    private suspend fun performHandshake(host: SshHostEntity): SshTestResult {
+        val result = SshHostProbe.probe(context, host)
+        return SshTestResult(ok = result.ok, errorCode = result.errorCode, detail = result.detail)
     }
 }

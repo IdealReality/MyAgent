@@ -14,6 +14,10 @@ import io.ktor.server.plugins.cors.routing.CORS
 import io.ktor.server.plugins.defaultheaders.DefaultHeaders
 import io.ktor.server.routing.routing
 import io.ktor.server.sse.SSE
+import io.ktor.server.websocket.WebSockets
+import io.ktor.server.websocket.pingPeriod
+import io.ktor.server.websocket.timeout
+import kotlin.time.Duration.Companion.seconds
 
 fun startWebServer(
     port: Int = 8080,
@@ -30,6 +34,16 @@ fun startWebServer(
             anyMethod()
         }
         install(SSE)
+        // SSH host management socket. Ping every 20s so a phone that loses Wi-Fi stops
+        // holding half-open connections, and drop a peer that goes silent for 60s.
+        install(WebSockets) {
+            pingPeriod = 20.seconds
+            timeout = 60.seconds
+            // A host record is small even with a PEM key; 256 KiB is far above any real
+            // payload while keeping a hostile client from forcing an unbounded allocation.
+            maxFrameSize = 256L * 1024
+            masking = false
+        }
         install(DefaultHeaders)
         routing {
             staticResources("/", "static") {

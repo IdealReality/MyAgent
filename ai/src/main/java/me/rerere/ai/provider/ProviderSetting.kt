@@ -1,6 +1,6 @@
 package me.rerere.ai.provider
 
-import androidx.compose.runtime.Composable
+import kotlinx.serialization.EncodeDefault
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
@@ -31,10 +31,6 @@ sealed class ProviderSetting {
     abstract val balanceOption: BalanceOption
     abstract val customHeaders: List<CustomHeader>
 
-    abstract val builtIn: Boolean
-    abstract val description: @Composable() () -> Unit
-    abstract val shortDescription: @Composable() () -> Unit
-
     abstract fun addModel(model: Model): ProviderSetting
     abstract fun editModel(model: Model): ProviderSetting
     abstract fun delModel(model: Model): ProviderSetting
@@ -46,9 +42,6 @@ sealed class ProviderSetting {
         models: List<Model> = this.models,
         balanceOption: BalanceOption = this.balanceOption,
         customHeaders: List<CustomHeader> = this.customHeaders,
-        builtIn: Boolean = this.builtIn,
-        description: @Composable (() -> Unit) = this.description,
-        shortDescription: @Composable (() -> Unit) = this.shortDescription,
     ): ProviderSetting
 
     @Serializable
@@ -60,9 +53,6 @@ sealed class ProviderSetting {
         override var models: List<Model> = emptyList(),
         override val balanceOption: BalanceOption = BalanceOption(),
         override val customHeaders: List<CustomHeader> = emptyList(),
-        @Transient override val builtIn: Boolean = false,
-        @Transient override val description: @Composable (() -> Unit) = {},
-        @Transient override val shortDescription: @Composable (() -> Unit) = {},
         var apiKey: String = "",
         var baseUrl: String = "https://api.openai.com/v1",
         var chatCompletionsPath: String = "/chat/completions",
@@ -71,11 +61,42 @@ sealed class ProviderSetting {
         // need them explicitly; auto-caching providers have the field stripped upstream, so
         // it is applied to every model on the OpenRouter host. See ChatCompletionsAPI.
         var promptCaching: Boolean = true,
+        /**
+         * Replay stored `reasoning_content` on historical assistant messages.
+         *
+         * Kept as the on/off master switch (existing stores depend on the shape), but the
+         * amount is bounded by [historyReasoningTurns]: replaying EVERY historical thinking
+         * block is both expensive and actively harmful — the model starts continuing an old
+         * line of reasoning instead of re-deriving one, and old thinking blocks can dominate
+         * the request. See [historyReasoningTurns].
+         */
         var includeHistoryReasoning: Boolean = true,
+        /**
+         * How many of the most recent assistant messages may replay their reasoning.
+         *
+         * `null` = unlimited (the pre-2026-11 behaviour, kept for wire compatibility with
+         * stores written before this field existed). `0` = behave as if
+         * [includeHistoryReasoning] were false. Any other value keeps reasoning on the newest
+         * N assistant turns only, which is where it actually helps: the immediately preceding
+         * step of a tool loop.
+         */
+        @EncodeDefault(EncodeDefault.Mode.NEVER)
+        var historyReasoningTurns: Int? = DEFAULT_HISTORY_REASONING_TURNS,
         // OpenRouter only: provider-routing preferences emitted as the `provider` object.
         var routing: OpenRouterRouting = OpenRouterRouting(),
         var responsesPath: String = "/responses",
     ) : ProviderSetting() {
+        companion object {
+            /**
+             * Three turns of replay: enough for the model to see how it reasoned through the
+             * immediately preceding tool steps (which is what keeps multi-step tool loops
+             * coherent), far enough from "the entire history" that old thinking cannot crowd
+             * out the live task. Measured on a real device, unlimited replay was a major
+             * contributor to prompts averaging ~165k tokens.
+             */
+            const val DEFAULT_HISTORY_REASONING_TURNS = 3
+        }
+
         override fun addModel(model: Model): ProviderSetting {
             return copy(models = models + model)
         }
@@ -105,9 +126,6 @@ sealed class ProviderSetting {
             models: List<Model>,
             balanceOption: BalanceOption,
             customHeaders: List<CustomHeader>,
-            builtIn: Boolean,
-            description: @Composable (() -> Unit),
-            shortDescription: @Composable (() -> Unit),
         ): ProviderSetting {
             return this.copy(
                 id = id,
@@ -115,10 +133,7 @@ sealed class ProviderSetting {
                 name = name,
                 models = models,
                 customHeaders = customHeaders,
-                builtIn = builtIn,
-                description = description,
                 balanceOption = balanceOption,
-                shortDescription = shortDescription
             )
         }
     }
@@ -132,9 +147,6 @@ sealed class ProviderSetting {
         override var models: List<Model> = emptyList(),
         override val balanceOption: BalanceOption = BalanceOption(),
         override val customHeaders: List<CustomHeader> = emptyList(),
-        @Transient override val builtIn: Boolean = false,
-        @Transient override val description: @Composable (() -> Unit) = {},
-        @Transient override val shortDescription: @Composable (() -> Unit) = {},
         var apiKey: String = "",
         var baseUrl: String = "https://generativelanguage.googleapis.com/v1beta",
         var vertexAI: Boolean = false,
@@ -173,9 +185,6 @@ sealed class ProviderSetting {
             models: List<Model>,
             balanceOption: BalanceOption,
             customHeaders: List<CustomHeader>,
-            builtIn: Boolean,
-            description: @Composable (() -> Unit),
-            shortDescription: @Composable (() -> Unit),
         ): ProviderSetting {
             return this.copy(
                 id = id,
@@ -183,9 +192,6 @@ sealed class ProviderSetting {
                 name = name,
                 models = models,
                 customHeaders = customHeaders,
-                builtIn = builtIn,
-                description = description,
-                shortDescription = shortDescription,
                 balanceOption = balanceOption
             )
         }
@@ -200,9 +206,6 @@ sealed class ProviderSetting {
         override var models: List<Model> = emptyList(),
         override val balanceOption: BalanceOption = BalanceOption(),
         override val customHeaders: List<CustomHeader> = emptyList(),
-        @Transient override val builtIn: Boolean = false,
-        @Transient override val description: @Composable (() -> Unit) = {},
-        @Transient override val shortDescription: @Composable (() -> Unit) = {},
         var apiKey: String = "",
         var baseUrl: String = "https://api.anthropic.com/v1",
         var promptCaching: Boolean = true,  // ~10% input rate on cache hits, near-pure win
@@ -237,9 +240,6 @@ sealed class ProviderSetting {
             models: List<Model>,
             balanceOption: BalanceOption,
             customHeaders: List<CustomHeader>,
-            builtIn: Boolean,
-            description: @Composable (() -> Unit),
-            shortDescription: @Composable (() -> Unit),
         ): ProviderSetting {
             return this.copy(
                 id = id,
@@ -248,9 +248,6 @@ sealed class ProviderSetting {
                 models = models,
                 balanceOption = balanceOption,
                 customHeaders = customHeaders,
-                builtIn = builtIn,
-                description = description,
-                shortDescription = shortDescription,
             )
         }
     }
@@ -264,9 +261,6 @@ sealed class ProviderSetting {
         override var models: List<Model> = AICORE_DEFAULT_MODELS,
         override val balanceOption: BalanceOption = BalanceOption(),
         override val customHeaders: List<CustomHeader> = emptyList(),
-        @Transient override val builtIn: Boolean = true,
-        @Transient override val description: @Composable (() -> Unit) = {},
-        @Transient override val shortDescription: @Composable (() -> Unit) = {},
         // Defaults to PREVIEW because the STABLE feature ID is missing on most current
         // AICore beta channels — PREVIEW is what actually resolves to a working model on
         // Pixel 8/9/10 today. Users can flip back to STABLE once Google promotes it.
@@ -293,18 +287,12 @@ sealed class ProviderSetting {
             models: List<Model>,
             balanceOption: BalanceOption,
             customHeaders: List<CustomHeader>,
-            builtIn: Boolean,
-            description: @Composable (() -> Unit),
-            shortDescription: @Composable (() -> Unit),
         ): ProviderSetting {
             return this.copy(
                 id = id,
                 enabled = enabled,
                 name = name,
                 models = models,
-                builtIn = builtIn,
-                description = description,
-                shortDescription = shortDescription,
                 balanceOption = balanceOption,
 
                 customHeaders = customHeaders,
@@ -321,9 +309,6 @@ sealed class ProviderSetting {
         override var models: List<Model> = emptyList(),
         override val balanceOption: BalanceOption = BalanceOption(),
         override val customHeaders: List<CustomHeader> = emptyList(),
-        @Transient override val builtIn: Boolean = true,
-        @Transient override val description: @Composable (() -> Unit) = {},
-        @Transient override val shortDescription: @Composable (() -> Unit) = {},
     ) : ProviderSetting() {
         override fun addModel(model: Model): ProviderSetting = copy(models = models + model)
         override fun editModel(model: Model): ProviderSetting =
@@ -339,12 +324,8 @@ sealed class ProviderSetting {
             models: List<Model>,
             balanceOption: BalanceOption,
             customHeaders: List<CustomHeader>,
-            builtIn: Boolean,
-            description: @Composable (() -> Unit),
-            shortDescription: @Composable (() -> Unit),
         ): ProviderSetting = copy(
             id = id, enabled = enabled, name = name, models = models,
-            builtIn = builtIn, description = description, shortDescription = shortDescription,
             balanceOption = balanceOption,
 
             customHeaders = customHeaders,
@@ -360,9 +341,6 @@ sealed class ProviderSetting {
         override var models: List<Model> = emptyList(),
         override val balanceOption: BalanceOption = BalanceOption(),
         override val customHeaders: List<CustomHeader> = emptyList(),
-        @Transient override val builtIn: Boolean = true,
-        @Transient override val description: @Composable (() -> Unit) = {},
-        @Transient override val shortDescription: @Composable (() -> Unit) = {},
     ) : ProviderSetting() {
         override fun addModel(model: Model): ProviderSetting = copy(models = models + model)
         override fun editModel(model: Model): ProviderSetting =
@@ -378,12 +356,8 @@ sealed class ProviderSetting {
             models: List<Model>,
             balanceOption: BalanceOption,
             customHeaders: List<CustomHeader>,
-            builtIn: Boolean,
-            description: @Composable (() -> Unit),
-            shortDescription: @Composable (() -> Unit),
         ): ProviderSetting = copy(
             id = id, enabled = enabled, name = name, models = models,
-            builtIn = builtIn, description = description, shortDescription = shortDescription,
             balanceOption = balanceOption,
 
             customHeaders = customHeaders,
@@ -399,9 +373,6 @@ sealed class ProviderSetting {
         override var models: List<Model> = emptyList(),
         override val balanceOption: BalanceOption = BalanceOption(),
         override val customHeaders: List<CustomHeader> = emptyList(),
-        @Transient override val builtIn: Boolean = true,
-        @Transient override val description: @Composable (() -> Unit) = {},
-        @Transient override val shortDescription: @Composable (() -> Unit) = {},
     ) : ProviderSetting() {
         override fun addModel(model: Model): ProviderSetting = copy(models = models + model)
 
@@ -425,9 +396,6 @@ sealed class ProviderSetting {
             models: List<Model>,
             balanceOption: BalanceOption,
             customHeaders: List<CustomHeader>,
-            builtIn: Boolean,
-            description: @Composable (() -> Unit),
-            shortDescription: @Composable (() -> Unit),
         ): ProviderSetting {
             return copy(
                 id = id,
@@ -437,9 +405,6 @@ sealed class ProviderSetting {
                 balanceOption = balanceOption,
 
                 customHeaders = customHeaders,
-                builtIn = builtIn,
-                description = description,
-                shortDescription = shortDescription,
             )
         }
     }
@@ -453,9 +418,6 @@ sealed class ProviderSetting {
         override var models: List<Model> = emptyList(),
         override val balanceOption: BalanceOption = BalanceOption(),
         override val customHeaders: List<CustomHeader> = emptyList(),
-        @Transient override val builtIn: Boolean = true,
-        @Transient override val description: @Composable (() -> Unit) = {},
-        @Transient override val shortDescription: @Composable (() -> Unit) = {},
     ) : ProviderSetting() {
         override fun addModel(model: Model): ProviderSetting = copy(models = models + model)
 
@@ -479,9 +441,6 @@ sealed class ProviderSetting {
             models: List<Model>,
             balanceOption: BalanceOption,
             customHeaders: List<CustomHeader>,
-            builtIn: Boolean,
-            description: @Composable (() -> Unit),
-            shortDescription: @Composable (() -> Unit),
         ): ProviderSetting {
             return copy(
                 id = id,
@@ -491,9 +450,6 @@ sealed class ProviderSetting {
                 balanceOption = balanceOption,
 
                 customHeaders = customHeaders,
-                builtIn = builtIn,
-                description = description,
-                shortDescription = shortDescription,
             )
         }
     }
@@ -507,9 +463,6 @@ sealed class ProviderSetting {
         override var models: List<Model> = emptyList(),
         override val balanceOption: BalanceOption = BalanceOption(),
         override val customHeaders: List<CustomHeader> = emptyList(),
-        @Transient override val builtIn: Boolean = true,
-        @Transient override val description: @Composable (() -> Unit) = {},
-        @Transient override val shortDescription: @Composable (() -> Unit) = {},
     ) : ProviderSetting() {
         override fun addModel(model: Model): ProviderSetting = copy(models = models + model)
 
@@ -533,9 +486,6 @@ sealed class ProviderSetting {
             models: List<Model>,
             balanceOption: BalanceOption,
             customHeaders: List<CustomHeader>,
-            builtIn: Boolean,
-            description: @Composable (() -> Unit),
-            shortDescription: @Composable (() -> Unit),
         ): ProviderSetting {
             return copy(
                 id = id,
@@ -545,120 +495,46 @@ sealed class ProviderSetting {
                 balanceOption = balanceOption,
 
                 customHeaders = customHeaders,
-                builtIn = builtIn,
-                description = description,
-                shortDescription = shortDescription,
             )
         }
-    }
-
-    /**
-     * Agents Anywhere — 把另一台机器上的完整 agent（AA 托管的 omp / codex / claude）**直接当成
-     * 一个模型**来对话。
-     *
-     * 为什么是 Provider 而不是工具：工具形态下本地模型是「中间人」——它读到远端答复后再转述一遍，
-     * 既多烧一轮 token，又把远端的原始流式输出、推理过程和工具卡片全部压成一段二手文本。做成
-     * provider 后，选中这个「模型」就是在和远端 agent 直接对话：远端 token 直出到聊天流，
-     * 远端的 reasoning 与工具条目也原样成为消息 part。
-     *
-     * 协议限制（实测 AA v2）：没有 SSE，真正的增量靠 `timeline?mode=changes&afterSeq=` 轮询；
-     * timeline 条目是**累积全文 + revision 递增**，所以「增量」由客户端按已发送长度裁剪得到。
-     */
-    @Serializable
-    @SerialName("agents_anywhere")
-    data class AgentsAnywhere(
-        override var id: Uuid = Uuid.random(),
-        override var enabled: Boolean = false,
-        override var name: String = "Agents Anywhere",
-        override var models: List<Model> = emptyList(),
-        override val balanceOption: BalanceOption = BalanceOption(),
-        override val customHeaders: List<CustomHeader> = emptyList(),
-        @Transient override val builtIn: Boolean = true,
-        @Transient override val description: @Composable (() -> Unit) = {},
-        @Transient override val shortDescription: @Composable (() -> Unit) = {},
-        /** 形如 `https://host:8443`：只填 origin，AA 的 normalizeServerOrigin 拒收带路径的地址。 */
-        var serverOrigin: String = "",
-        /** `/api/v2/auth/login` 返回的 accessToken。 */
-        var accessToken: String = "",
-        /** 三者定住「哪台机器上的哪个 runtime」：AA 的会话必须落在一个具体 runtime 上。 */
-        var connectorId: String = "",
-        var projectId: String = "",
-        var runtimeId: String = "",
-        /** 远端工作目录，必须与 project 的 workspacePath 一致，否则 422。空 = 用 project 默认。 */
-        var cwd: String = "",
-        /** 远端权限档位（catalog permission 的 selectionId）。全自动 = `full-auto`。 */
-        var permissionSelectionId: String = "full-auto",
-        /** 单轮等待上限（毫秒）。远端 agent 一轮通常 10–60 秒，工具循环长任务可达数分钟。 */
-        var turnTimeoutMillis: Long = 600_000,
-    ) : ProviderSetting() {
-        override fun addModel(model: Model): ProviderSetting = copy(models = models + model)
-
-        override fun editModel(model: Model): ProviderSetting =
-            copy(models = models.map { if (it.id == model.id) model.copy() else it })
-
-        override fun delModel(model: Model): ProviderSetting =
-            copy(models = models.filter { it.id != model.id })
-
-        override fun moveMove(from: Int, to: Int): ProviderSetting {
-            return copy(models = models.toMutableList().apply {
-                val model = removeAt(from)
-                add(to, model)
-            })
-        }
-
-        override fun copyProvider(
-            id: Uuid,
-            enabled: Boolean,
-            name: String,
-            models: List<Model>,
-            balanceOption: BalanceOption,
-            customHeaders: List<CustomHeader>,
-            builtIn: Boolean,
-            description: @Composable (() -> Unit),
-            shortDescription: @Composable (() -> Unit),
-        ): ProviderSetting {
-            return copy(
-                id = id,
-                enabled = enabled,
-                name = name,
-                models = models,
-                balanceOption = balanceOption,
-                customHeaders = customHeaders,
-                builtIn = builtIn,
-                description = description,
-                shortDescription = shortDescription,
-            )
-        }
-
-        /** 归一化成 `scheme://host[:port]`，去掉误粘的路径与尾部斜杠。 */
-        fun normalizedOrigin(): String {
-            var value = serverOrigin.trim()
-            if (value.isEmpty()) return ""
-            if (!value.startsWith("http://") && !value.startsWith("https://")) value = "https://$value"
-            val schemeEnd = value.indexOf("://") + 3
-            val pathStart = value.indexOf('/', schemeEnd)
-            if (pathStart >= 0) value = value.substring(0, pathStart)
-            return value.trimEnd('/')
-        }
-
-        /** 定位信息齐全才发请求。accessToken 可以为空——自托管实例也允许匿名 mode 的部署。 */
-        fun isReady(): Boolean =
-            normalizedOrigin().isNotEmpty() &&
-                connectorId.isNotBlank() && projectId.isNotBlank() && runtimeId.isNotBlank()
     }
 
     companion object {
-        // Types presented to the user when adding / converting a provider. AICore is
-        // intentionally NOT in this list: it is a singleton built-in (one per device,
-        // synthesized from the AICore system app), so the "type segmented row" inside
-        // the Add-Provider dialog and ProviderConfigure should not offer it as a choice.
-        // Including it overflowed the dialog width and wrapped the OpenAI / Google labels
-        // onto two lines on a Pixel 10 Pro.
+        /**
+         * Types the user can switch between inside an existing provider ("type" segmented
+         * row in the Add-Provider dialog and ProviderConfigure). Deliberately limited to the
+         * three key-based protocols: converting between them keeps the API key and rewrites
+         * the endpoint path, which is the only conversion that means anything.
+         *
+         * This is NOT the list of creatable providers — see [creatableTypes].
+         */
         val Types by lazy {
             listOf(
                 OpenAI::class,
                 Google::class,
                 Claude::class,
+            )
+        }
+
+        /**
+         * Every provider type the user can create from scratch, in the order the "add
+         * provider" dialog shows them.
+         *
+         * The app ships no pre-seeded providers, so this list is the ONLY way to reach the
+         * OAuth providers (Codex / Grok / Gemini) and the on-device runtimes (AICore / LiteRT /
+         * llama.cpp). Losing an entry here silently removes a whole capability from the build.
+         */
+        val creatableTypes: List<() -> ProviderSetting> by lazy {
+            listOf(
+                { OpenAI() },
+                { Google() },
+                { Claude() },
+                { Codex() },
+                { Grok() },
+                { GeminiOAuth() },
+                { AICore() },
+                { LiteRtLocal() },
+                { LlamaCppLocal() },
             )
         }
     }

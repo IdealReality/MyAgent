@@ -15,6 +15,26 @@ import me.rerere.rikkahub.utils.SimpleCache
 import java.util.concurrent.TimeUnit
 import kotlin.uuid.Uuid
 
+/**
+ * Default per-tool-result token budget.
+ *
+ * 8000 tokens is deliberately generous relative to one *answer* and deliberately small relative
+ * to one *context*: a single tool result should never be able to consume a conversation on its
+ * own. Anything larger still reaches the model — the full text is spilled to the CCR pool and
+ * the result carries a handle plus head/tail preview, so nothing is lost, only paged out.
+ */
+const val DEFAULT_TOOL_RESULT_MAX_TOKENS = 8_000
+
+/**
+ * Default ceiling on how many messages may be sent, independent of token accounting.
+ *
+ * Chosen to be a backstop, not a scalpel: a long but healthy tool-using conversation can easily
+ * carry 60-100 messages, and cutting at the wrong moment loses evidence the model still needs.
+ * 120 is above that, while still bounding a runaway loop on a provider that reports no usage
+ * (where the token-based compactor has no signal to act on).
+ */
+const val DEFAULT_CONTEXT_MESSAGE_LIMIT = 120
+
 @Serializable
 data class Assistant(
     val id: Uuid = Uuid.random(),
@@ -26,8 +46,14 @@ data class Assistant(
     val systemPrompt: String = "",
     val temperature: Float? = null,
     val topP: Float? = null,
-    // 上下文消息条数上限, 超出后阶梯式截断; 0 表示不限制
-    val contextMessageLimit: Int = 0,
+    // 上下文消息条数上限, 超出后阶梯式截断; 0 表示不限制.
+    //
+    // 默认不再是 0. Token 估算(压缩)是主闸门, 但它依赖 usage 回传, 而 provider 不回传
+    // usage 时估算只能靠字符比例, 一个含大量工具结果的会话可能在没有任何 token 信号的情况下
+    // 一直增长。条数是与 provider 无关的硬兜底: 120 条足够覆盖一个长任务的全部往返, 又能
+    // 在失控循环里把请求钉住。`limitContext` 的滞回(保留 50%、台阶式前移)保证截断点稳定,
+    // 不会每轮平移破坏 prompt 缓存。
+    val contextMessageLimit: Int = DEFAULT_CONTEXT_MESSAGE_LIMIT,
     val streamOutput: Boolean = true,
     val enableMemory: Boolean = false,
     val useGlobalMemory: Boolean = false, // 使用全局共享记忆而非助手隔离记忆
@@ -88,12 +114,15 @@ data class Assistant(
     val fastPathRouterEnabled: Boolean = false,
     val allowConversationSystemPrompt: Boolean = false, // 允许对话单独重写 system prompt
     val allowConversationPromptInjection: Boolean = false, // 允许对话单独绑定提示词注入
-    // Phase 17 (⑥) — Optional per-tool-result token budget. null = upstream behaviour unchanged
-    // (the fixed 32 KB character gate in GenerationLoop.maybeTruncateToolOutput). When set,
-    // oversized tool results are trimmed to roughly this many tokens keeping head + tail, and
-    // the full text is still spilled to /tool_outputs/ for on-demand re-reading.
+    // Per-tool-result token budget.
+    //
+    // Used to default to null ("off"), which left only the 32 KB *character* gate — roughly
+    // 10k tokens for ASCII and far more for CJK. Measured on a real device, single-step prompt
+    // growth averaged ~85k tokens and peaked at 527k, and completion length collapsed 65% once
+    // growth passed 80k. The default is now a real token budget; `null` still means "no token
+    // budget" for anyone who set it that way, and 0 disables trimming entirely.
     // Appended last on purpose: a new field may never shift the position of an existing one.
-    val toolResultMaxTokens: Int? = null,
+    val toolResultMaxTokens: Int? = DEFAULT_TOOL_RESULT_MAX_TOKENS,
     // Phase 17 (②) — Model-initiated context compaction. Off by default. When ON, this
     // assistant gets a `compact_context` tool that runs the SAME summariser as the manual
     // "compress context" action (ChatService.compressConversation → ContextCompactionPlanner),

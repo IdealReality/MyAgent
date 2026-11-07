@@ -12,7 +12,6 @@ import me.rerere.ai.ui.UIMessage
 import me.rerere.ai.ui.UIMessagePart
 import me.rerere.rikkahub.data.ai.tools.shouldUseExternalWebSearch
 import me.rerere.rikkahub.data.datastore.AutoCompactionThresholdMode
-import me.rerere.rikkahub.data.datastore.DEFAULT_AUTO_MODEL_ID
 import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.data.model.Conversation
@@ -270,13 +269,14 @@ class ChatServiceTest {
     // --- resolveCompressionModel: Compress Model "Auto" resolving to a disabled provider -----
 
     @Test
-    fun `auto with the built-in provider disabled resolves to the current chat model`() {
+    fun `a compress model on a disabled provider resolves to the current chat model`() {
         val chatModel = Model(modelId = "gpt-5")
-        val autoModel = Model(id = DEFAULT_AUTO_MODEL_ID, modelId = "auto")
-        val rikkaHub = ProviderSetting.OpenAI(enabled = false, name = "RikkaHub", models = listOf(autoModel))
+        // An id no provider owns: stands in for any model that no longer resolves.
+        val orphanModel = Model(modelId = "auto")
+        val rikkaHub = ProviderSetting.OpenAI(enabled = false, name = "RikkaHub", models = listOf(orphanModel))
         val chatProvider = ProviderSetting.OpenAI(enabled = true, name = "OpenAI", models = listOf(chatModel))
         val settings = Settings(
-            compressModelId = autoModel.id,
+            compressModelId = orphanModel.id,
             chatModelId = chatModel.id,
             providers = listOf(rikkaHub, chatProvider),
         )
@@ -285,15 +285,16 @@ class ChatServiceTest {
     }
 
     @Test
-    fun `auto with the current chat model's provider also disabled resolves to a model from an enabled provider`() {
+    fun `a compress model whose provider is disabled resolves to a model from an enabled provider`() {
         val chatModel = Model(modelId = "gpt-5")
-        val autoModel = Model(id = DEFAULT_AUTO_MODEL_ID, modelId = "auto")
+        // An id no provider owns: stands in for any model that no longer resolves.
+        val orphanModel = Model(modelId = "auto")
         val fallbackModel = Model(modelId = "fallback-model")
-        val rikkaHub = ProviderSetting.OpenAI(enabled = false, name = "RikkaHub", models = listOf(autoModel))
+        val rikkaHub = ProviderSetting.OpenAI(enabled = false, name = "RikkaHub", models = listOf(orphanModel))
         val chatProvider = ProviderSetting.OpenAI(enabled = false, name = "OpenAI", models = listOf(chatModel))
         val enabledProvider = ProviderSetting.OpenAI(enabled = true, name = "Groq", models = listOf(fallbackModel))
         val settings = Settings(
-            compressModelId = autoModel.id,
+            compressModelId = orphanModel.id,
             chatModelId = chatModel.id,
             providers = listOf(rikkaHub, chatProvider, enabledProvider),
         )
@@ -304,11 +305,12 @@ class ChatServiceTest {
     @Test
     fun `no enabled provider at all resolves to null`() {
         val chatModel = Model(modelId = "gpt-5")
-        val autoModel = Model(id = DEFAULT_AUTO_MODEL_ID, modelId = "auto")
-        val rikkaHub = ProviderSetting.OpenAI(enabled = false, name = "RikkaHub", models = listOf(autoModel))
+        // An id no provider owns: stands in for any model that no longer resolves.
+        val orphanModel = Model(modelId = "auto")
+        val rikkaHub = ProviderSetting.OpenAI(enabled = false, name = "RikkaHub", models = listOf(orphanModel))
         val chatProvider = ProviderSetting.OpenAI(enabled = false, name = "OpenAI", models = listOf(chatModel))
         val settings = Settings(
-            compressModelId = autoModel.id,
+            compressModelId = orphanModel.id,
             chatModelId = chatModel.id,
             providers = listOf(rikkaHub, chatProvider),
         )

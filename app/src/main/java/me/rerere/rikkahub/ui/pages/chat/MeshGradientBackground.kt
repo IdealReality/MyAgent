@@ -21,6 +21,7 @@ import androidx.lifecycle.repeatOnLifecycle
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import me.rerere.rikkahub.ui.theme.LocalDarkMode
+import me.rerere.rikkahub.ui.theme.LocalMonoTheme
 import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.sin
@@ -62,31 +63,71 @@ fun MeshGradientBackground(
     }
 
     val dark = LocalDarkMode.current
-    val baseGradient = if (dark) {
-        // 暗色:顶部深蓝,向下渐隐到接近纯黑
-        arrayOf(
-            0.0f to Color(0xFF1B2A45),
-            0.22f to Color(0xFF15223A),
-            0.45f to Color(0xFF0D1626),
-            0.65f to Color(0xFF0A0F18),
-            1.0f to Color(0xFF080B12),
+    val mono = LocalMonoTheme.current
+    val baseGradient = when {
+        // mono：把蓝紫渐变压成同一条灰阶明度轴，顶部略浅、底部到底色，光斑只留灰度起伏。
+        mono && dark -> arrayOf(
+            0.0f to Color(0xFF232323),
+            0.22f to Color(0xFF1C1C1C),
+            0.45f to Color(0xFF141414),
+            0.65f to Color(0xFF101010),
+            1.0f to Color(0xFF0C0C0C),
         )
-    } else {
-        // 亮色:顶部偏蓝,向下渐隐到白
-        arrayOf(
-            0.0f to Color(0xFFAFD0F2),
-            0.22f to Color(0xFFCBE0F6),
-            0.45f to Color(0xFFF1F7FD),
+        mono -> arrayOf(
+            0.0f to Color(0xFFEDEDED),
+            0.22f to Color(0xFFF3F3F3),
+            0.45f to Color(0xFFFAFAFA),
             0.65f to Color(0xFFFFFFFF),
             1.0f to Color(0xFFFFFFFF),
         )
+        dark -> {
+            // 暗色:顶部深蓝,向下渐隐到接近纯黑
+            arrayOf(
+                0.0f to Color(0xFF1B2A45),
+                0.22f to Color(0xFF15223A),
+                0.45f to Color(0xFF0D1626),
+                0.65f to Color(0xFF0A0F18),
+                1.0f to Color(0xFF080B12),
+            )
+        }
+        else -> {
+            // 亮色:顶部偏蓝,向下渐隐到白
+            arrayOf(
+                0.0f to Color(0xFFAFD0F2),
+                0.22f to Color(0xFFCBE0F6),
+                0.45f to Color(0xFFF1F7FD),
+                0.65f to Color(0xFFFFFFFF),
+                1.0f to Color(0xFFFFFFFF),
+            )
+        }
     }
 
-    // 光斑配色(蓝 / 青 / 淡蓝 / 暖色)及浓度,亮暗各一套
-    val blobBlue = if (dark) Color(0xFF3E6FB0) else Color(0xFF9EC5F0)
-    val blobTeal = if (dark) Color(0xFF2E7D74) else Color(0xFFA8E6E0)
-    val blobLightBlue = if (dark) Color(0xFF4A6E96) else Color(0xFFB6D7F2)
-    val blobWarm = if (dark) Color(0xFF7C5F9E) else Color(0xFFFFC8D2)
+    // 光斑配色(蓝 / 青 / 淡蓝 / 暖色)及浓度,亮暗各一套；mono 下四个光斑都是灰，
+    // 靠明度差和 alpha 差维持「有光在动」的感觉，而不是靠色相。
+    val blobBlue = when {
+        mono && dark -> Color(0xFF4A4A4A)
+        mono -> Color(0xFFD6D6D6)
+        dark -> Color(0xFF3E6FB0)
+        else -> Color(0xFF9EC5F0)
+    }
+    val blobTeal = when {
+        mono && dark -> Color(0xFF3C3C3C)
+        mono -> Color(0xFFE0E0E0)
+        dark -> Color(0xFF2E7D74)
+        else -> Color(0xFFA8E6E0)
+    }
+    val blobLightBlue = when {
+        mono && dark -> Color(0xFF565656)
+        mono -> Color(0xFFCDCDCD)
+        dark -> Color(0xFF4A6E96)
+        else -> Color(0xFFB6D7F2)
+    }
+    val blobWarm = when {
+        mono && dark -> Color(0xFF424242)
+        mono -> Color(0xFFDADADA)
+        dark -> Color(0xFF7C5F9E)
+        else -> Color(0xFFFFC8D2)
+    }
     val alphaBlue = if (dark) 0.56f else 0.72f
     val alphaTeal = if (dark) 0.44f else 0.56f
     val alphaLightBlue = if (dark) 0.48f else 0.62f

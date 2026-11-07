@@ -44,3 +44,43 @@ app/google-services.json
 
 # local build output
 dist/
+
+# --- 2026-11-07: worktree hygiene (backups and build logs are not source) ---
+# Manual .bak copies made before edits; the change itself lives in the tracked file,
+# so these stay on disk purely as a rollback point and must not enter history.
+*.bak-*
+*.bak2-*
+*.bak-close
+# Build / installer logs from local iteration
+*.log
+# Signing intermediates and staged APKs
+*.idsig
+/*.apk
+/*.idsig
+
+# One-off debugging / commit helpers from earlier sessions. Kept on disk for reference;
+# they are not part of the build and should not enter history.
+/_*
+/diag-*.ps1
+/do-commit*.ps1
+/fix-commit6.ps1
+/fix-ar*.ps1
+/fix-de.ps1
+/fix-locales.ps1
+/fix-path.ps1
+/append-strings*.ps1
+/dedup-strings.ps1
+/check-ar.ps1
+/get-rep.ps1
+/probe-supports.ps1
+/waiter.ps1
+/buildk.ps1
+/build-align1*
+/push-align1.cmd
+/envprobe.txt
+/test-report.txt
+
+# Throwaway string-extraction dumps
+/strings-p6.json
+/strings-payload.json
+/.buildlog-path

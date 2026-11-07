@@ -28,6 +28,7 @@ import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import me.rerere.rikkahub.R
+import me.rerere.rikkahub.ui.theme.LocalMonoTheme
 import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.floor
@@ -107,6 +108,23 @@ private val SparklePalette = listOf(
     Color(0xFFBA9278),
 )
 
+/** mono：同一组渐变位置，换成一条纯灰明度轴——形状与节奏不变，色相全部去掉。 */
+private val SparkleMonoPaletteLight = listOf(
+    Color(0xFF6E6E6E),
+    Color(0xFF828282),
+    Color(0xFF9A9A9A),
+    Color(0xFF7A7A7A),
+    Color(0xFF8E8E8E),
+)
+
+private val SparkleMonoPaletteDark = listOf(
+    Color(0xFFB4B4B4),
+    Color(0xFFC8C8C8),
+    Color(0xFFE0E0E0),
+    Color(0xFFC0C0C0),
+    Color(0xFFD4D4D4),
+)
+
 private class SparkleLook(
     val dark: Boolean,
     val palette: List<Color>,
@@ -119,13 +137,24 @@ private fun rememberSparkleLook(): SparkleLook {
     val scheme = MaterialTheme.colorScheme
     // Pick by how dark the theme actually is, not by the dark-mode setting alone.
     val dark = scheme.background.luminance() < 0.5f
+    val mono = LocalMonoTheme.current
+    val palette = when {
+        mono && dark -> SparkleMonoPaletteDark
+        mono -> SparkleMonoPaletteLight
+        else -> SparklePalette
+    }
     return SparkleLook(
         dark = dark,
-        palette = SparklePalette,
+        palette = palette,
         disc = scheme.surface.copy(alpha = if (dark) 0.30f else 0.45f),
         // Soft white stars vanish on a light background, so there they take the palette's own
         // violet instead of a vivid one.
-        star = if (dark) Color(0xFFC8CEDE) else SparklePalette[2],
+        star = when {
+            mono && dark -> Color(0xFFE6E6E6)
+            mono -> Color(0xFF3A3A3A)
+            dark -> Color(0xFFC8CEDE)
+            else -> SparklePalette[2]
+        },
     )
 }
 

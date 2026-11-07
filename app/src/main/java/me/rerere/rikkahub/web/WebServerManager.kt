@@ -48,7 +48,8 @@ class WebServerManager(
     private val conversationRepo: ConversationRepository,
     private val folderRepo: FolderRepository,
     private val settingsStore: SettingsStore,
-    private val filesManager: FilesManager
+    private val filesManager: FilesManager,
+    private val sshHostSocket: SshHostSocketHandler
 ) {
     private var server: EmbeddedServer<CIOApplicationEngine, CIOApplicationEngine.Configuration>? = null
     private val nsdRegistrar = NsdServiceRegistrar(context)
@@ -91,7 +92,10 @@ class WebServerManager(
                     return@launch
                 }
                 server = startWebServer(port = port, host = host) {
-                    configureWebApi(context, chatService, conversationRepo, folderRepo, settingsStore, filesManager)
+                    configureWebApi(
+                        context, chatService, conversationRepo, folderRepo,
+                        settingsStore, filesManager, sshHostSocket,
+                    )
                 }.start(wait = false)
 
                 _state.value = baseState.copy(isRunning = true)

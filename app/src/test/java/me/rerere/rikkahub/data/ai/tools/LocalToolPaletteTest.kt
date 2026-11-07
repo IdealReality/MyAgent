@@ -73,7 +73,7 @@ class LocalToolPaletteTest {
         val palette = LocalToolPalette.build(
             inventory(
                 LocalToolOption.JavascriptEngine to listOf(
-                    "javascript", "web_fetch", "web_extract", "check_app_updates",
+                    "javascript", "web_fetch", "web_extract",
                 ),
                 LocalToolOption.Battery to listOf("battery", "web_fetch", "web_extract"),
             )
@@ -81,7 +81,6 @@ class LocalToolPaletteTest {
         assertEquals(listOf("javascript", "battery"), palette.hits.map { it.name })
         assertNull(palette.group("web_fetch"))
         assertNull(palette.group("web_extract"))
-        assertNull(palette.group("check_app_updates"))
         assertEquals(
             listOf(LocalToolOption.JavascriptEngine, LocalToolOption.Battery),
             palette.groups,

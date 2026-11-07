@@ -87,12 +87,6 @@ android {
     }
 
     buildTypes {
-        // 【MyAgent 提示】UPDATE_API_URL 留空：应用层的上游版本检查已停用
-        // （ChatVM.updateState 恒为 Loading，UpdateCard 不再显示，UpdateChecker 不参与 DI）。
-        // UpdateChecker.kt / GitHubReleaseChecker.kt 暂时保留，仅供 agent 的
-        // check_app_updates 工具（ReliabilityTools）手动查询上游版本。
-        // 如要恢复应用层自动更新，需同时还原 ChatVM.updateState 与 AppModule 的
-        // UpdateChecker 注入，并把 UPDATE_API_URL 指向自建 update API。
         release {
             signingConfig = signingConfigs.getByName("release")
             optimization {
@@ -100,13 +94,11 @@ android {
             }
             buildConfigField("String", "VERSION_NAME", "\"${android.defaultConfig.versionName}\"")
             buildConfigField("String", "VERSION_CODE", "\"${android.defaultConfig.versionCode}\"")
-            buildConfigField("String", "UPDATE_API_URL", "\"\"")
         }
         debug {
             applicationIdSuffix = ".debug"
             buildConfigField("String", "VERSION_NAME", "\"${android.defaultConfig.versionName}\"")
             buildConfigField("String", "VERSION_CODE", "\"${android.defaultConfig.versionCode}\"")
-            buildConfigField("String", "UPDATE_API_URL", "\"\"")
         }
         // Shipping variant for RikkaHub Agent · Pure. Turns on the same
         // release-grade R8 + (AGP 9) optimized resource shrinking as `release`
@@ -127,7 +119,6 @@ android {
             }
             buildConfigField("String", "VERSION_NAME", "\"${android.defaultConfig.versionName}\"")
             buildConfigField("String", "VERSION_CODE", "\"${android.defaultConfig.versionCode}\"")
-            buildConfigField("String", "UPDATE_API_URL", "\"\"")
         }
     }
     compileOptions {
@@ -146,6 +137,13 @@ android {
     }
     androidResources {
         generateLocaleConfig = true
+    }
+    testOptions {
+        // Plain JVM unit tests hit android.util.Log in code paths that are only reachable
+        // with real payloads (e.g. the per-entry provider decode logs the skipped row).
+        // Without this every such call throws "Method w in android.util.Log not mocked",
+        // which hides the behaviour under test instead of testing it.
+        unitTests.isReturnDefaultValues = true
     }
     packaging {
         jniLibs {

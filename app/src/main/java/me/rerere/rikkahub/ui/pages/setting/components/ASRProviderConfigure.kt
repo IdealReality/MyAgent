@@ -32,6 +32,7 @@ fun ASRProviderConfigure(
         ) {
             OutlinedTextField(
                 value = when (setting) {
+                    is ASRProviderSetting.System -> "System recognizer"
                     is ASRProviderSetting.OpenAIRealtime -> "OpenAI Realtime"
                     is ASRProviderSetting.DashScope -> "DashScope"
                     is ASRProviderSetting.Volcengine -> "Volcengine"
@@ -58,6 +59,7 @@ fun ASRProviderConfigure(
         }
 
         when (setting) {
+            is ASRProviderSetting.System -> SystemASRConfiguration(setting, onValueChange)
             is ASRProviderSetting.OpenAIRealtime -> OpenAIRealtimeASRConfiguration(setting, onValueChange)
             is ASRProviderSetting.DashScope -> DashScopeASRConfiguration(setting, onValueChange)
             is ASRProviderSetting.Volcengine -> VolcengineASRConfiguration(setting, onValueChange)
@@ -623,6 +625,34 @@ private fun DashScopeStreamingASRConfiguration(
         androidx.compose.material3.Switch(
             checked = setting.keepDialect,
             onCheckedChange = { onValueChange(setting.copy(keepDialect = it)) }
+        )
+    }
+}
+
+@Composable
+private fun SystemASRConfiguration(
+    setting: ASRProviderSetting.System,
+    onValueChange: (ASRProviderSetting) -> Unit
+) {
+    FormItem(
+        label = { Text(stringResource(R.string.setting_asr_configure_language)) },
+        description = { Text(stringResource(R.string.setting_asr_configure_system_language_desc)) }
+    ) {
+        OutlinedTextField(
+            value = setting.language,
+            onValueChange = { onValueChange(setting.copy(language = it)) },
+            modifier = Modifier.fillMaxWidth(),
+            placeholder = { Text("zh-CN") }
+        )
+    }
+
+    FormItem(
+        label = { Text(stringResource(R.string.setting_asr_configure_system_on_device)) },
+        description = { Text(stringResource(R.string.setting_asr_configure_system_on_device_desc)) }
+    ) {
+        androidx.compose.material3.Switch(
+            checked = setting.useOnDevice,
+            onCheckedChange = { onValueChange(setting.copy(useOnDevice = it)) }
         )
     }
 }

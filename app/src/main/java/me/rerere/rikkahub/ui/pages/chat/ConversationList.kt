@@ -54,6 +54,8 @@ import me.rerere.rikkahub.R
 import me.rerere.rikkahub.ui.components.ui.AppDropdownMenu
 import me.rerere.rikkahub.ui.components.ui.AppMenuEntry
 import me.rerere.rikkahub.data.model.Conversation
+import me.rerere.rikkahub.ui.theme.Radius
+import me.rerere.rikkahub.ui.theme.Spacing
 import me.rerere.rikkahub.ui.theme.extendColors
 import java.time.LocalDate
 import java.time.ZoneId
@@ -250,7 +252,8 @@ private fun ConversationItem(
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val focusManager = LocalFocusManager.current
-    val itemShape = RoundedCornerShape(12.dp)
+    // 排版跟随 moxw：行圆角走 Radius.field 一档，和设置卡片、抽屉卡片同一尺度。
+    val itemShape = RoundedCornerShape(Radius.field)
     val highlight = if (selectionMode) checked else selected
     val backgroundColor = if (highlight) {
         MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
@@ -305,7 +308,7 @@ private fun ConversationItem(
                 .fillMaxWidth()
                 .padding(horizontal = 10.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(6.dp)
+            horizontalArrangement = Arrangement.spacedBy(Spacing.sm)
         ) {
             if (selectionMode) {
                 SelectionCheckmark(checked = checked)

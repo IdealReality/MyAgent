@@ -50,6 +50,8 @@ import me.rerere.rikkahub.data.datastore.migration.PreferenceStoreV2Migration
 import me.rerere.rikkahub.data.datastore.migration.PreferenceStoreV3Migration
 import me.rerere.rikkahub.data.datastore.migration.PreferenceStoreV4Migration
 import me.rerere.rikkahub.data.datastore.migration.PreferenceStoreV5Migration
+import me.rerere.rikkahub.data.datastore.migration.PreferenceStoreV6Migration
+import me.rerere.rikkahub.data.datastore.migration.PreferenceStoreV7Migration
 import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.data.model.Avatar
 import me.rerere.rikkahub.data.model.InjectionPosition
@@ -160,6 +162,8 @@ private fun createSettingsDataStore(context: Context): DataStore<Preferences> {
             PreferenceStoreV3Migration(),
             PreferenceStoreV4Migration(),
             PreferenceStoreV5Migration(),
+            PreferenceStoreV6Migration(),
+            PreferenceStoreV7Migration(),
         ),
         produceFile = { file },
     )
@@ -211,9 +215,6 @@ class SettingsStore(
 
         // 提供商
         val PROVIDERS = stringPreferencesKey("providers")
-        // IDs of built-in providers the user explicitly deleted; the re-seed pass
-        // skips these so deletions are sticky across app restarts.
-        val DELETED_BUILTIN_PROVIDER_IDS = stringPreferencesKey("deleted_builtin_provider_ids")
         // Names of bundled skills the user explicitly deleted; the seed pass skips these
         // (see Settings.deletedBundledSkills). Missing key -> emptySet(), no migration.
         val DELETED_BUNDLED_SKILLS = stringPreferencesKey("deleted_bundled_skills")
@@ -229,6 +230,10 @@ class SettingsStore(
         // SettingsPersistenceCoverageTest 守住这条不变量。
         val SUB_AGENT_ARCHIVE_FOLDERS = stringPreferencesKey("sub_agent_archive_folders")
         val AUTO_ENABLED_DEFAULT_SKILLS = stringPreferencesKey("auto_enabled_default_skills")
+        // IDs of built-in assistants the user explicitly deleted. The re-seed pass on
+        // settings load skips these, otherwise deleting the built-in 「默认助手」 would just
+        // re-add it on the next read.
+        val DELETED_BUILTIN_ASSISTANT_IDS = stringPreferencesKey("deleted_builtin_assistant_ids")
         /**
          * Global (all-assistants) ceiling on concurrently running sub-agents. Stored as its own
          * top-level preference, so it needs the same three-place wiring as every other Settings
@@ -346,13 +351,13 @@ class SettingsStore(
                 preferences[RESPONSE_STREAM_MAX_RETRIES] = settings.responseStreamMaxRetries.coerceIn(0, 10)
 
                 preferences[PROVIDERS] = JsonInstant.encodeToString(settings.providers)
-                preferences[DELETED_BUILTIN_PROVIDER_IDS] = JsonInstant.encodeToString(
-                    settings.deletedBuiltInProviderIds.map { it.toString() }.toSet()
-                )
                 preferences[DELETED_BUNDLED_SKILLS] = JsonInstant.encodeToString(settings.deletedBundledSkills)
                 preferences[SKILL_GROUPS] = JsonInstant.encodeToString(settings.skillGroups)
 
                 preferences[ASSISTANTS] = JsonInstant.encodeToString(settings.assistants)
+                preferences[DELETED_BUILTIN_ASSISTANT_IDS] = JsonInstant.encodeToString(
+                    settings.deletedBuiltInAssistantIds.map { it.toString() }.toSet()
+                )
                 preferences[SELECT_ASSISTANT] = settings.assistantId.toString()
                 preferences[ASSISTANT_TAGS] = JsonInstant.encodeToString(settings.assistantTags)
                 preferences[SUB_AGENT_ARCHIVE_FOLDERS] =
@@ -432,10 +437,13 @@ class SettingsStore(
                         emptyList()
                     }
                 } ?: emptyList(),
+                // 没有「默认模型」可指了：应用不再预置任何服务商，所以未选模型时给一个
+                // 不存在的随机 id，让 resolveChatModel 一路落到 null（UI 提示去选模型），
+                // 而不是指向某家厂商的占位模型。
                 chatModelId = preferences[SELECT_MODEL]?.let { runCatching { Uuid.parse(it) }.getOrNull() }
-                    ?: DEFAULT_AUTO_MODEL_ID,
+                    ?: Uuid.random(),
                 fastModelId = preferences[FAST_MODEL]?.let { runCatching { Uuid.parse(it) }.getOrNull() }
-                    ?: DEFAULT_AUTO_MODEL_ID,
+                    ?: Uuid.random(),
                 fastModelReasoningLevel = preferences[FAST_MODEL_REASONING_LEVEL]
                     ?.let { value -> ReasoningLevel.entries.find { it.name == value } }
                     ?: ReasoningLevel.AUTO,
@@ -443,7 +451,7 @@ class SettingsStore(
                     ?.takeIf { it.isNotBlank() }
                     ?.let { runCatching { Uuid.parse(it) }.getOrNull() },
                 translateModeId = preferences[TRANSLATE_MODEL]?.let { runCatching { Uuid.parse(it) }.getOrNull() }
-                    ?: DEFAULT_AUTO_MODEL_ID,
+                    ?: Uuid.random(),
                 enableSuggestion = preferences[ENABLE_SUGGESTION] != false,
                 errorCardAutoDismiss = preferences[ERROR_CARD_AUTO_DISMISS] == true,
                 imageGenerationModelId = preferences[IMAGE_GENERATION_MODEL]?.let { runCatching { Uuid.parse(it) }.getOrNull() } ?: Uuid.random(),
@@ -454,7 +462,7 @@ class SettingsStore(
                 suggestionPrompt = preferences[SUGGESTION_PROMPT] ?: DEFAULT_SUGGESTION_PROMPT,
                 ocrModelId = preferences[OCR_MODEL]?.let { runCatching { Uuid.parse(it) }.getOrNull() } ?: Uuid.random(),
                 ocrPrompt = preferences[OCR_PROMPT] ?: DEFAULT_OCR_PROMPT,
-                compressModelId = preferences[COMPRESS_MODEL]?.let { runCatching { Uuid.parse(it) }.getOrNull() } ?: DEFAULT_AUTO_MODEL_ID,
+                compressModelId = preferences[COMPRESS_MODEL]?.let { runCatching { Uuid.parse(it) }.getOrNull() } ?: Uuid.random(),
                 compressPrompt = preferences[COMPRESS_PROMPT] ?: DEFAULT_COMPRESS_PROMPT,
                 assistantId = preferences[SELECT_ASSISTANT]?.let { runCatching { Uuid.parse(it) }.getOrNull() }
                     ?: DEFAULT_ASSISTANT_ID,
@@ -479,14 +487,6 @@ class SettingsStore(
                     }
                 } ?: emptyList(),
                 providers = decodeProvidersTolerant(preferences[PROVIDERS] ?: "[]"),
-                deletedBuiltInProviderIds = preferences[DELETED_BUILTIN_PROVIDER_IDS]
-                    ?.let { raw ->
-                        runCatching {
-                            JsonInstant.decodeFromString<Set<String>>(raw)
-                                .mapNotNull { runCatching { Uuid.parse(it) }.getOrNull() }
-                                .toSet()
-                        }.getOrNull()
-                    } ?: emptySet(),
                 deletedBundledSkills = preferences[DELETED_BUNDLED_SKILLS]?.let { raw ->
                     runCatching { JsonInstant.decodeFromString<Set<String>>(raw) }.getOrElse {
                         Log.w(TAG, "Failed to decode deletedBundledSkills, using default", it)
@@ -505,6 +505,14 @@ class SettingsStore(
                     Log.w(TAG, "Failed to decode assistants, using default", it)
                     emptyList()
                 },
+                deletedBuiltInAssistantIds = preferences[DELETED_BUILTIN_ASSISTANT_IDS]
+                    ?.let { raw ->
+                        runCatching {
+                            JsonInstant.decodeFromString<Set<String>>(raw)
+                                .mapNotNull { runCatching { Uuid.parse(it) }.getOrNull() }
+                                .toSet()
+                        }.getOrNull()
+                    } ?: emptySet(),
                 subAgentArchiveFolders = preferences[SUB_AGENT_ARCHIVE_FOLDERS]?.let { raw ->
                     runCatching { JsonInstant.decodeFromString<Map<String, String>>(raw) }.getOrElse {
                         Log.w(TAG, "Failed to decode subAgentArchiveFolders, using empty", it)
@@ -597,9 +605,9 @@ class SettingsStore(
                 asrProviders = preferences[ASR_PROVIDERS]?.let { raw ->
                     runCatching { JsonInstant.decodeFromString<List<ASRProviderSetting>>(raw) }.getOrElse {
                         Log.w(TAG, "Failed to decode asrProviders, using default", it)
-                        emptyList()
+                        DEFAULT_ASR_PROVIDERS
                     }
-                } ?: emptyList(),
+                } ?: DEFAULT_ASR_PROVIDERS,
                 selectedASRProviderId = preferences[SELECTED_ASR_PROVIDER]?.let { runCatching { Uuid.parse(it) }.getOrNull() },
                 modeInjections = preferences[MODE_INJECTIONS]?.let { raw ->
                     runCatching { JsonInstant.decodeFromString<List<PromptInjection.ModeInjection>>(raw) }.getOrElse {
@@ -642,79 +650,19 @@ class SettingsStore(
             )
         }
         .map {
-            val deletedDefaultIds = it.deletedBuiltInProviderIds
-            var providers = it.providers.ifEmpty {
-                DEFAULT_PROVIDERS.filter { p -> p.id !in deletedDefaultIds }
-            }.toMutableList()
-            // One-shot cleanup (2026-10): the upstream-sponsored built-in providers carrying
-            // affiliate links (AiHubMix / APIMart / 小马算力 / 随想AI网关 / MaruCode / AckAI /
-            // UnifyLLM) are no longer shipped in DEFAULT_PROVIDERS. Fresh installs never seed
-            // them; existing installs already have them, so drop only the rows the user never
-            // touched (still disabled, no API key, no models) and leave a configured one be.
-            providers.removeAll { provider ->
-                provider.builtIn &&
-                    provider.id in REMOVED_SPONSORED_PROVIDER_IDS &&
-                    !provider.enabled &&
-                    provider.models.isEmpty() &&
-                    when (provider) {
-                        is ProviderSetting.OpenAI -> provider.apiKey.isBlank()
-                        is ProviderSetting.Google -> provider.apiKey.isBlank()
-                        is ProviderSetting.Claude -> provider.apiKey.isBlank()
-                        else -> true
-                    }
-            }
-            // For existing installs that pre-date the on-device AICore provider being
-            // promoted to first-place, hoist it to the top so the user does not have to
-            // scroll past every legacy aggregator to find it.
-            val aicoreIndex = providers.indexOfFirst { it is ProviderSetting.AICore }
-            if (aicoreIndex > 0) {
-                val aicoreRow = providers.removeAt(aicoreIndex)
-                providers.add(0, aicoreRow)
-            }
-            DEFAULT_PROVIDERS.forEach { defaultProvider ->
-                if (defaultProvider.id in deletedDefaultIds) return@forEach
-                if (providers.none { it.id == defaultProvider.id }) {
-                    // On-device built-in providers (AICore, LiteRT) are pinned to the top of
-                    // the list in the order they appear in DEFAULT_PROVIDERS. Remote provider
-                    // defaults continue to append at the end so existing users see no
-                    // reordering of their configured remote providers.
-                    when (defaultProvider) {
-                        is ProviderSetting.AICore -> providers.add(0, defaultProvider.copyProvider())
-                        is ProviderSetting.LiteRtLocal -> {
-                            // Insert right after AICore, or at 0 if AICore is absent.
-                            // indexOfFirst returns -1 when absent; -1 + 1 = 0, so insert at 0.
-                            val insertAt = providers.indexOfFirst { it is ProviderSetting.AICore } + 1
-                            providers.add(insertAt, defaultProvider.copyProvider())
-                        }
-                        is ProviderSetting.LlamaCppLocal -> {
-                            // Insert right after LiteRtLocal, so it groups with the other
-                            // on-device provider instead of appending after every remote
-                            // provider below. Falls back to right after AICore, or 0, if
-                            // LiteRtLocal is absent - same absent-index fallback as above.
-                            val insertAt = providers.indexOfFirst { it is ProviderSetting.LiteRtLocal }
-                                .let { if (it >= 0) it + 1 else providers.indexOfFirst { p -> p is ProviderSetting.AICore } + 1 }
-                            providers.add(insertAt, defaultProvider.copyProvider())
-                        }
-                        else -> providers.add(defaultProvider.copyProvider())
-                    }
-                }
-            }
-            providers = providers.map { provider ->
-                val defaultProvider = DEFAULT_PROVIDERS.find { it.id == provider.id }
-                if (defaultProvider != null) {
-                    provider.copyProvider(
-                        builtIn = defaultProvider.builtIn,
-                        description = defaultProvider.description,
-                        shortDescription = defaultProvider.shortDescription,
-                    )
-                } else provider
-            }.toMutableList()
-            var assistants = it.assistants.ifEmpty { DEFAULT_ASSISTANTS }.toMutableList()
-            DEFAULT_ASSISTANTS.forEach { defaultAssistant ->
-                if (assistants.none { it.id == defaultAssistant.id }) {
-                    assistants.add(defaultAssistant.copy())
-                }
-            }
+            // No seeding: this build ships no bundled providers, so whatever is on disk is
+            // exactly what the user created. Two one-shot sweeps still run for installs that
+            // upgraded from a build that DID seed rows.
+            //
+            // Only untouched rows are dropped — a row the user configured (enabled it, put a
+            // key in it, added a model) survives, because deleting it would take their API
+            // key and model list with it. Rows removed by the user are already gone from the
+            // list, so no "deleted ids" tombstone is needed any more: nothing re-adds them.
+            val providers = ProviderSeedRules.sweepUnconfiguredBundled(it.providers).toMutableList()
+            var assistants = AssistantSeedRules.reseedAssistants(
+                stored = AssistantSeedRules.dropRemovedAssistants(it.assistants),
+                deletedIds = it.deletedBuiltInAssistantIds,
+            ).toMutableList()
             // One-shot upgrade for existing installs that pre-date the agent-core auto-load:
             // if a default-IDed assistant has an empty enabledSkills, treat it as fresh and
             // pin agent-core. Users who deliberately added other skills are untouched.
@@ -744,11 +692,29 @@ class SettingsStore(
                     ttsProviders.add(defaultTTSProvider.copyProvider())
                 }
             }
+            val asrProviders = it.asrProviders.ifEmpty { DEFAULT_ASR_PROVIDERS }.toMutableList()
+            DEFAULT_ASR_PROVIDERS.forEach { defaultAsr ->
+                if (asrProviders.none { provider -> provider.id == defaultAsr.id }) {
+                    asrProviders.add(defaultAsr.copyProvider())
+                }
+            }
             it.copy(
                 providers = providers,
                 assistants = assistants,
+                // A removed bundled assistant was the selected one on some installs; point the
+                // pointer at a row that still exists instead of leaving it dangling.
+                // `reseedAssistants` never returns an empty list, so `first()` is safe here.
+                assistantId = it.assistantId
+                    .takeIf { id -> assistants.any { assistant -> assistant.id == id } }
+                    ?: assistants.first().id,
                 autoEnabledDefaultSkills = newAutoEnabled,
                 ttsProviders = ttsProviders,
+                asrProviders = asrProviders,
+                // An existing install stored an empty provider list, so the "selected" id is
+                // null; point it at the seeded system recognizer instead of leaving the
+                // composer without a microphone.
+                selectedASRProviderId = it.selectedASRProviderId
+                    ?: asrProviders.firstOrNull()?.id,
             )
         }
         .map { settings ->
@@ -795,10 +761,6 @@ class SettingsStore(
 
                         is ProviderSetting.GeminiOAuth -> provider.copy(
                             models = dropDeniedGeminiOAuthModels(provider.models)
-                        )
-
-                        is ProviderSetting.AgentsAnywhere -> provider.copy(
-                            models = provider.models.distinctBy { model -> model.id }
                         )
                     }
                 },
@@ -1040,13 +1002,13 @@ data class Settings(
     val responseStreamMaxRetries: Int = 5,
     val assistantId: Uuid = DEFAULT_ASSISTANT_ID,
     val providers: List<ProviderSetting> = DEFAULT_PROVIDERS,
-    /**
-     * IDs of built-in providers the user explicitly removed via long-press. The re-seed
-     * pass on settings load skips these so deletions stick across app restarts. Without
-     * this gate, deleting a default provider would just re-add it on next read.
-     */
-    val deletedBuiltInProviderIds: Set<Uuid> = emptySet(),
     val assistants: List<Assistant> = DEFAULT_ASSISTANTS,
+    /**
+     * IDs of built-in assistants the user explicitly deleted. Without it the re-seed pass
+     * below re-adds every bundled assistant on the next settings read, so deleting
+     * 「默认助手」 would look like it worked and then silently come back after a restart.
+     */
+    val deletedBuiltInAssistantIds: Set<Uuid> = emptySet(),
     /**
      * P2-23 (D7) — assistantId -> the folder its sub-agent conversations are filed into.
      * Absent means "do not file". Kept in Settings rather than on `FolderEntity` so no
@@ -1067,10 +1029,10 @@ data class Settings(
     val subAgentDispatchProfile: SubAgentDispatchProfile = SubAgentDispatchProfile.NEVER,
     /**
      * Names of bundled default-on skills (see [DEFAULT_AUTO_ENABLED_SKILLS]) that have already
-     * been seeded into the default assistants' enabledSkills exactly once. Mirrors
-     * [deletedBuiltInProviderIds]: it lets a newly-shipped skill auto-enable on upgrade while
-     * still respecting a later deliberate user-disable - once a name is recorded here it is
-     * never re-added, so toggling it off sticks across launches.
+     * been seeded into the default assistants' enabledSkills exactly once. It lets a
+     * newly-shipped skill auto-enable on upgrade while still respecting a later deliberate
+     * user-disable - once a name is recorded here it is never re-added, so toggling it off
+     * sticks across launches.
      */
     val autoEnabledDefaultSkills: Set<String> = emptySet(),
     /**
@@ -1106,8 +1068,8 @@ data class Settings(
     val ttsProviders: List<TTSProviderSetting> = DEFAULT_TTS_PROVIDERS,
     val selectedTTSProviderId: Uuid = DEFAULT_SYSTEM_TTS_ID,
     val defaultTTSPlaybackSpeed: Float = 1.0f,
-    val asrProviders: List<ASRProviderSetting> = emptyList(),
-    val selectedASRProviderId: Uuid? = null,
+    val asrProviders: List<ASRProviderSetting> = DEFAULT_ASR_PROVIDERS,
+    val selectedASRProviderId: Uuid? = DEFAULT_SYSTEM_ASR_ID,
     val modeInjections: List<PromptInjection.ModeInjection> = DEFAULT_MODE_INJECTIONS,
     val lorebooks: List<Lorebook> = emptyList(),
     val quickMessages: List<QuickMessage> = emptyList(),
@@ -1224,7 +1186,9 @@ enum class ChatFontFamily {
 data class DisplaySetting(
     val userAvatar: Avatar = Avatar.Dummy,
     val userNickname: String = "",
-    val useAppIconStyleLoadingIndicator: Boolean = true,
+    // 画风对齐 rikkahub 原版：默认用 M3 的 ContainedLoadingIndicator。
+    // 想要 App 图标里的兔子动画，在「界面」设置里切到 APP_ICON 即可。
+    val useAppIconStyleLoadingIndicator: Boolean = false,
     /** Null = not chosen yet: follow [useAppIconStyleLoadingIndicator] (see resolveLoadingIndicatorStyle). */
     val loadingIndicatorStyle: LoadingIndicatorStyle? = null,
     val showUserAvatar: Boolean = true,
@@ -1232,8 +1196,9 @@ data class DisplaySetting(
     val bubbleOpacity: Float = 1.0f,
     // 简洁布局：扁平顶栏 + 两行输入框。默认关，关时与原来完全一致。
     val cleanLayout: Boolean = false,
-    // 简洁布局输入框液态玻璃材质。关时为扁平单色卡片。默认开。
-    val cleanLayoutGlass: Boolean = true,
+    // 简洁布局输入框液态玻璃材质。关时为扁平单色卡片。默认关（玻璃会盖过 rikkahub 原版的
+    // surfaceContainerLow 实心卡材质，只在需要时手动开）。
+    val cleanLayoutGlass: Boolean = false,
     // 简洁布局顶栏面板浓度：0 = 完全透明（只剩描边），1 = 材质默认浓度。默认 1。
     val cleanLayoutTopOpacity: Float = 1f,
     // 简洁布局输入框面板浓度，语义同 cleanLayoutTopOpacity。
@@ -1242,9 +1207,9 @@ data class DisplaySetting(
     val cleanLayoutTopHeight: Float = 48f,
     // 简洁布局输入框上下内边距（dp）。默认 6；0..24 由 CleanPanel 的常量给出，见那边的说明。
     val cleanLayoutBottomPadding: Float = 6f,
-    // 抽屉上下功能区：开 = 没有底板，控件直接落在磨砂抽屉上，身份行/入口/文件夹/底部动作
-    // 各自是小胶囊，列表在控件所在的那一段渐隐；关 = 原来的上下两张浮岛卡片。默认开。
-    val drawerCapsules: Boolean = true,
+    // 抽屉上下功能区：开 = 没有底板，控件直接落在抽屉底色上，身份行/入口/文件夹/底部动作
+    // 各自是小胶囊；关 = 上下两张浮岛卡片（rikkahub 原版的做法）。默认关。
+    val drawerCapsules: Boolean = false,
     val showModelIcon: Boolean = true,
     val showModelName: Boolean = true,
     val showDateTimeInMessage: Boolean = false,
@@ -1261,14 +1226,14 @@ data class DisplaySetting(
     val thinkingStepsVisibleCount: Int = 2,
     // 工具调用样式。默认经典时间线；旧设置没有该字段时也读回经典。
     val toolCallStyle: ToolCallStyle = ToolCallStyle.CLASSIC,
-    // 弹出菜单样式。默认表现力（圆角分组 + spring）；可切回经典平面菜单。
-    val popupMenuStyle: PopupMenuStyle = PopupMenuStyle.EXPRESSIVE,
+    // 弹出菜单样式。默认经典平面菜单（对齐 rikkahub 原版观感）；想用圆角分组 + spring
+    // 的表现力菜单可在设置里打开。
+    val popupMenuStyle: PopupMenuStyle = PopupMenuStyle.CLASSIC,
     // 设置首页信息架构。默认新版分组/文案；可切回原版入口布局。与菜单样式正交。
     val settingsHubStyle: SettingsHubStyle = SettingsHubStyle.REORGANIZED,
     // 把夹在工具/思考轮次之间的过程旁白并进思考链，避免拆成多张「再显示 N 步」和正文穿插。
     // 默认开；关掉则恢复旧的旁白当正文、步骤组被切开的布局。
     val foldProcessNarration: Boolean = true,
-    val updateCheckDisabledUntilEpochMillis: Long = 0L,
     val showMessageJumper: Boolean = true,
     val messageJumperOnLeft: Boolean = false,
     val fontSizeRatio: Float = 1.0f,
@@ -1485,25 +1450,6 @@ internal val DEFAULT_ASSISTANT_ID = Uuid.parse("0950e2dc-9bd5-4801-afa3-aa887aa3
  */
 internal val DEFAULT_AUTO_ENABLED_SKILLS = setOf("autonomous-agent")
 
-/**
- * Agents Anywhere 专属助手。
- *
- * 现在 AA 不是工具而是 provider：这个助手的作用只剩「一个已经清干净本地工具面的会话模板」。
- * 它不绑死模型（远端目录随机器不同，无法预先固化 model id）：第一次使用时在
- * 设置 → 服务商 → Agents Anywhere 里填连接信息并拉一次目录，然后在「模型」页选中远端模型即可。
- */
-val AGENTS_ANYWHERE_ASSISTANT_ID = Uuid.parse("a7c1f0b4-6d2e-4c58-9b3a-1e5d8f2c7a90")
-
-internal val AGENTS_ANYWHERE_ASSISTANT = Assistant(
-    id = AGENTS_ANYWHERE_ASSISTANT_ID,
-    name = "远程助手",
-    chatModelId = null,
-    systemPrompt = "",
-    enabledSkills = emptySet(),
-    // 远端 agent 自带工具循环；本地再挂工具只会让两套工具面互相干扰。
-    localTools = emptyList(),
-)
-
 internal val DEFAULT_ASSISTANTS = listOf(
     Assistant(
         id = DEFAULT_ASSISTANT_ID,
@@ -1535,7 +1481,19 @@ internal val DEFAULT_ASSISTANTS = listOf(
         """.trimIndent(),
         enabledSkills = setOf("agent-core") + DEFAULT_AUTO_ENABLED_SKILLS,
     ),
-    AGENTS_ANYWHERE_ASSISTANT,
+)
+
+val DEFAULT_SYSTEM_ASR_ID = Uuid.parse("d0d4a1ee-4f6a-4c33-9a0b-9a1f5a2f3c21")
+
+/**
+ * Chat voice input works out of the box: the platform recognizer that every Android build
+ * already has. Cloud ASR providers stay available as opt-in additions that need a key.
+ */
+private val DEFAULT_ASR_PROVIDERS = listOf(
+    ASRProviderSetting.System(
+        id = DEFAULT_SYSTEM_ASR_ID,
+        name = "",
+    )
 )
 
 val DEFAULT_SYSTEM_TTS_ID = Uuid.parse("026a01a2-c3a0-4fd5-8075-80e03bdef200")
@@ -1554,6 +1512,18 @@ private val DEFAULT_TTS_PROVIDERS = listOf(
 )
 
 internal val DEFAULT_ASSISTANTS_IDS = DEFAULT_ASSISTANTS.map { it.id }
+
+/**
+ * 本构建曾内置、现已彻底移除的助手 id（Agents Anywhere 的「远程助手」）。
+ *
+ * 它不再是 bundled default，光从 [DEFAULT_ASSISTANTS] 删掉不够：老安装里那一行已经落盘，
+ * re-seed 只负责「补齐」不会「清掉」，于是这个空模型、零技能的会话模板会永远留在列表里。
+ * 所以读取设置时按 id 过滤一次。对话若仍指向它，`AssistantResolver.forConversation` 会
+ * 回落到当前助手，不会崩。
+ */
+val REMOVED_BUILTIN_ASSISTANT_IDS: Set<Uuid> = setOf(
+    Uuid.parse("a7c1f0b4-6d2e-4c58-9b3a-1e5d8f2c7a90"), // Agents Anywhere 远程助手
+)
 
 val DEFAULT_MODE_INJECTIONS = listOf(
     PromptInjection.ModeInjection(

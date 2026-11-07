@@ -1,8 +1,12 @@
 package me.rerere.rikkahub.ui.pages.setting
 
 import android.content.ActivityNotFoundException
+import android.content.Context
 import android.content.Intent
 import android.widget.Toast
+import androidx.core.content.FileProvider
+import java.io.File
+
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -19,7 +23,6 @@ import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -73,7 +76,6 @@ import me.rerere.hugeicons.stroke.SmartPhone01
 import me.rerere.hugeicons.stroke.Sun01
 import me.rerere.hugeicons.stroke.Telegram
 import me.rerere.hugeicons.stroke.Tick01
-import me.rerere.hugeicons.stroke.Tiktok
 import me.rerere.hugeicons.stroke.View
 import me.rerere.hugeicons.stroke.Wrench01
 import me.rerere.rikkahub.R
@@ -82,18 +84,15 @@ import me.rerere.rikkahub.data.datastore.SettingsHubStyle
 import me.rerere.rikkahub.data.datastore.isNotConfigured
 import me.rerere.rikkahub.data.files.FilesManager
 import me.rerere.rikkahub.ui.components.nav.BackButton
+import me.rerere.rikkahub.ui.components.ui.SettingIcon
 import me.rerere.rikkahub.ui.components.ui.CardGroup
-import me.rerere.rikkahub.ui.components.ui.icons.DiscordIcon
-import me.rerere.rikkahub.ui.components.ui.icons.TencentQQIcon
 import me.rerere.rikkahub.ui.components.ui.permission.LocalNetworkPermissionCard
 import me.rerere.rikkahub.ui.components.ui.permission.rememberLocalNetworkPermissionState
 import me.rerere.rikkahub.ui.context.LocalNavController
 import me.rerere.rikkahub.ui.context.Navigator
 import me.rerere.rikkahub.ui.theme.CustomColors
-import me.rerere.rikkahub.utils.joinQQGroup
 import me.rerere.rikkahub.utils.openUrl
 import me.rerere.rikkahub.utils.plus
-import me.rerere.rikkahub.utils.writeClipboardText
 import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
 
@@ -151,9 +150,7 @@ val localNetworkPermission = rememberLocalNetworkPermissionState()
     ) { innerPadding ->
         val hubStyle = settings.displaySetting.settingsHubStyle
         val sections = remember(hubStyle) { settingsHubSections(hubStyle) }
-        val shareText = stringResource(R.string.setting_page_share_text)
         val shareLabel = stringResource(R.string.setting_page_share)
-        val noShareApp = stringResource(R.string.setting_page_no_share_app)
 
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
@@ -181,6 +178,10 @@ val localNetworkPermission = rememberLocalNetworkPermissionState()
                             value = filesManager.countChatFiles()
                         }
                     }
+                    // 分组的色相：外观/模型/助手/设备/连接/数据/关于各自一档，
+                    // 扫读时不用读标题也能分出组（见 SettingIcon 的注释）。
+                    // 必须在 CardGroup 之外求值：CardGroupScope 的 content 不是 @Composable。
+                    val sectionTint = hubSectionTint(section.id)
                     CardGroup(
                         modifier = Modifier.padding(horizontal = 8.dp),
                         title = { Text(stringResource(section.titleRes(hubStyle))) },
@@ -189,11 +190,12 @@ val localNetworkPermission = rememberLocalNetworkPermissionState()
                             val def = settingsHubItems.getValue(itemId)
                             val copy = def.copyFor(hubStyle)
                             val icon = hubItemIcon(itemId)
+                            val iconTint = sectionTint
                             when (itemId) {
                                 SettingsHubItemId.FILES -> {
                                     item(
                                         onClick = { navController.navigate(Screen.SettingFiles) },
-                                        leadingContent = { Icon(icon, null) },
+                                        leadingContent = { SettingIcon(icon, tint = iconTint) },
                                         supportingContent = {
                                             if (storageState.first == -1) {
                                                 Text(stringResource(R.string.calculating))
@@ -213,55 +215,17 @@ val localNetworkPermission = rememberLocalNetworkPermissionState()
                                 SettingsHubItemId.ABOUT -> {
                                     item(
                                         onClick = { navController.navigate(Screen.SettingAbout) },
-                                        leadingContent = { Icon(icon, null) },
+                                        leadingContent = { SettingIcon(icon, tint = iconTint) },
                                         supportingContent = {
                                             copy.descriptionRes?.let { Text(stringResource(it)) }
-                                        },
-                                        trailingContent = {
-                                            Row(
-                                                verticalAlignment = Alignment.CenterVertically,
-                                                horizontalArrangement = Arrangement.spacedBy(4.dp)
-                                            ) {
-                                                var showQQGroupSheet by remember { mutableStateOf(false) }
-                                                IconButton(onClick = { showQQGroupSheet = true }) {
-                                                    Icon(
-                                                        imageVector = TencentQQIcon,
-                                                        contentDescription = stringResource(R.string.accessibility_qq),
-                                                        tint = MaterialTheme.colorScheme.secondary
-                                                    )
-                                                }
-                                                if (showQQGroupSheet) {
-                                                    QQGroupBottomSheet(onDismiss = { showQQGroupSheet = false })
-                                                }
-                                                IconButton(
-                                                    onClick = {
-                                                        context.openUrl("https://discord.gg/9weBqxe5c4")
-                                                    }
-                                                ) {
-                                                    Icon(
-                                                        imageVector = DiscordIcon,
-                                                        contentDescription = stringResource(R.string.accessibility_discord),
-                                                        tint = MaterialTheme.colorScheme.secondary
-                                                    )
-                                                }
-                                            }
                                         },
                                         headlineContent = { Text(stringResource(copy.titleRes)) },
                                     )
                                 }
                                 SettingsHubItemId.SHARE -> {
                                     item(
-                                        onClick = {
-                                            val intent = Intent(Intent.ACTION_SEND)
-                                            intent.type = "text/plain"
-                                            intent.putExtra(Intent.EXTRA_TEXT, shareText)
-                                            try {
-                                                context.startActivity(Intent.createChooser(intent, shareLabel))
-                                            } catch (e: ActivityNotFoundException) {
-                                                Toast.makeText(context, noShareApp, Toast.LENGTH_SHORT).show()
-                                            }
-                                        },
-                                        leadingContent = { Icon(icon, null) },
+                                        onClick = { shareApk(context, shareLabel) },
+                                        leadingContent = { SettingIcon(icon, tint = iconTint) },
                                         supportingContent = {
                                             copy.descriptionRes?.let { Text(stringResource(it)) }
                                         },
@@ -274,7 +238,7 @@ val localNetworkPermission = rememberLocalNetworkPermissionState()
                                         onClick = {
                                             if (route != null) navController.navigate(route)
                                         },
-                                        leadingContent = { Icon(icon, null) },
+                                        leadingContent = { SettingIcon(icon, tint = iconTint) },
                                         supportingContent = {
                                             copy.descriptionRes?.let { Text(stringResource(it)) }
                                         },
@@ -290,6 +254,47 @@ val localNetworkPermission = rememberLocalNetworkPermissionState()
     }
 }
 
+/**
+ * 把当前已安装的 APK 本体分享出去（安装包文件，不是下载链接）。
+ * APK 放 cacheDir 后经 FileProvider 暴露；接收方拿到的是可安装的 .apk 文件。
+ */
+private fun shareApk(context: Context, label: String) {
+    val appInfo = context.applicationInfo
+    val apk = File(appInfo.sourceDir)
+    val target = File(context.cacheDir, "share/${apk.name}")
+    target.parentFile?.mkdirs()
+    if (!target.exists() || target.length() != apk.length()) {
+        apk.copyTo(target, overwrite = true)
+    }
+    val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", target)
+    val intent = Intent(Intent.ACTION_SEND).apply {
+        type = "application/vnd.android.package-archive"
+        putExtra(Intent.EXTRA_STREAM, uri)
+        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+    }
+    try {
+        context.startActivity(Intent.createChooser(intent, label))
+    } catch (_: ActivityNotFoundException) {
+        Toast.makeText(context, context.getString(R.string.setting_page_no_share_app), Toast.LENGTH_SHORT).show()
+    }
+}
+
+
+/**
+ * 每组的图标色相：外观 = tertiary（陶土），模型 = primary，助手 = secondary，
+ * 设备 = tertiary，连接 = primary，数据/关于 = onSurfaceVariant。
+ * 用主题语义色而不是硬编码色值，用户自定义主题与动态取色下都能跟着走。
+ */
+@Composable
+private fun hubSectionTint(id: SettingsHubSectionId): Color = when (id) {
+    SettingsHubSectionId.APPEARANCE -> MaterialTheme.colorScheme.tertiary
+    SettingsHubSectionId.MODELS -> MaterialTheme.colorScheme.primary
+    SettingsHubSectionId.ASSISTANT -> MaterialTheme.colorScheme.secondary
+    SettingsHubSectionId.DEVICE -> MaterialTheme.colorScheme.tertiary
+    SettingsHubSectionId.CONNECTIONS -> MaterialTheme.colorScheme.primary
+    SettingsHubSectionId.DATA -> MaterialTheme.colorScheme.onSurfaceVariant
+    SettingsHubSectionId.ABOUT -> MaterialTheme.colorScheme.onSurfaceVariant
+}
 
 private fun hubItemIcon(id: SettingsHubItemId): ImageVector = when (id) {
     SettingsHubItemId.THEME -> HugeIcons.Sun01
@@ -307,7 +312,6 @@ private fun hubItemIcon(id: SettingsHubItemId): ImageVector = when (id) {
     SettingsHubItemId.MCP -> HugeIcons.McpServer
     SettingsHubItemId.WORKFLOWS -> HugeIcons.Connect
     SettingsHubItemId.SCHEDULED -> HugeIcons.Clock02
-    SettingsHubItemId.AGENTS_ANYWHERE -> HugeIcons.Telegram
     SettingsHubItemId.TOOL_APPROVALS -> HugeIcons.Tick01
     SettingsHubItemId.ACCESSIBILITY -> HugeIcons.SmartPhone01
     SettingsHubItemId.FLOATING_BALL -> HugeIcons.Message01
@@ -324,7 +328,6 @@ private fun hubItemIcon(id: SettingsHubItemId): ImageVector = when (id) {
     SettingsHubItemId.DOCTOR -> HugeIcons.Wrench01
     SettingsHubItemId.LOGS -> HugeIcons.Bookshelf01
     SettingsHubItemId.ABOUT -> HugeIcons.Clapping01
-    SettingsHubItemId.SPONSOR -> HugeIcons.InLove
     SettingsHubItemId.SHARE -> HugeIcons.Share04
 }
 
@@ -367,55 +370,4 @@ private fun ProviderConfigWarningCard(navController: Navigator) {
     }
 }
 
-private data class QQGroup(
-    val name: String,
-    val key: String? = null,
-    val number: String? = null,
-    val icon: ImageVector = TencentQQIcon,
-)
 
-private val QQ_GROUPS = listOf(
-    QQGroup("RikkaHub 一群", "4POE46u9e_zoy1TkNfWdCvueR9CKFJdk"),
-    QQGroup("RikkaHub 二群", "Qsm0whzbPsm1UyNpR683ulLyMZ2Pqrw0"),
-    QQGroup("RikkaHub 三群", "Qc9oP-9tXioZeQEvEvI2_owWtBAIx3lS"),
-    QQGroup("抖音一群", number = "569655479852", icon = HugeIcons.Tiktok),
-)
-
-@Composable
-private fun QQGroupBottomSheet(onDismiss: () -> Unit) {
-    val context = LocalContext.current
-    ModalBottomSheet(onDismissRequest = onDismiss) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(4.dp),
-        ) {
-            QQ_GROUPS.forEach { group ->
-                ListItem(
-                    onClick = {
-                        if (group.number != null) {
-                            context.writeClipboardText(group.number)
-                            Toast.makeText(context, "群号已复制", Toast.LENGTH_SHORT).show()
-                        } else {
-                            context.joinQQGroup(group.key)
-                        }
-                        onDismiss()
-                    },
-                    supportingContent = group.number?.let { number ->
-                        { Text(number) }
-                    },
-                    leadingContent = {
-                        Icon(
-                            imageVector = group.icon,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.secondary
-                        )
-                    },
-                ) {
-                    Text(group.name)
-                }
-            }
-        }
-    }
-}

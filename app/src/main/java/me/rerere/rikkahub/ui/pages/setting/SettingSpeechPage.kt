@@ -546,6 +546,13 @@ private fun AddASRProviderButton(onAdd: (ASRProviderSetting) -> Unit) {
             onDismissRequest = { showTypeMenu = false },
             items = listOf(
                 AppMenuEntry(
+                    text = "System recognizer",
+                    onClick = {
+                        currentProvider = ASRProviderSetting.System()
+                        showBottomSheet = true
+                    },
+                ),
+                AppMenuEntry(
                     text = "OpenAI Realtime",
                     onClick = {
                         currentProvider = ASRProviderSetting.OpenAIRealtime()
@@ -842,6 +849,7 @@ private fun ASRProviderItem(
 
                     Text(
                         text = when (provider) {
+                            is ASRProviderSetting.System -> "System recognizer"
                             is ASRProviderSetting.OpenAIRealtime -> "OpenAI Realtime"
                             is ASRProviderSetting.DashScope -> "DashScope"
                             is ASRProviderSetting.Volcengine -> "Volcengine"

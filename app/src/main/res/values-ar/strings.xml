@@ -1,11 +1,8 @@
 ﻿<?xml version='1.0' encoding='UTF-8'?>
 <resources>
-  <string name="about_page_github">Github</string>
-  <string name="about_page_license">الترخيص</string>
   <string name="about_page_system">النظام</string>
   <string name="about_page_title">حول</string>
   <string name="about_page_version">الإصدار</string>
-  <string name="about_page_website">المشروع</string>
   <string name="add">إضافة</string>
   <string name="app_name">My Agent</string>
   <string name="assistant_detail_basic_desc">تكوين الاسم والصورة الرمزية والنموذج والمعاملات</string>
@@ -723,8 +720,6 @@
   <string name="setting_display_page_show_thinking_content_title">عرض محتوى التفكير</string>
   <string name="setting_display_page_show_token_usage_desc">عرض استخدام الرموز وعدد الرسائل</string>
   <string name="setting_display_page_show_token_usage_title">عرض إحصائيات الرموز والسياق</string>
-  <string name="setting_display_page_show_updates_desc">ما إذا كانت إشعارات تحديث التطبيق ستُعرض</string>
-  <string name="setting_display_page_show_updates_title">عرض التحديثات</string>
   <string name="setting_display_page_show_user_avatar_desc">ما إذا كانت صورة المستخدم ستُعرض في رسائل الدردشة</string>
   <string name="setting_display_page_clean_layout_title">تخطيط بسيط</string>
   <string name="setting_display_page_clean_layout_desc">شريط علوي مسطح مع اسم النموذج أسفل العنوان، وحقل إدخال من سطرين تظهر أزرار الأدوات أسفله</string>
@@ -848,7 +843,6 @@
   <string name="setting_page_mcp_desc">تكوين خوادم MCP</string>
   <string name="setting_page_message_display_settings">عرض الرسائل</string>
   <string name="setting_page_model_and_services">النماذج والخدمات</string>
-  <string name="setting_page_no_share_app">لم يُعثر على تطبيق مشاركة</string>
   <string name="setting_page_providers">المزوّدون</string>
   <string name="setting_page_providers_desc">تكوين مزوّدي الذكاء الاصطناعي</string>
   <string name="setting_page_request_logs">سجلات الطلبات</string>
@@ -866,7 +860,6 @@
   <string name="setting_page_search_title">خدمة البحث</string>
   <string name="setting_page_share">مشاركة</string>
   <string name="setting_page_share_desc">شارك هذا التطبيق مع الأصدقاء</string>
-  <string name="setting_page_share_text">RikkaHub Agent · Pure - مساعد ذكاء اصطناعي مفتوح المصدر لـ Android\n\nالمشروع: https://github.com/wuyhong715/rikkahub-agent-pure/releases/latest</string>
   <string name="setting_page_theme_setting">إعدادات السمة</string>
   <string name="setting_page_tts_service">خدمة تحويل النص إلى كلام</string>
   <string name="setting_page_tts_service_desc">تكوين مزوّدي خدمة تحويل النص إلى كلام</string>
@@ -951,6 +944,8 @@
   <string name="setting_provider_page_scan_error">خطأ: %s</string>
   <string name="setting_provider_page_scan_qr_code">مسح رمز QR</string>
   <string name="setting_provider_page_search_providers">البحث في المزوّدين</string>
+  <string name="setting_provider_page_empty">لا يوجد مزوّدون بعد. اضغط + لإضافة واحد.</string>
+  <string name="setting_provider_page_search_empty">لا يوجد مزوّد يطابق البحث.</string>
   <string name="setting_provider_page_select_all">تحديد الكل (%1$d)</string>
   <string name="setting_provider_page_select_from_gallery">الاختيار من المعرض</string>
   <string name="setting_provider_page_service_account_email">البريد الإلكتروني لحساب الخدمة</string>
@@ -1089,6 +1084,7 @@
   <string name="text_area_import_success">تم استيراد الملف بنجاح</string>
   <string name="text_area_save">حفظ</string>
   <string name="theme_name_autumn">أصفر الخريف</string>
+  <string name="theme_name_mono">أحادي</string>
   <string name="theme_name_black">أسود محايد</string>
   <string name="theme_name_ocean">أزرق المحيط</string>
   <string name="theme_name_sakura">وردي الساكورا</string>
@@ -2024,8 +2020,6 @@
   <string name="accessibility_clear_model_selection">مسح اختيار النموذج</string>
   <string name="accessibility_refresh_page">تحديث الصفحة</string>
   <string name="accessibility_forward">إلى الأمام</string>
-  <string name="accessibility_qq">QQ</string>
-  <string name="accessibility_discord">Discord</string>
   <string name="accessibility_developer_options">خيارات المطور</string>
   <string name="accessibility_add_provider">إضافة مزوّد</string>
   <string name="accessibility_copy_table">نسخ الجدول</string>
@@ -2081,12 +2075,6 @@
   <string name="search_picker_model_description">البحث السحابي المدمج في مزود النموذج</string>
   <string name="search_picker_select_provider">تحديد مزود البحث</string>
   <string name="search_picker_turn_off">إيقاف البحث</string>
-  <string name="setting_update_reminder_enabled">تذكيرات التحديث مُمكّنة</string>
-  <string name="setting_update_reminder_pause_title">إيقاف تذكيرات التحديث مؤقتًا</string>
-  <string name="setting_update_reminder_pause_description">اختر مدة إيقاف تذكيرات التحديث مؤقتًا. ستُستأنف تلقائيًا.</string>
-  <string name="setting_update_reminder_pause_days">%1$d أيام</string>
-  <string name="setting_update_reminder_paused_until">متوقف مؤقتًا حتى %1$s</string>
-  <string name="setting_update_reminder_resume_now">استئناف الآن</string>
   <string name="table">جدول</string>
   <string name="chat_page_continuing">انقطع الاتصال — يتم متابعة الرد (%1$d/%2$d)</string>
   <string name="chat_page_subagents_running">الوكلاء الفرعيون قيد التشغيل: %1$d · %2$s</string>

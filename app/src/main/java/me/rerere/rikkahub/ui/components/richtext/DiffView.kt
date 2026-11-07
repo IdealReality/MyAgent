@@ -20,9 +20,28 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.util.fastForEach
+import me.rerere.rikkahub.ui.theme.LocalMonoTheme
+import me.rerere.rikkahub.ui.theme.extendColors
 
-internal val DiffAddedColor = Color(0xFF4CAF50)
-internal val DiffRemovedColor = Color(0xFFEF5350)
+/*
+ * diff 的增删色。mono 主题用语义色板里的绿 8 / 红 8 —— 它们同时充当行文字色，
+ * 而行底色是同族 6 号色的 12% 叠层：8 号在这层浅染底上仍有 5.9:1 / 6.4:1，
+ * 用 7 号会掉到 4.0:1（低于 AA）。
+ * 其它主题维持原有硬编码色，不参与 mono 的取舍。
+ */
+internal val DiffAddedColor: Color
+    @Composable get() = if (LocalMonoTheme.current) {
+        MaterialTheme.extendColors.green8
+    } else {
+        Color(0xFF4CAF50)
+    }
+
+internal val DiffRemovedColor: Color
+    @Composable get() = if (LocalMonoTheme.current) {
+        MaterialTheme.extendColors.red8
+    } else {
+        Color(0xFFEF5350)
+    }
 
 /** unified diff 的增删行数统计 */
 internal data class DiffStats(val additions: Int, val deletions: Int)

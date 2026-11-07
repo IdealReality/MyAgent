@@ -73,7 +73,8 @@
     "switch_assistant_failed": "切换助手失败",
     "current": "当前",
     "switching": "切换中...",
-    "no_assistants_by_tag": "没有符合标签的助手"
+    "no_assistants_by_tag": "没有符合标签的助手",
+    "ssh_hosts": "SSH 主机"
   },
   "conversation_search": {
     "search_conversations": "搜索对话",

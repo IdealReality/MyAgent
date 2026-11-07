@@ -9,7 +9,7 @@ import android.os.Looper
 import android.speech.RecognitionListener
 import android.speech.RecognizerIntent
 import android.speech.SpeechRecognizer
-import androidx.core.net.toUri
+import androidx.core.content.FileProvider
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.serialization.json.buildJsonObject
@@ -31,6 +31,13 @@ import kotlin.coroutines.resume
  * This used to shell out to whisper.cpp inside Termux. The Termux integration is gone, so
  * the file is decoded in-process ([AudioPcmEncoder]: MediaExtractor + MediaCodec → 16 kHz
  * mono PCM) and handed to whichever on-device recognizer implements the audio-source extra.
+ *
+ * The PCM is exposed as a `content://` URI from our own FileProvider and read-granted to
+ * every installed recognition service. A `file://` URI does not work: the recognizer runs in
+ * its own process and cannot open another app's private cache directory, so it aborts
+ * immediately with `ERROR_CLIENT` before touching the audio (measured on Honor MagicOS 10 /
+ * Android 17: `ERROR_CLIENT` in 5 ms with `file://`, a normal recognition session with
+ * `content://` + grant).
  *
  * Caveat worth knowing: support for `EXTRA_AUDIO_SOURCE` is up to the recognizer service.
  * Google's recognizer honours it on most current builds; some OEM recognizers ignore it and
@@ -181,6 +188,12 @@ fun transcribeAudioFileTool(context: Context): Tool = Tool(
  * `EXTRA_AUDIO_SOURCE` takes a Uri to a raw PCM stream; the sampling rate / channel count /
  * encoding extras describe it. Nothing here touches the microphone, so no RECORD_AUDIO
  * permission is needed for file input.
+ *
+ * The URI must be `content://`: the recognizer reads it from its own process, and a
+ * `file://` URI into our cache directory is unreadable there — Google's recognizer answers
+ * with `ERROR_CLIENT` in a few milliseconds without opening the file (measured on MagicOS 10 /
+ * Android 17). [FileProvider] + an explicit read grant to each installed recognition service
+ * makes the stream readable.
  */
 private suspend fun recognizeFile(
     context: Context,
@@ -189,6 +202,13 @@ private suspend fun recognizeFile(
     timeoutMs: Long,
 ): FileRecognitionOutcome {
     val mainHandler = Handler(Looper.getMainLooper())
+    val authority = "${context.packageName}.fileprovider"
+    val pcmUri = try {
+        FileProvider.getUriForFile(context, authority, pcmFile)
+    } catch (t: Throwable) {
+        return FileRecognitionOutcome.Error(SpeechRecognizer.ERROR_CLIENT)
+    }
+    grantReadToRecognizers(context, pcmUri)
 
     val result = withTimeoutOrNull(timeoutMs) {
         suspendCancellableCoroutine { cont ->
@@ -205,7 +225,7 @@ private suspend fun recognizeFile(
                     )
                     putExtra(RecognizerIntent.EXTRA_LANGUAGE, languageTag)
                     putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, false)
-                    putExtra(RecognizerIntent.EXTRA_AUDIO_SOURCE, pcmFile.toUri())
+                    putExtra(RecognizerIntent.EXTRA_AUDIO_SOURCE, pcmUri)
                     putExtra(RecognizerIntent.EXTRA_AUDIO_SOURCE_SAMPLING_RATE, AUDIO_SOURCE_SAMPLE_RATE)
                     putExtra(RecognizerIntent.EXTRA_AUDIO_SOURCE_CHANNEL_COUNT, AUDIO_SOURCE_CHANNELS)
                     putExtra(RecognizerIntent.EXTRA_AUDIO_SOURCE_ENCODING, AudioFormat.ENCODING_PCM_16BIT)
@@ -255,6 +275,26 @@ private suspend fun recognizeFile(
     mainHandler.post { runCatching { /* released via listener callbacks above */ } }
 
     return result ?: FileRecognitionOutcome.Error(SpeechRecognizer.ERROR_SPEECH_TIMEOUT)
+}
+
+/**
+ * Hand every installed recognition service a read grant for [uri].
+ *
+ * The grant is per-package and explicit: the system only propagates URI grants to the
+ * receiver chosen by `startListening`, and which service that is depends on the user's
+ * default recognizer plus the OEM's ranking, so we cover the whole set instead of guessing.
+ */
+private fun grantReadToRecognizers(context: Context, uri: android.net.Uri) {
+    val query = Intent(android.speech.RecognitionService.SERVICE_INTERFACE)
+    val services = context.packageManager
+        .queryIntentServices(query, 0)
+        .mapNotNull { it.serviceInfo?.packageName }
+        .distinct()
+    services.forEach { pkg ->
+        runCatching {
+            context.grantUriPermission(pkg, uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        }
+    }
 }
 
 /**

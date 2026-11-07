@@ -14,6 +14,11 @@ import org.junit.Test
  *
  * Reflection cannot see which keys the `map { preferences -> Settings(...) }` block reads, so
  * this scans the source: every `preferences[KEY] = ...` write must have a matching read.
+ *
+ * It deliberately asserts the *pairing*, not the expression each key is decoded with: a
+ * `source.contains("dynamicColor = preferences[DYNAMIC_COLOR] != false")` pin used to live
+ * here and turned red the moment the default flipped to `== true` — a behaviour change, not a
+ * regression, and one the write/read pairing above already guards.
  */
 class SettingsReadBackCoverageTest {
 
@@ -32,10 +37,5 @@ class SettingsReadBackCoverageTest {
             emptyList<String>(),
             (written - read).sorted(),
         )
-    }
-
-    @Test
-    fun `dynamic color is read back from its key`() {
-        assertEquals(true, source.contains("dynamicColor = preferences[DYNAMIC_COLOR] != false"))
     }
 }

@@ -37,6 +37,7 @@ import me.rerere.rikkahub.ui.components.ui.SelectTextField
 import me.rerere.rikkahub.ui.components.richtext.HighlightCodeVisualTransformation
 import me.rerere.rikkahub.ui.theme.JetbrainsMono
 import me.rerere.rikkahub.ui.theme.LocalDarkMode
+import me.rerere.rikkahub.ui.theme.LocalMonoTheme
 
 private val jsonLenient = Json {
     ignoreUnknownKeys = true
@@ -213,7 +214,8 @@ fun CustomBodies(customBodies: List<CustomBody>, onUpdate: (List<CustomBody>) ->
                                 visualTransformation = HighlightCodeVisualTransformation(
                                     language = "json",
                                     highlighter = LocalCodeHighlighter.current,
-                                    darkMode = LocalDarkMode.current
+                                    darkMode = LocalDarkMode.current,
+                                    mono = LocalMonoTheme.current
                                 ),
                                 textStyle = LocalTextStyle.current.merge(fontFamily = JetbrainsMono),
                             )

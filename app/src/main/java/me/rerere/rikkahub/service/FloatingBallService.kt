@@ -55,6 +55,7 @@ import me.rerere.rikkahub.ui.hooks.writeStringPreference
 import me.rerere.rikkahub.ui.pages.quickchat.QuickChatActivity
 import me.rerere.rikkahub.ui.theme.ColorMode
 import me.rerere.rikkahub.ui.theme.findPresetTheme
+import me.rerere.rikkahub.ui.theme.isMonoTheme
 import me.rerere.rikkahub.ui.theme.findThemeById
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
@@ -718,7 +719,7 @@ class FloatingBallService : Service(), KoinComponent {
             ColorMode.LIGHT -> false
             ColorMode.DARK -> true
         }
-        val scheme = if (settings.dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+        val scheme = if (!isMonoTheme(settings.themeId) && settings.dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             if (dark) dynamicDarkColorScheme(this) else dynamicLightColorScheme(this)
         } else {
             (findThemeById(settings.themeId, settings.customThemes) ?: findPresetTheme(settings.themeId))
@@ -748,7 +749,7 @@ class FloatingBallService : Service(), KoinComponent {
             ColorMode.LIGHT -> false
             ColorMode.DARK -> true
         }
-        return if (settings.dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+        return if (!isMonoTheme(settings.themeId) && settings.dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             if (dark) dynamicDarkColorScheme(this) else dynamicLightColorScheme(this)
         } else {
             (findThemeById(settings.themeId, settings.customThemes) ?: findPresetTheme(settings.themeId))

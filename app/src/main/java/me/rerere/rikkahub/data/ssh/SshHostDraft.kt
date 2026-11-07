@@ -40,6 +40,8 @@ data class SshHostDraft(
     val password: String = "",
     val privateKey: String = "",
     val passphrase: String = "",
+    /** Optional web terminal URL; blank means the host has no browser terminal. */
+    val webTerminalUrl: String = "",
 ) {
     val isNew: Boolean get() = originalName == null
 
@@ -78,6 +80,7 @@ object SshHostDraftValidator {
 }
 
 /** One entry of the app's `known_hosts` file, as shown on the settings page. */
+@kotlinx.serialization.Serializable
 data class KnownHostEntry(val pattern: String, val keyType: String) {
     /** OpenSSH hashed host entries start with `|1|`; those cannot be mapped back to a name. */
     val isHashed: Boolean get() = pattern.startsWith("|")

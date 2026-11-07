@@ -1,0 +1,34 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "build:assemblePure",
+      "detail": "Full APK build, same env as runbuild.ps1",
+      "type": "shell",
+      "command": "${workspaceFolder}\\gradlew.bat",
+      "args": ["assemblePure","--no-daemon","--console=plain","-x",":web:installWebUiDeps","-x",":web:buildWebUi"],
+      "options": {"cwd": "${workspaceFolder}", "env": {"JAVA_HOME": "C:\\Program Files\\Java\\jdk-17.0.12", "ANDROID_HOME": "C:\\Users\\ZhouX\\AppData\\Local\\Android\\Sdk"}},
+      "group": {"kind": "build", "isDefault": true},
+      "problemMatcher": []
+    },
+    {
+      "label": "test:memory",
+      "detail": "Run data.memory unit tests",
+      "type": "shell",
+      "command": "${workspaceFolder}\\gradlew.bat",
+      "args": [":app:testPureDebugUnitTest","--tests","me.rerere.rikkahub.data.memory.*","--no-daemon","--console=plain","-x",":web:installWebUiDeps","-x",":web:buildWebUi"],
+      "options": {"cwd": "${workspaceFolder}", "env": {"JAVA_HOME": "C:\\Program Files\\Java\\jdk-17.0.12", "ANDROID_HOME": "C:\\Users\\ZhouX\\AppData\\Local\\Android\\Sdk"}},
+      "group": "test",
+      "problemMatcher": []
+    },
+    {
+      "label": "compile:kotlin-only",
+      "detail": "Compile Kotlin only, fastest syntax check",
+      "type": "shell",
+      "command": "${workspaceFolder}\\gradlew.bat",
+      "args": [":app:compilePureKotlin","--no-daemon","--console=plain","-x",":web:installWebUiDeps","-x",":web:buildWebUi"],
+      "options": {"cwd": "${workspaceFolder}", "env": {"JAVA_HOME": "C:\\Program Files\\Java\\jdk-17.0.12", "ANDROID_HOME": "C:\\Users\\ZhouX\\AppData\\Local\\Android\\Sdk"}},
+      "problemMatcher": []
+    }
+  ]
+}

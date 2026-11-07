@@ -1,11 +1,8 @@
 ﻿<?xml version='1.0' encoding='UTF-8'?>
 <resources>
-  <string name="about_page_github">Github</string>
-  <string name="about_page_license">License</string>
   <string name="about_page_system">系统</string>
   <string name="about_page_title">关于</string>
   <string name="about_page_version">版本</string>
-  <string name="about_page_website">项目地址</string>
   <string name="add">添加</string>
   <string name="app_name">My Agent</string>
   <string name="asr_button_content_description">语音识别</string>
@@ -80,7 +77,7 @@
   <string name="assistant_page_delete">删除</string>
   <string name="assistant_page_delete_body">删除 Body</string>
   <string name="assistant_page_delete_dialog_text">确定要删除这个助手吗？此操作无法撤销。引用该助手的对话将切换到默认助手。</string>
-  <string name="assistant_page_delete_builtin_hint">内置助手不可删除</string>
+  <string name="assistant_page_delete_last_hint">至少需要保留一个助手</string>
   <string name="assistant_page_delete_header">删除 Header</string>
   <string name="assistant_page_enter_image_url">输入图片URL</string>
   <string name="assistant_page_global_memory">全局记忆</string>
@@ -451,6 +448,24 @@
   <string name="extension_selector_tab_skills">Skills</string>
   <string name="extensions_page_agent_skills">Agent Skills</string>
   <string name="extensions_page_agent_skills_desc">管理可供 AI 按需加载的技能包</string>
+  <string name="extensions_page_plugins">插件</string>
+  <string name="extensions_page_plugins_desc">运行时加载的自修改工具与提示词模块</string>
+  <string name="plugins_page_title">插件</string>
+  <string name="plugins_page_reload">重新加载</string>
+  <string name="plugins_page_empty">尚未安装插件。可以让模型用 plugin_create 创建一个。</string>
+  <string name="plugins_page_enabled">启用</string>
+  <string name="plugins_page_tools">工具</string>
+  <string name="plugins_page_prompt_chars">提示词</string>
+  <string name="plugins_page_check">自检</string>
+  <string name="plugins_page_run_tool">试跑</string>
+  <string name="plugins_page_rollback">回滚</string>
+  <string name="plugins_page_delete">删除</string>
+  <string name="plugins_page_error">加载错误</string>
+  <string name="plugins_page_failures">失败次数：%1$d</string>
+  <string name="plugins_page_last_error">最近错误：%1$s</string>
+  <string name="plugins_page_delete_confirm">删除插件 %1$s？会先保留快照，可回滚。</string>
+  <string name="plugins_page_checked">自检结果</string>
+  <string name="plugins_page_close">关闭</string>
   <string name="extensions_page_prompts">提示词</string>
   <string name="extensions_page_prompts_desc">管理和使用自定义提示词</string>
   <string name="extensions_page_quick_messages_desc">管理共享的快速消息模板</string>
@@ -873,8 +888,6 @@
   <string name="setting_display_page_show_thinking_content_title">显示思考内容</string>
   <string name="setting_display_page_show_token_usage_desc">显示token用量和消息数量</string>
   <string name="setting_display_page_show_token_usage_title">显示Token和上下文统计</string>
-  <string name="setting_display_page_show_updates_desc">是否显示应用更新通知</string>
-  <string name="setting_display_page_show_updates_title">显示更新</string>
   <string name="setting_display_page_show_user_avatar_desc">是否在聊天消息中显示用户头像</string>
   <string name="setting_display_page_clean_layout_title">简洁布局</string>
   <string name="setting_display_page_clean_layout_desc">扁平顶栏，标题下方显示模型名；输入框分两行，工具按钮在输入框下方</string>
@@ -991,7 +1004,7 @@
   <string name="setting_page_hub_chat_actions">聊天操作</string>
   <string name="setting_page_hub_chat_actions_desc">发送、滚动、粘贴、触感、加载指示</string>
   <string name="setting_page_hub_app_alerts">应用提醒</string>
-  <string name="setting_page_hub_app_alerts_desc">更新提醒与生成完成通知</string>
+  <string name="setting_page_hub_app_alerts_desc">生成完成通知</string>
   <string name="setting_page_hub_notif_access">通知读取</string>
   <string name="setting_page_hub_notif_access_desc">读取系统通知与 Telegram 自动转发白名单</string>
   <string name="setting_page_hub_network_desc">代理、User-Agent、重试与流式超时</string>
@@ -1070,7 +1083,6 @@
   <string name="setting_page_thinking_tools_settings">思考与工具</string>
   <string name="setting_page_font_display_settings">字体</string>
   <string name="setting_page_model_and_services">模型与服务</string>
-  <string name="setting_page_no_share_app">找不到分享应用</string>
   <string name="setting_page_providers">提供商</string>
   <string name="setting_page_providers_desc">配置AI提供商</string>
   <string name="setting_page_request_logs">请求日志</string>
@@ -1092,7 +1104,6 @@
   <string name="setting_page_search_title">搜索服务</string>
   <string name="setting_page_share">分享</string>
   <string name="setting_page_share_desc">分享本APP给朋友</string>
-  <string name="setting_page_share_text">RikkaHub Agent · Pure - 开源安卓AI助手\n\n项目地址: https://github.com/wuyhong715/rikkahub-agent-pure/releases/latest</string>
   <string name="setting_page_theme_setting">自定义主题</string>
   <string name="setting_page_theme_setting_desc">自定义应用配色方案</string>
   <string name="setting_theme_page_preset_themes">预设主题</string>
@@ -1208,6 +1219,8 @@ mDNS 地址：使用 .local 主机名，同一网络中的其他设备可通过�
   <string name="setting_provider_page_scan_error">错误: %s</string>
   <string name="setting_provider_page_scan_qr_code">扫描二维码</string>
   <string name="setting_provider_page_search_providers">搜索提供商</string>
+  <string name="setting_provider_page_empty">还没有服务商。点右上角 + 添加一个。</string>
+  <string name="setting_provider_page_search_empty">没有匹配的服务商。</string>
   <string name="setting_provider_page_select_all">全选（%1$d）</string>
   <string name="setting_provider_page_select_from_gallery">从相册选择</string>
   <string name="setting_provider_page_service_account_email">服务账户邮箱</string>
@@ -1384,6 +1397,7 @@ mDNS 地址：使用 .local 主机名，同一网络中的其他设备可通过�
   <string name="text_area_import_success">文件导入成功</string>
   <string name="text_area_save">保存</string>
   <string name="theme_name_autumn">秋黄</string>
+  <string name="theme_name_mono">黑白</string>
   <string name="theme_name_black">中性黑</string>
   <string name="theme_name_minimal">极简白</string>
   <string name="theme_name_ocean">海湾蓝</string>
@@ -2201,12 +2215,6 @@ HARDLINE 保护仍然生效：rm -rf /、mkfs、shutdown / reboot、向块设备
   <string name="browser_ai_action_done">已完成：%1$s</string>
   <string name="browser_ai_action_stopped">已被用户停止</string>
   <string name="browser_ai_action_failed">失败：%1$s</string>
-  <string name="setting_update_reminder_enabled">更新提醒已启用</string>
-  <string name="setting_update_reminder_paused_until">已暂停至 %1$s</string>
-  <string name="setting_update_reminder_pause_title">暂停更新提醒</string>
-  <string name="setting_update_reminder_pause_description">选择暂停更新提醒的时长。它们会自动恢复。</string>
-  <string name="setting_update_reminder_pause_days">%1$d 天</string>
-  <string name="setting_update_reminder_resume_now">立即恢复</string>
   <string name="reasoning_max">极致</string>
   <string name="imggen_page_image_missing">图片文件丢失，可能未从备份中恢复</string>
   <string name="safe_mode_enter_app">进入应用</string>
@@ -2408,8 +2416,6 @@ HARDLINE 保护仍然生效：rm -rf /、mkfs、shutdown / reboot、向块设备
   <string name="accessibility_clear_model_selection">清除模型选择</string>
   <string name="accessibility_refresh_page">刷新页面</string>
   <string name="accessibility_forward">前进</string>
-  <string name="accessibility_qq">QQ</string>
-  <string name="accessibility_discord">Discord</string>
   <string name="accessibility_developer_options">开发者选项</string>
   <string name="accessibility_add_provider">添加提供商</string>
   <string name="accessibility_copy_table">复制表格</string>
@@ -2719,6 +2725,9 @@ HARDLINE 保护仍然生效：rm -rf /、mkfs、shutdown / reboot、向块设备
   <string name="setting_ssh_page_add">添加主机</string>
   <string name="setting_ssh_page_edit">编辑主机</string>
   <string name="setting_ssh_page_name">名称</string>
+  <string name="setting_ssh_page_web_terminal">Web 终端地址</string>
+  <string name="setting_ssh_page_web_terminal_hint">可选。填 ttyd / wetty 地址，点击后在内置浏览器打开。</string>
+  <string name="setting_ssh_page_open_terminal">打开终端</string>
   <string name="setting_ssh_page_host">主机地址</string>
   <string name="setting_ssh_page_port">端口</string>
   <string name="setting_ssh_page_user">用户名</string>
@@ -2876,18 +2885,6 @@ HARDLINE 保护仍然生效：rm -rf /、mkfs、shutdown / reboot、向块设备
   <string name="chat_page_continuing">连接中断，正在续写回复（%1$d/%2$d）</string>
   <string name="chat_page_subagents_running">子 agent %1$d 个运行中 · %2$s</string>
 
-  <string name="setting_page_sponsor">赞助支持</string>
-  <string name="setting_page_sponsor_desc">赞助本项目</string>
-  <string name="setting_sponsor_page_title">赞助支持</string>
-  <string name="setting_sponsor_page_desc">本应用无广告、无付费墙。如果它对你有用，一点赞助就是它继续做下去的动力，谢谢！</string>
-  <string name="setting_sponsor_qr_section">扫码赞助</string>
-  <string name="setting_sponsor_link_section">其他支持方式</string>
-  <string name="setting_sponsor_wechat">微信</string>
-  <string name="setting_sponsor_wechat_desc">用微信扫一扫</string>
-  <string name="setting_sponsor_alipay">支付宝</string>
-  <string name="setting_sponsor_alipay_desc">用支付宝扫一扫</string>
-  <string name="setting_sponsor_qr_hint">截图保存后，用上面的 App 扫码即可。谢谢支持！</string>
-  <string name="setting_sponsor_qr_close">关闭</string>
   <string name="setting_floating_ball_style_title">样式</string>
   <string name="setting_floating_ball_style_desc">圆形悬浮球（经典悬浮聊天面板），或状态胶囊（自带新版悬浮聊天外观，不可单独切换）</string>
   <string name="setting_floating_ball_style_original">原版</string>
@@ -2923,4 +2920,16 @@ HARDLINE 保护仍然生效：rm -rf /、mkfs、shutdown / reboot、向块设备
   <string name="memory_engine_snapshot_keep">快照保留份数</string>
   <string name="memory_engine_snapshot_keep_desc">每次重写 L1 前自动快照，滚动保留最近 N 份</string>
   <string name="memory_engine_ccr_switch">工具输出原文池（CCR）</string>
+  <string name="chat_quick_start_title">从任务开始</string>
+  <string name="chat_quick_working">正在处理</string>
+  <string name="chat_quick_subagents_running">正在运行 %1$d 个子任务</string>
+  <string name="chat_quick_summarize">总结</string>
+  <string name="chat_quick_summarize_prompt">总结这段对话的关键内容。</string>
+  <string name="chat_quick_plan">制定计划</string>
+  <string name="chat_quick_plan_prompt">把我的目标整理成清晰的分步计划。</string>
+  <string name="chat_quick_analyze">分析</string>
+  <string name="chat_quick_analyze_prompt">分析上面的信息，并指出风险或遗漏。</string>
+  <string name="chat_quick_continue">继续</string>
+  <string name="chat_quick_continue_prompt">从上次未完成的步骤继续，并告诉我还需要什么。</string>
+  <string name="chain_of_thought_compact_summary">%1$d 步 · %2$s</string>
 </resources>

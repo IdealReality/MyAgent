@@ -79,8 +79,14 @@ import me.rerere.rikkahub.data.usage.UsageRunContexts
 import me.rerere.rikkahub.data.usage.UsagePurpose
 
 private const val TAG = "GenerationHandler"
-private const val MAX_TOOL_OUTPUT_CHARS = 32 * 1024
-private const val TOOL_OUTPUT_PREVIEW_CHARS = 4 * 1024
+/**
+ * Budget used when the caller has no assistant-level setting to consult.
+ *
+ * Same value as `DEFAULT_TOOL_RESULT_MAX_TOKENS`, duplicated here as a compile-time constant so
+ * this hot path does not reach across into the model package for a default. Kept in sync by
+ * `GenerationLoopToolBudgetTest`.
+ */
+private const val FALLBACK_TOOL_RESULT_MAX_TOKENS = 8_000
 private const val GENERATION_STREAM_RETRY_INITIAL_DELAY_MS = 750L
 private const val GENERATION_STREAM_RETRY_MAX_DELAY_MS = 4_000L
 
@@ -648,6 +654,9 @@ class GenerationLoop(
     private val conversationRepo: ConversationRepository,
     private val aiLoggingManager: AILoggingManager,
     private val systemPromptBuilder: SystemPromptBuilder,
+    // P2-40: plugin prompt contributions are read from the registry each turn so a plugin
+    // the model wrote a moment ago is in the prompt on the next request, no restart needed.
+    private val pluginRegistry: me.rerere.rikkahub.plugin.PluginRegistry,
 ) {
     fun generateText(
         settings: Settings,
@@ -665,6 +674,11 @@ class GenerationLoop(
         // 条目、界面不动。由 ChatService 组装请求时经 TaskBoundary.shouldFold 判定生成。
         contextDigest: String = "",
         tools: List<Tool> = emptyList(),
+        // 2026-11-07: 每步重建工具面。	ool_open / 	ool_close 改的是激活集，但
+        // 	ools 是求值一次传进来的快照，所以同一条消息内激活的 schema 要等到下一条
+        // 用户消息才出现（工具面在 handleMessageComplete 构建）。传了这个 provider 之后
+        // L781 每一步都会重新求值，激活当场生效。null 时行为与旧版完全一致。
+        refreshTools: (suspend () -> List<Tool>)? = null,
         // Read live from the runtime holder, not captured once: the default expression is
         // evaluated per call, so a settings change takes effect on the next turn.
         maxSteps: Int = ToolRuntimeLimits.maxToolSteps,
@@ -733,6 +747,20 @@ class GenerationLoop(
         val turnStartMs = android.os.SystemClock.elapsedRealtime()
         var loopGuardTripCount = 0
 
+        // P2-40 plugin kernel — the ONE seam where the model's tool surface is extended at
+        // runtime. `tools` here is the caller-assembled built-in surface for this turn; it
+        // doubles as the host-tool pool for `ctx.tool(...)`, deliberately excluding plugin
+        // tools so plugin→plugin recursion is impossible. The registry re-reads the plugin
+        // directory only when its on-disk signature changed, so per-turn cost is one
+        // directory scan, and a plugin written on the previous turn shows up here.
+        pluginRegistry.setHostTools(tools)
+        val pluginToolList = pluginRegistry.tools()
+        val pluginAdminToolList = me.rerere.rikkahub.plugin.pluginAdminTools(
+            registry = pluginRegistry,
+            store = pluginRegistry.store,
+            json = json,
+        )
+
         for (stepIndex in 0 until maxSteps) {
             // Wall-clock cap: any single user turn that has been running longer than the
             // budget is force-ended, regardless of whether the model wants more steps.
@@ -760,7 +788,14 @@ class GenerationLoop(
                 // 记忆引擎 v1（P1）：旧 memory_tool 热记录停用（原 enableMemory 时注册
                 // create/edit/delete 三操作，注入路径同步移除）。P2 将在此 scope 注册
                 // memory_recall / memory_guide / memory_write 三工具。
-                    addAll(tools)
+                    // 2026-11-07: 不能只拦 null。provider 返回空列表时若直接采用，工具面会变成
+                    // 空集（连 tool_open 都没了，模型连自救都做不到）。空列表一律回退到传入快照。
+                    val refreshedTools = refreshTools?.invoke()
+                    addAll(if (refreshedTools.isNullOrEmpty()) tools else refreshedTools)
+                    // P2-40: plugins after built-ins (a plugin can never shadow a built-in
+                    // name), admin tools last (always available, even when no plugin loads).
+                    addAll(pluginToolList)
+                    addAll(pluginAdminToolList)
                 }
 
             // Check if we have tool calls ready to continue after user interaction.
@@ -1598,6 +1633,7 @@ class GenerationLoop(
                 toolPrompts = toolPrompts,
                 systemAddendum = systemAddendum,
                 assistantConfigHint = assistantConfigHint,
+                pluginPrompt = pluginRegistry.prompt(),
             )
             val systemParts = buildList {
                 if (stableSystem.isNotBlank()) add(UIMessagePart.Text(stableSystem))
@@ -2033,97 +2069,89 @@ class GenerationLoop(
         val nonTextParts = output.filter { it !is UIMessagePart.Text }
         val totalChars = textParts.sumOf { it.text.length }
 
-        // Phase 17 (⑥): optional per-tool-result token budget. Off by default (null = the
-        // char-based gate below, i.e. upstream behaviour untouched). When it IS set it can only
-        // ever tighten that gate, never loosen it: output that fits the token budget still has
-        // to clear the character gate.
-        if (maxTokens != null) {
-            val fullText = textParts.joinToString("\n") { it.text }
-            // 记忆引擎 v1（P4）：CCR 工具输出原文池。超预算时按内容类型路由压缩，
-            // 原文按 sha256 内容寻址落盘（cache/tool-output/<handle>.txt，同内容去重），
-            // 请求内保留智能头尾预览 + handle/sed 行号取回提示。
-            // CCR 落盘失败时降级旧 truncateToolResult 管线（绝不因池故障丢工具结果）。
-            val ccrHandled: List<UIMessagePart>? = when {
-                !ccrEnabled -> null
-                else -> maxTokens?.let { budget ->
-                    runCatching {
-                    val kind = ToolOutputPool.detectKind(fullText)
-                    val originalTokens = ContextCompactionPlanner.estimateTokens(fullText)
-                    if (originalTokens <= budget) return@let null
-                    val headBudgetTokens = (budget * 0.6).toInt()
-                    val tailBudgetTokens = budget - headBudgetTokens
-                    val CHARS_PER_TOKEN = 3
-                    val preview = ToolOutputPool.smartPreview(
-                        fullText = fullText,
-                        headChars = headBudgetTokens * CHARS_PER_TOKEN,
-                        tailChars = tailBudgetTokens * CHARS_PER_TOKEN,
-                        kind = kind,
-                    )
-                    val handle = ToolOutputPool.handleOf(fullText)
-                    // 与 spillToolOutput 同一目录契约：filesDir/tool_outputs ↔ /tool_outputs/
-                    val poolDir = File(context.filesDir, FileFolders.TOOL_OUTPUTS).apply { mkdirs() }
-                    val poolFile = File(poolDir, "ccr-$handle.txt")
-                    if (!poolFile.exists()) poolFile.writeText(fullText)
-                    val totalLines = fullText.lines().size
-                    val notice = buildString {
-                        appendLine("[Tool output compressed to the ${budget}-token budget]")
-                        appendLine("[Original: $totalChars characters / $totalLines lines, kind=$kind]")
-                        appendLine(ToolOutputPool.handleNotice(handle, "/tool_outputs/ccr-$handle.txt", totalLines, totalChars, kind))
-                        appendLine()
-                        append(preview)
-                    }
-                    Log.i(TAG, "maybeTruncateToolOutput: CCR pool tool $toolCallId ($totalChars chars, kind=$kind, handle=$handle)")
-                    return@let listOf(
-                        UIMessagePart.Text(notice)
-                    ) + nonTextParts
-                }.getOrNull()
-                }
-            }
-            if (ccrHandled != null) return ccrHandled
-            val outcome = truncateToolResult(text = fullText, maxTokens = maxTokens)
-            if (outcome.truncated) {
-                Log.i(
-                    TAG,
-                    "maybeTruncateToolOutput: tool $toolCallId trimmed to the ${maxTokens}-token budget " +
-                        "(${outcome.originalTokens} -> ${outcome.resultTokens} tokens, " +
-                        "${outcome.elidedChars} chars elided)"
-                )
-                val fileName = spillToolOutput(toolCallId, fullText)
-                return listOf(
-                    UIMessagePart.Text(
-                        buildBudgetedTruncationNotice(
-                            totalChars = totalChars,
-                            fileName = fileName,
-                            showShellHints = hasShellAccess,
-                            budgetTokens = maxTokens,
-                            body = outcome.text,
-                        )
-                    )
-                ) + nonTextParts
-            }
+        // ONE budget, not two gates in series.
+        //
+        // This used to be a token budget (only when the assistant set one) followed by a fixed
+        // 32 KB *character* ceiling that applied only with a workspace shell. The two were
+        // unrelated units, so the effective limit depended on the assistant's settings AND on
+        // whether an unrelated tool happened to be enabled: with a shell and no token budget
+        // the only limit was ~10k tokens of ASCII (and far more for CJK, where one character is
+        // one token); without a shell there was no limit at all.
+        //
+        // It is now a single token budget. A positive value trims to it; 0 or a negative value
+        // is an explicit opt-out; `null` (a store written before the default existed, or a
+        // caller that has no assistant) falls back to [FALLBACK_TOOL_RESULT_MAX_TOKENS] rather
+        // than shipping the payload verbatim. Over-budget output is never lost: it is spilled
+        // to the CCR pool under a content-addressed handle and the result keeps a head/tail
+        // preview plus the read-back instructions.
+        val budget = when {
+            maxTokens == null -> FALLBACK_TOOL_RESULT_MAX_TOKENS
+            maxTokens > 0 -> maxTokens
+            else -> return output
         }
 
-        if (totalChars <= MAX_TOOL_OUTPUT_CHARS || !hasShellAccess) return output
-
-        Log.i(TAG, "maybeTruncateToolOutput: truncating tool $toolCallId output ($totalChars chars)")
-
         val fullText = textParts.joinToString("\n") { it.text }
-        val preview = fullText.take(TOOL_OUTPUT_PREVIEW_CHARS)
+        val originalTokens = ContextCompactionPlanner.estimateTokens(fullText)
+        if (originalTokens <= budget) return output
 
-        val fileName = "${toolCallId}.txt"
-        val outputDir = File(context.filesDir, FileFolders.TOOL_OUTPUTS).apply { mkdirs() }
-        File(outputDir, fileName).writeText(fullText)
+        Log.i(
+            TAG,
+            "maybeTruncateToolOutput: tool $toolCallId is $originalTokens tokens, " +
+                "budget ${budget}; compressing"
+        )
 
-        return listOf(
-            UIMessagePart.Text(
-                buildString {
-                    appendLine("[Tool output truncated: $totalChars characters total]")
-                    appendLine("Full output saved to: /tool_outputs/$fileName")
-                    appendLine("Use shell to read: `cat /tool_outputs/$fileName`")
-                    appendLine("Use shell to search: `grep \"pattern\" /tool_outputs/$fileName`")
+        // CCR pool path: content-addressed spill + smart preview. Falls back to the plain
+        // head/tail truncation below when the pool cannot be written — a disk problem must
+        // never fail the tool call itself.
+        if (ccrEnabled) {
+            val compressed = runCatching {
+                val kind = ToolOutputPool.detectKind(fullText)
+                val headBudgetTokens = (budget * 0.6).toInt()
+                val tailBudgetTokens = budget - headBudgetTokens
+                val CHARS_PER_TOKEN = 3
+                val preview = ToolOutputPool.smartPreview(
+                    fullText = fullText,
+                    headChars = headBudgetTokens * CHARS_PER_TOKEN,
+                    tailChars = tailBudgetTokens * CHARS_PER_TOKEN,
+                    kind = kind,
+                )
+                val handle = ToolOutputPool.handleOf(fullText)
+                // 与 spillToolOutput 同一目录契约：filesDir/tool_outputs ↔ /tool_outputs/
+                val poolDir = File(context.filesDir, FileFolders.TOOL_OUTPUTS).apply { mkdirs() }
+                val poolFile = File(poolDir, "ccr-$handle.txt")
+                if (!poolFile.exists()) poolFile.writeText(fullText)
+                val totalLines = fullText.lines().size
+                val notice = buildString {
+                    appendLine("[Tool output compressed to the ${budget}-token budget]")
+                    appendLine("[Original: $totalChars characters / $totalLines lines, kind=$kind]")
+                    appendLine(
+                        ToolOutputPool.handleNotice(
+                            handle, "/tool_outputs/ccr-$handle.txt", totalLines, totalChars, kind
+                        )
+                    )
+                    if (!hasShellAccess) {
+                        appendLine("[No workspace shell on this turn: re-run the tool with a narrower scope to see more.]")
+                    }
                     appendLine()
                     append(preview)
                 }
+                Log.i(TAG, "maybeTruncateToolOutput: CCR pool tool $toolCallId ($totalChars chars, kind=$kind, handle=$handle)")
+                listOf(UIMessagePart.Text(notice)) + nonTextParts
+            }.getOrNull()
+            if (compressed != null) return compressed
+        }
+
+        val outcome = truncateToolResult(text = fullText, maxTokens = budget)
+        val fileName = spillToolOutput(toolCallId, fullText)
+        return listOf(
+            UIMessagePart.Text(
+                buildBudgetedTruncationNotice(
+                    totalChars = totalChars,
+                    fileName = fileName,
+                    showShellHints = hasShellAccess,
+                    budgetTokens = budget,
+                    body = outcome.text,
+                )
             )
         ) + nonTextParts
     }

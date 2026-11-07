@@ -73,7 +73,8 @@
     "switch_assistant_failed": "Failed to switch assistant",
     "current": "Current",
     "switching": "Switching...",
-    "no_assistants_by_tag": "No assistants match the selected tags"
+    "no_assistants_by_tag": "No assistants match the selected tags",
+    "ssh_hosts": "SSH hosts"
   },
   "conversation_search": {
     "search_conversations": "Search conversations",

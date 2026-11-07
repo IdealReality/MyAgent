@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Slider
@@ -28,6 +29,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.SheetValue
 import androidx.compose.material3.rememberBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -37,6 +39,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithCache
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -59,6 +63,12 @@ import me.rerere.rikkahub.ui.components.ui.ToggleSurface
 import me.rerere.rikkahub.ui.components.ui.icons.ReasoningHigh
 import me.rerere.rikkahub.ui.components.ui.icons.ReasoningLow
 import me.rerere.rikkahub.ui.components.ui.icons.ReasoningMedium
+import androidx.compose.ui.graphics.BlendMode
+import androidx.compose.ui.graphics.CompositingStrategy
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.vector.rememberVectorPainter
+import me.rerere.rikkahub.ui.theme.LocalDarkMode
+import me.rerere.rikkahub.ui.theme.LocalMonoTheme
 import kotlin.math.PI
 import kotlin.math.roundToInt
 import kotlin.math.sin
@@ -97,7 +107,16 @@ fun ReasoningButton(
                 modifier = Modifier.size(24.dp),
                 contentAlignment = Alignment.Center
             ) {
-                ReasoningIcon(reasoningLevel)
+                // 图标本身带档位颜色（冷→暖，mono 下走已放鲜艳的 mono ramp）：思考强度是
+                // 语义信号，入口整只灰掉就读不出「当前多深」。OFF 保持中性灰。
+                val iconTint = if (reasoningLevel.isEnabled) {
+                    reasoningLevelSurgeColor(reasoningLevel)
+                } else {
+                    LocalContentColor.current
+                }
+                CompositionLocalProvider(LocalContentColor provides iconTint) {
+                    ReasoningIcon(reasoningLevel)
+                }
             }
             if (!onlyIcon) Text(stringResource(R.string.setting_provider_page_reasoning))
         }
@@ -263,9 +282,73 @@ internal fun reasoningLevelColor(level: ReasoningLevel): Color = when (level) {
     ReasoningLevel.MAX -> SurgeMaxFallbackColor
 }
 
+/**
+ * mono 主题的同一套档位。
+ *
+ * 历史上 mono 把这套色相压成低饱和（亮色档「对白底 5.3:1」），结果用户看到的是
+ * 「灰扑扑的彩色图标」——思考强度入口在底栏根本读不出是彩色的。2026-11-04 拍板：
+ * mono 只压**版式与表面**，不压**该有色的信息图标**。思考强度本身是语义信号
+ * （越深越热），压成灰阶等于把这层意思删掉，与 mono 保留语义红的逻辑一致。
+ *
+ * 因此亮色档直接取与非 mono 相同的满色域色相（冷→暖），暗色档维持原版鲜艳值。
+ * 对比度由图标尺寸（底栏入口是显眼的独立按钮，不是正文）与背景半透明 plate 兜底。
+ */
+private val SurgeMonoOff = Color(0xFF8B96A3)
+private val SurgeMonoRampLight = listOf(
+    SurgeAutoColor,   // AUTO   冰蓝
+    SurgeFastColor,   // LOW    青
+    SurgeBalancedColor, // MEDIUM 绿
+    SurgeDeepColor,   // HIGH   琥珀
+    SurgeResearchColor, // XHIGH  橙
+    SurgeMaxFallbackColor, // MAX    红（MAX 实际用彩虹扫光，这里只是单色兜底）
+)
+private val SurgeMonoRampDark = listOf(
+    SurgeAutoColor,
+    SurgeFastColor,
+    SurgeBalancedColor,
+    SurgeDeepColor,
+    SurgeResearchColor,
+    SurgeMaxFallbackColor,
+)
+
+/** mono 的 MAX 扫光：直接复用非 mono 的满色彩虹，不再单独压暗。 */
+private val SurgeMonoRainbowLight = SurgeRainbow
+private val SurgeMonoRainbowDark = SurgeRainbow
+
+/**
+ * [ReasoningIcon] 等入口图标的档位颜色：mono 走（已放鲜艳的）mono ramp，其它走固定 ramp。
+ * 供底栏思考强度入口等「图标即信号」的调用点使用；MAX 用单色兜底红（彩虹只在 bar/词上）。
+ */
+@Composable
+internal fun reasoningLevelSurgeColor(level: ReasoningLevel): Color {
+    return if (LocalMonoTheme.current) {
+        reasoningLevelColorMono(level, LocalDarkMode.current)
+    } else {
+        reasoningLevelColor(level)
+    }
+}
+
+/** [reasoningLevelColor] 的 mono 版：2026-11-04 起与固定 ramp 同一套鲜艳色值（见上）。 */
+internal fun reasoningLevelColorMono(level: ReasoningLevel, dark: Boolean): Color {
+    val ramp = if (dark) SurgeMonoRampDark else SurgeMonoRampLight
+    return when (level) {
+        ReasoningLevel.OFF -> SurgeMonoOff
+        ReasoningLevel.AUTO -> ramp[0]
+        ReasoningLevel.LOW -> ramp[1]
+        ReasoningLevel.MEDIUM -> ramp[2]
+        ReasoningLevel.HIGH -> ramp[3]
+        ReasoningLevel.XHIGH -> ramp[4]
+        ReasoningLevel.MAX -> ramp[5]
+    }
+}
+
 /** The bar's MAX rainbow, drifting slowly — shared by the level word so it follows the bar. */
 @Composable
-private fun reasoningSurgeRainbowBrush(label: String): Brush {
+private fun reasoningSurgeRainbowBrush(
+    label: String,
+    mono: Boolean = false,
+    dark: Boolean = false,
+): Brush {
     val transition = rememberInfiniteTransition(label = label)
     val phase by transition.animateFloat(
         initialValue = 0f,
@@ -276,7 +359,11 @@ private fun reasoningSurgeRainbowBrush(label: String): Brush {
     val period = with(LocalDensity.current) { 96.dp.toPx() }
     val shift = phase * period
     return Brush.linearGradient(
-        colors = SurgeRainbow,
+        colors = when {
+            !mono -> SurgeRainbow
+            dark -> SurgeMonoRainbowDark
+            else -> SurgeMonoRainbowLight
+        },
         start = Offset(shift - period, 0f),
         end = Offset(shift, 0f),
         tileMode = TileMode.Repeated,
@@ -293,15 +380,26 @@ internal fun ReasoningLevelWord(
     style: TextStyle,
     modifier: Modifier = Modifier,
 ) {
+    val mono = LocalMonoTheme.current
+    val dark = LocalDarkMode.current
     if (level == ReasoningLevel.MAX) {
         Text(
             text = level.label(),
             modifier = modifier,
-            style = style.copy(brush = reasoningSurgeRainbowBrush("reasoningWordRainbow")),
+            style = style.copy(
+                brush = reasoningSurgeRainbowBrush(
+                    label = "reasoningWordRainbow",
+                    mono = mono,
+                    dark = dark,
+                )
+            ),
             fontWeight = FontWeight.Bold,
         )
     } else {
-        val wordColor by animateColorAsState(reasoningLevelColor(level), label = "reasoningWord")
+        val wordColor by animateColorAsState(
+            if (mono) reasoningLevelColorMono(level, dark) else reasoningLevelColor(level),
+            label = "reasoningWord",
+        )
         Text(
             text = level.label(),
             modifier = modifier,
@@ -332,7 +430,9 @@ private fun sinf(x: Float): Float = sin(x.toDouble()).toFloat()
  */
 @Composable
 internal fun ReasoningSurgeTrack(sliderState: SliderState, level: ReasoningLevel) {
-    val base = reasoningLevelColor(level)
+    val mono = LocalMonoTheme.current
+    val dark = LocalDarkMode.current
+    val base = if (mono) reasoningLevelColorMono(level, dark) else reasoningLevelColor(level)
     val inactive = MaterialTheme.colorScheme.surfaceContainerHighest
     val ordinal = levels.indexOf(level).coerceAtLeast(0)
     val intensity = ordinal / (levelCount - 1).toFloat()
@@ -408,7 +508,11 @@ internal fun ReasoningSurgeTrack(sliderState: SliderState, level: ReasoningLevel
         val shift = phase * bandPeriod
         val bandBrush = if (isMax) {
             Brush.linearGradient(
-                colors = SurgeRainbow,
+                colors = when {
+                    !mono -> SurgeRainbow
+                    dark -> SurgeMonoRainbowDark
+                    else -> SurgeMonoRainbowLight
+                },
                 start = Offset(shift - bandPeriod, 0f),
                 end = Offset(shift, 0f),
                 tileMode = TileMode.Repeated,
@@ -457,7 +561,12 @@ internal fun ReasoningSurgeTrack(sliderState: SliderState, level: ReasoningLevel
         // Sparks rising off the bar, fading in then out over their rise.
         val riseMax = trackHeight * 2f
         val barCenterY = y + trackHeight / 2f
-        val rainbowSwatches = SurgeRainbow.size - 1
+        val rainbow = when {
+            !mono -> SurgeRainbow
+            dark -> SurgeMonoRainbowDark
+            else -> SurgeMonoRainbowLight
+        }
+        val rainbowSwatches = rainbow.size - 1
         particles.forEachIndexed { i, p ->
             val t = (particleClock + p.offset) % 1f
             val px = activeWidth * p.xFrac +
@@ -465,7 +574,7 @@ internal fun ReasoningSurgeTrack(sliderState: SliderState, level: ReasoningLevel
             val py = barCenterY - t * riseMax * p.rise
             val alpha = sinf(t * PI.toFloat()) * (0.45f + 0.45f * intensity)
             drawCircle(
-                color = if (isMax) SurgeRainbow[i % rainbowSwatches] else base,
+                color = if (isMax) rainbow[i % rainbowSwatches] else base,
                 alpha = alpha,
                 radius = p.radiusDp.dp.toPx(),
                 center = Offset(px, py),
@@ -496,3 +605,11 @@ private fun ReasoningPickerPreview() {
         )
     }
 }
+
+
+
+
+
+
+
+

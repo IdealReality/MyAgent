@@ -208,9 +208,34 @@ sealed class ASRProviderSetting {
         }
     }
 
+    @Serializable
+    @SerialName("system")
+    data class System(
+        override val id: Uuid = Uuid.random(),
+        override val name: String = "System recognizer",
+        /** BCP-47 tag; blank follows the device locale. */
+        val language: String = "",
+        /**
+         * Prefer the on-device recognizer when the platform provides one (API 31+). The
+         * service may still use the network; this only expresses a preference.
+         */
+        val useOnDevice: Boolean = true,
+    ) : ASRProviderSetting() {
+        override fun copyProvider(
+            id: Uuid,
+            name: String,
+        ): ASRProviderSetting {
+            return this.copy(
+                id = id,
+                name = name,
+            )
+        }
+    }
+
     companion object {
         val Types by lazy {
             listOf(
+                System::class,
                 OpenAIRealtime::class,
                 DashScope::class,
                 DashScopeStreaming::class,
