@@ -1,4 +1,4 @@
-# preflight.ps1 — MyAgent 构建前置检查
+﻿# preflight.ps1 — MyAgent 构建前置检查
 # 失败返回 1，调用方必须 `if ($LASTEXITCODE -ne 0) { exit 1 }`
 # 目的：把 HOT.md 里可自动验证的坑变成硬性闸门。
 

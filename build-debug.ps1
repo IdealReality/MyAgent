@@ -1,4 +1,4 @@
-# build-debug.ps1 — debug 变体：构建 + 用 myagent.jks 重签 + 备好待传文件
+﻿# build-debug.ps1 — debug 变体：构建 + 用 myagent.jks 重签 + 备好待传文件
 # 固化 2026-11-07 那次手动排查的全部步骤。
 param([switch]$SkipSign = $false)
 
