@@ -31,6 +31,12 @@ class FileBatchToolsTest {
         return Json.parseToJsonElement(text).jsonObject
     }
 
+    /** PathSafetyGuard matches Android prefixes; off-device /system canonicalises to C:\system. */
+    private fun assumePosixPaths() = org.junit.Assume.assumeTrue(
+        "POSIX path prefixes only exist on Android/Linux",
+        File.separatorChar == '/',
+    )
+
     private fun JsonObject.success() = this["success"]?.jsonPrimitive?.intOrNull
     private fun JsonObject.failedPaths() =
         this["failed"]?.jsonArray?.map { it.jsonObject["path"]?.jsonPrimitive?.content }
@@ -43,7 +49,7 @@ class FileBatchToolsTest {
         val dst = tmp.newFolder("out")
         val res = invoke(
             batchCopyTool(),
-            """{"paths":["${a.absolutePath}","${b.absolutePath}"],"dst_dir":"${dst.absolutePath}"}""",
+            """{"paths":["${a.absolutePath.replace('\\', '/')}","${b.absolutePath.replace('\\', '/')}"],"dst_dir":"${dst.absolutePath.replace('\\', '/')}"}""",
         )
         assertEquals(2, res.success())
         assertTrue(res.failedPaths()!!.isEmpty())
@@ -58,7 +64,7 @@ class FileBatchToolsTest {
         val dst = tmp.newFolder("logs")
         val res = invoke(
             batchCopyTool(),
-            """{"root":"${tmp.root.absolutePath}","pattern":"*.log","dst_dir":"${dst.absolutePath}"}""",
+            """{"root":"${tmp.root.absolutePath.replace('\\', '/')}","pattern":"*.log","dst_dir":"${dst.absolutePath.replace('\\', '/')}"}""",
         )
         assertEquals(2, res.success())
         assertTrue(File(dst, "one.log").exists())
@@ -70,10 +76,10 @@ class FileBatchToolsTest {
         val dst = tmp.newFolder("out2")
         val res = invoke(
             batchCopyTool(),
-            """{"paths":["${a.absolutePath}","${tmp.root.absolutePath}/ghost.txt"],"dst_dir":"${dst.absolutePath}"}""",
+            """{"paths":["${a.absolutePath.replace('\\', '/')}","${tmp.root.absolutePath.replace('\\', '/')}/ghost.txt"],"dst_dir":"${dst.absolutePath.replace('\\', '/')}"}""",
         )
         assertEquals(1, res.success())
-        assertEquals(listOf("${tmp.root.absolutePath}/ghost.txt"), res.failedPaths())
+        assertEquals(listOf("${tmp.root.absolutePath.replace('\\', '/')}/ghost.txt"), res.failedPaths())
     }
 
     @Test fun `batch_copy blocks a system path inside the batch`() {
@@ -81,20 +87,21 @@ class FileBatchToolsTest {
         val dst = tmp.newFolder("out3")
         val res = invoke(
             batchCopyTool(),
-            """{"paths":["${a.absolutePath}","/system/build.prop"],"dst_dir":"${dst.absolutePath}"}""",
+            """{"paths":["${a.absolutePath.replace('\\', '/')}","/system/build.prop"],"dst_dir":"${dst.absolutePath.replace('\\', '/')}"}""",
         )
         assertEquals(1, res.success())
         assertEquals(listOf("/system/build.prop"), res.failedPaths())
     }
 
     @Test fun `batch_copy rejects a system dst_dir`() {
+        assumePosixPaths()
         val res = invoke(batchCopyTool(), """{"paths":["/x"],"dst_dir":"/system/out"}""")
         assertEquals("bad_request", res["error"]?.jsonPrimitive?.content)
     }
 
     @Test fun `batch_copy requires paths or root+pattern`() {
         val dst = tmp.newFolder("out4")
-        val res = invoke(batchCopyTool(), """{"dst_dir":"${dst.absolutePath}"}""")
+        val res = invoke(batchCopyTool(), """{"dst_dir":"${dst.absolutePath.replace('\\', '/')}"}""")
         assertEquals("bad_request", res["error"]?.jsonPrimitive?.content)
     }
 
@@ -106,7 +113,7 @@ class FileBatchToolsTest {
         val dst = tmp.newFolder("moved")
         val res = invoke(
             batchMoveTool(),
-            """{"paths":["${a.absolutePath}","${b.absolutePath}"],"dst_dir":"${dst.absolutePath}"}""",
+            """{"paths":["${a.absolutePath.replace('\\', '/')}","${b.absolutePath.replace('\\', '/')}"],"dst_dir":"${dst.absolutePath.replace('\\', '/')}"}""",
         )
         assertEquals(2, res.success())
         assertFalse(a.exists())
@@ -119,10 +126,10 @@ class FileBatchToolsTest {
         File(dst, "dup.txt").writeText("old")
         val res = invoke(
             batchMoveTool(),
-            """{"paths":["${a.absolutePath}"],"dst_dir":"${dst.absolutePath}"}""",
+            """{"paths":["${a.absolutePath.replace('\\', '/')}"],"dst_dir":"${dst.absolutePath.replace('\\', '/')}"}""",
         )
         assertEquals(0, res.success())
-        assertEquals(listOf(a.absolutePath), res.failedPaths())
+        assertEquals(listOf(a.absolutePath.replace('\\', '/')), res.failedPaths())
         assertEquals("old", File(dst, "dup.txt").readText())
     }
 
@@ -134,7 +141,7 @@ class FileBatchToolsTest {
         File(dst, "ow.txt").writeText("old")
         val res = invoke(
             batchMoveTool(),
-            """{"paths":["${a.absolutePath}"],"dst_dir":"${dst.absolutePath}","overwrite":true}""",
+            """{"paths":["${a.absolutePath.replace('\\', '/')}"],"dst_dir":"${dst.absolutePath.replace('\\', '/')}","overwrite":true}""",
         )
         assertEquals(1, res.success())
         assertFalse(a.exists())
@@ -149,7 +156,7 @@ class FileBatchToolsTest {
         val b = tmp.newFile("d2.txt")
         val res = invoke(
             batchDeleteTool(),
-            """{"paths":["${a.absolutePath}","${b.absolutePath}"]}""",
+            """{"paths":["${a.absolutePath.replace('\\', '/')}","${b.absolutePath.replace('\\', '/')}"]}""",
         )
         assertEquals(2, res.success())
         assertFalse(a.exists())
@@ -159,9 +166,9 @@ class FileBatchToolsTest {
     @Test fun `batch_delete fails a non-empty directory without recursive`() {
         val dir = tmp.newFolder("full")
         File(dir, "child.txt").writeText("c")
-        val res = invoke(batchDeleteTool(), """{"paths":["${dir.absolutePath}"]}""")
+        val res = invoke(batchDeleteTool(), """{"paths":["${dir.absolutePath.replace('\\', '/')}"]}""")
         assertEquals(0, res.success())
-        assertEquals(listOf(dir.absolutePath), res.failedPaths())
+        assertEquals(listOf(dir.absolutePath.replace('\\', '/')), res.failedPaths())
         assertTrue(dir.exists())
     }
 
@@ -170,7 +177,7 @@ class FileBatchToolsTest {
         File(dir, "child.txt").writeText("c")
         val res = invoke(
             batchDeleteTool(),
-            """{"paths":["${dir.absolutePath}"],"recursive":true}""",
+            """{"paths":["${dir.absolutePath.replace('\\', '/')}"],"recursive":true}""",
         )
         assertEquals(1, res.success())
         assertFalse(dir.exists())

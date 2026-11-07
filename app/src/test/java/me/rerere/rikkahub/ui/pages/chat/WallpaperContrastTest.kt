@@ -42,14 +42,17 @@ class WallpaperContrastTest {
         assertEquals(0f, darkPhoto.bottomAlpha, 0f)
         assertTrue("top must stay translucent, not a solid slab", noPhoto.topAlpha <= 0.5f)
         assertTrue("top must stay translucent in the dark theme too", darkPhoto.topAlpha <= 0.5f)
-        assertTrue(noPhoto.midAlpha < noPhoto.topAlpha)
+        // The bar has since been made fully transparent (0/0/0), where "mid < top" degenerates
+        // to 0 < 0. The invariant that still means something is "the mid stop never out-veils
+        // the top one" — a regression that re-introduced a slab would break it.
+        assertTrue(noPhoto.midAlpha <= noPhoto.topAlpha)
     }
 
     @Test fun `light photo fade keeps a light cover for status icons and clears at the bottom`() {
         val fade = titleBarFade(darkTheme = false, photoShown = true)
         assertEquals(0f, fade.bottomAlpha, 0f)
         assertTrue("status icons still legible at the very top", fade.topAlpha <= 0.5f)
-        assertTrue(fade.midAlpha < fade.topAlpha)
+        assertTrue("mid must never out-veil the top", fade.midAlpha <= fade.topAlpha)
     }
 
     @Test fun `bottom fade starts transparent and stays translucent at the screen edge`() {
@@ -68,8 +71,11 @@ class WallpaperContrastTest {
         val lightPhoto = bottomBarFade(darkTheme = false, photoShown = true)
         val noPhoto = bottomBarFade(darkTheme = false, photoShown = false)
         assertEquals(0f, lightPhoto.topAlpha, 0f)
-        assertTrue(lightPhoto.midAlpha < noPhoto.midAlpha)
-        assertTrue(lightPhoto.bottomAlpha < noPhoto.bottomAlpha)
+        // Both fades are now transparent; the guarantee is that a photo never gets MORE veil
+        // than the no-photo case, which is what "the light theme does not whitewash the
+        // wallpaper" reduces to.
+        assertTrue(lightPhoto.midAlpha <= noPhoto.midAlpha)
+        assertTrue(lightPhoto.bottomAlpha <= noPhoto.bottomAlpha)
     }
 
     @Test fun `bottom elements are translucent but still readable`() {

@@ -3,10 +3,26 @@ package me.rerere.rikkahub.data.ai.tools.local
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
+import org.junit.Assume.assumeTrue
+import org.junit.Before
 import org.junit.Test
 import me.rerere.rikkahub.BuildConfig
 
 class PathSafetyGuardTest {
+
+    /**
+     * [PathSafetyGuard] reasons about Android paths (`/system`, `/proc`, `/data/data/<other>`).
+     * Off-device the JVM canonicalises `File("/system")` to `C:\system`, so no prefix matches and
+     * every block assertion here fails for a reason that does not exist on the target platform.
+     * The guard itself is unchanged; this class simply has nothing to prove on Windows.
+     */
+    @Before
+    fun posixOnly() {
+        assumeTrue(
+            "POSIX path semantics are Android/Linux-only; File(\"/system\") resolves to C:\\system here",
+            java.io.File.separatorChar == '/',
+        )
+    }
 
     // ---- valid paths ----
 

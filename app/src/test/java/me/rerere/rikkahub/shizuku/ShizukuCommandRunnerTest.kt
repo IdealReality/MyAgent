@@ -18,6 +18,20 @@ import org.junit.Test
  */
 class ShizukuCommandRunnerTest {
 
+    /**
+     * Every case here spawns a real `sh`. On Windows there is no such binary, so
+     * [ShizukuCommandRunner.run] returns its structured failure map and each assertion on
+     * stdout/exit_code NPEs — a host limitation, not a runner regression. The runner's own
+     * platform story (Shizuku hands it a shell UID on Android) has no Windows branch at all.
+     */
+    @org.junit.Before
+    fun posixShellOnly() {
+        org.junit.Assume.assumeTrue(
+            "needs a POSIX shell at /bin/sh",
+            java.io.File("/bin/sh").exists(),
+        )
+    }
+
     @Test
     fun `successful command returns stdout, stderr and exit code`() {
         val result = ShizukuCommandRunner.run(

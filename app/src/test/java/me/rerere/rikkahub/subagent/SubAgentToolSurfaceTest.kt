@@ -112,7 +112,10 @@ class SubAgentToolSurfaceTest {
     @Test
     fun `safeNames is a subtraction and never invents names`() {
         val mixed = listOf("search_web", "subagent_dispatch", "ask_user", "eval_javascript", "take_photo")
-        assertEquals(setOf("search_web"), SubAgentToolSurface.safeNames(mixed))
+        // eval_javascript survives: the 2026-10-30 decision removed the approval floor. The
+        // subtraction still drops the three denied ones and never adds anything (no
+        // "requested but unregistered" names sneaking in).
+        assertEquals(setOf("search_web", "eval_javascript"), SubAgentToolSurface.safeNames(mixed))
         assertTrue(SubAgentToolSurface.safeNames(emptyList()).isEmpty())
     }
 }

@@ -33,24 +33,38 @@ class FileManagerToolTest {
     @get:Rule
     val tmp = TemporaryFolder()
 
+    /**
+     * [PathSafetyGuard] matches Android path prefixes (`/system`, `/proc`, `/data/data/<other>`).
+     * Off-device the JVM canonicalises `File("/system")` to `C:\system`, so those cases can only
+     * prove anything on POSIX; the guard code itself is untouched.
+     */
+    private fun assumePosixPaths() = org.junit.Assume.assumeTrue(
+        "POSIX path prefixes only exist on Android/Linux",
+        File.separatorChar == '/',
+    )
+
     // ========== PathSafetyGuard integration via tools ==========
 
     @Test fun `list_files blocks system path`() {
+        assumePosixPaths()
         val result = invokeTool(listFilesTool(), """{"path":"/system"}""")
         assertEquals("path_blocked", result["error"]?.jsonPrimitive?.content)
     }
 
     @Test fun `read_file blocks proc path`() {
+        assumePosixPaths()
         val result = invokeTool(readFileTool(), """{"path":"/proc/1/status"}""")
         assertEquals("path_blocked", result["error"]?.jsonPrimitive?.content)
     }
 
     @Test fun `delete_file blocks vendor path`() {
+        assumePosixPaths()
         val result = invokeTool(deleteFileTool(), """{"path":"/vendor/lib"}""")
         assertEquals("path_blocked", result["error"]?.jsonPrimitive?.content)
     }
 
     @Test fun `write_binary_file blocks other app sandbox`() {
+        assumePosixPaths()
         val result = invokeTool(writeBinaryFileTool(),
             """{"path":"/data/data/com.evil.app/evil.db","base64_content":"dGVzdA=="}""")
         assertEquals("path_blocked", result["error"]?.jsonPrimitive?.content)
@@ -69,16 +83,19 @@ class FileManagerToolTest {
     }
 
     @Test fun `create_directory blocks sys path`() {
+        assumePosixPaths()
         val result = invokeTool(createDirectoryTool(), """{"path":"/sys/newdir"}""")
         assertEquals("path_blocked", result["error"]?.jsonPrimitive?.content)
     }
 
     @Test fun `file_info blocks dev path`() {
+        assumePosixPaths()
         val result = invokeTool(fileInfoTool(), """{"path":"/dev/zero"}""")
         assertEquals("path_blocked", result["error"]?.jsonPrimitive?.content)
     }
 
     @Test fun `find_files blocks apex path`() {
+        assumePosixPaths()
         val result = invokeTool(findFilesTool(), """{"root":"/apex","query":"lib"}""")
         assertEquals("path_blocked", result["error"]?.jsonPrimitive?.content)
     }
@@ -89,7 +106,7 @@ class FileManagerToolTest {
         val dir = tmp.newFolder("music")
         File(dir, "song.mp3").writeText("dummy")
         File(dir, "notes.txt").writeText("hello")
-        val result = invokeTool(listFilesTool(), """{"path":"${dir.absolutePath}"}""")
+        val result = invokeTool(listFilesTool(), """{"path":"${dir.absolutePath.replace('\\', '/')}"}""")
         assertNull(result["error"])
         val files = result["files"]?.let { Json.parseToJsonElement(it.toString()) }
         assertNotNull(files)
@@ -103,21 +120,21 @@ class FileManagerToolTest {
 
     @Test fun `list_files returns not_a_directory for a file`() {
         val f = tmp.newFile("test.txt")
-        val result = invokeTool(listFilesTool(), """{"path":"${f.absolutePath}"}""")
+        val result = invokeTool(listFilesTool(), """{"path":"${f.absolutePath.replace('\\', '/')}"}""")
         assertEquals("not_a_directory", result["error"]?.jsonPrimitive?.content)
     }
 
     // ========== file_info ==========
 
     @Test fun `file_info exists=false for missing path`() {
-        val result = invokeTool(fileInfoTool(), """{"path":"${tmp.root.absolutePath}/nofile.bin"}""")
+        val result = invokeTool(fileInfoTool(), """{"path":"${tmp.root.absolutePath.replace('\\', '/')}/nofile.bin"}""")
         assertFalse(result["exists"]!!.jsonPrimitive.boolean)
     }
 
     @Test fun `file_info returns correct size`() {
         val f = tmp.newFile("data.bin")
         f.writeBytes(ByteArray(1234))
-        val result = invokeTool(fileInfoTool(), """{"path":"${f.absolutePath}"}""")
+        val result = invokeTool(fileInfoTool(), """{"path":"${f.absolutePath.replace('\\', '/')}"}""")
         assertTrue(result["exists"]!!.jsonPrimitive.boolean)
         assertEquals(1234L, result["size_bytes"]!!.jsonPrimitive.content.toLong())
     }
@@ -125,7 +142,7 @@ class FileManagerToolTest {
     // ========== create_directory ==========
 
     @Test fun `create_directory creates new dir`() {
-        val path = "${tmp.root.absolutePath}/newdir/sub"
+        val path = "${tmp.root.absolutePath.replace('\\', '/')}/newdir/sub"
         val result = invokeTool(createDirectoryTool(), """{"path":"$path"}""")
         assertTrue(result["success"]!!.jsonPrimitive.boolean)
         assertTrue(result["created"]!!.jsonPrimitive.boolean)
@@ -134,7 +151,7 @@ class FileManagerToolTest {
 
     @Test fun `create_directory created=false if already exists`() {
         val dir = tmp.newFolder("existing")
-        val result = invokeTool(createDirectoryTool(), """{"path":"${dir.absolutePath}"}""")
+        val result = invokeTool(createDirectoryTool(), """{"path":"${dir.absolutePath.replace('\\', '/')}"}""")
         assertTrue(result["success"]!!.jsonPrimitive.boolean)
         assertFalse(result["created"]!!.jsonPrimitive.boolean)
     }
@@ -142,7 +159,7 @@ class FileManagerToolTest {
     // ========== write_binary_file ==========
 
     @Test fun `write_binary_file writes bytes`() {
-        val path = "${tmp.root.absolutePath}/out.bin"
+        val path = "${tmp.root.absolutePath.replace('\\', '/')}/out.bin"
         // base64 of "hello"
         val result = invokeTool(writeBinaryFileTool(),
             """{"path":"$path","base64_content":"aGVsbG8="}""")
@@ -154,7 +171,7 @@ class FileManagerToolTest {
         val f = tmp.newFile("exists.bin")
         f.writeText("original")
         val result = invokeTool(writeBinaryFileTool(),
-            """{"path":"${f.absolutePath}","base64_content":"aGVsbG8="}""")
+            """{"path":"${f.absolutePath.replace('\\', '/')}","base64_content":"aGVsbG8="}""")
         assertEquals("file_exists", result["error"]?.jsonPrimitive?.content)
         assertEquals("original", f.readText()) // unchanged
     }
@@ -163,13 +180,13 @@ class FileManagerToolTest {
         val f = tmp.newFile("ow.bin")
         f.writeText("old")
         val result = invokeTool(writeBinaryFileTool(),
-            """{"path":"${f.absolutePath}","base64_content":"bmV3","overwrite":true}""")
+            """{"path":"${f.absolutePath.replace('\\', '/')}","base64_content":"bmV3","overwrite":true}""")
         assertTrue(result["success"]!!.jsonPrimitive.boolean)
         assertEquals("new", f.readText())
     }
 
     @Test fun `write_binary_file rejects invalid base64`() {
-        val path = "${tmp.root.absolutePath}/bad.bin"
+        val path = "${tmp.root.absolutePath.replace('\\', '/')}/bad.bin"
         val result = invokeTool(writeBinaryFileTool(),
             """{"path":"$path","base64_content":"!!!not-base64!!!"}""")
         assertEquals("bad_base64", result["error"]?.jsonPrimitive?.content)
@@ -206,7 +223,7 @@ class FileManagerToolTest {
         // throws. The temp must not be left orphaned beside the bogus parent.
         val notADir = tmp.newFile("not-a-dir")
         notADir.writeText("x")
-        val target = "${notADir.absolutePath}/child.txt"
+        val target = "${notADir.absolutePath.replace('\\', '/')}/child.txt"
         val result = invokeTool(
             writeTextFileTool(NULL_CONTEXT),
             """{"path":"$target","content":"data","overwrite":true}"""
@@ -223,7 +240,7 @@ class FileManagerToolTest {
         f.writeText("old contents")
         val result = invokeTool(
             writeTextFileTool(NULL_CONTEXT),
-            """{"path":"${f.absolutePath}","content":"new contents","overwrite":true}"""
+            """{"path":"${f.absolutePath.replace('\\', '/')}","content":"new contents","overwrite":true}"""
         )
         assertTrue(result["success"]!!.jsonPrimitive.boolean)
         assertEquals("new contents", f.readText())
@@ -235,7 +252,7 @@ class FileManagerToolTest {
     @Test fun `delete_file removes a file`() {
         val f = tmp.newFile("del.txt")
         f.writeText("bye")
-        val result = invokeTool(deleteFileTool(), """{"path":"${f.absolutePath}"}""")
+        val result = invokeTool(deleteFileTool(), """{"path":"${f.absolutePath.replace('\\', '/')}"}""")
         assertTrue(result["success"]!!.jsonPrimitive.boolean)
         assertFalse(f.exists())
     }
@@ -243,7 +260,7 @@ class FileManagerToolTest {
     @Test fun `delete_file refuses non-empty dir without recursive`() {
         val dir = tmp.newFolder("nonempty")
         File(dir, "child.txt").writeText("x")
-        val result = invokeTool(deleteFileTool(), """{"path":"${dir.absolutePath}"}""")
+        val result = invokeTool(deleteFileTool(), """{"path":"${dir.absolutePath.replace('\\', '/')}"}""")
         assertEquals("not_empty", result["error"]?.jsonPrimitive?.content)
         assertTrue(dir.exists()) // unchanged
     }
@@ -253,14 +270,14 @@ class FileManagerToolTest {
         File(dir, "a.txt").writeText("a")
         File(dir, "b.txt").writeText("b")
         val result = invokeTool(deleteFileTool(),
-            """{"path":"${dir.absolutePath}","recursive":true}""")
+            """{"path":"${dir.absolutePath.replace('\\', '/')}","recursive":true}""")
         assertTrue(result["success"]!!.jsonPrimitive.boolean)
         assertFalse(dir.exists())
     }
 
     @Test fun `delete_file returns not_found for missing path`() {
         val result = invokeTool(deleteFileTool(),
-            """{"path":"${tmp.root.absolutePath}/ghost.txt"}""")
+            """{"path":"${tmp.root.absolutePath.replace('\\', '/')}/ghost.txt"}""")
         assertEquals("not_found", result["error"]?.jsonPrimitive?.content)
     }
 
@@ -269,9 +286,9 @@ class FileManagerToolTest {
     @Test fun `move_file renames a file`() {
         val src = tmp.newFile("src.txt")
         src.writeText("content")
-        val dst = "${tmp.root.absolutePath}/dst.txt"
+        val dst = "${tmp.root.absolutePath.replace('\\', '/')}/dst.txt"
         val result = invokeTool(moveFileTool(),
-            """{"src":"${src.absolutePath}","dst":"$dst"}""")
+            """{"src":"${src.absolutePath.replace('\\', '/')}","dst":"$dst"}""")
         assertTrue(result["success"]!!.jsonPrimitive.boolean)
         assertFalse(src.exists())
         assertEquals("content", File(dst).readText())
@@ -282,7 +299,7 @@ class FileManagerToolTest {
         val dst = tmp.newFile("mdst.txt")
         src.writeText("source"); dst.writeText("original")
         val result = invokeTool(moveFileTool(),
-            """{"src":"${src.absolutePath}","dst":"${dst.absolutePath}"}""")
+            """{"src":"${src.absolutePath.replace('\\', '/')}","dst":"${dst.absolutePath.replace('\\', '/')}"}""")
         assertEquals("destination_exists", result["error"]?.jsonPrimitive?.content)
     }
 
@@ -293,7 +310,7 @@ class FileManagerToolTest {
         val dst = tmp.newFile("oswdst.txt")
         src.writeText("source"); dst.writeText("original")
         val result = invokeTool(moveFileTool(),
-            """{"src":"${src.absolutePath}","dst":"${dst.absolutePath}","overwrite":true}""")
+            """{"src":"${src.absolutePath.replace('\\', '/')}","dst":"${dst.absolutePath.replace('\\', '/')}","overwrite":true}""")
         assertTrue(result["success"]!!.jsonPrimitive.boolean)
         assertFalse(src.exists())
         assertEquals("source", dst.readText())
@@ -306,9 +323,9 @@ class FileManagerToolTest {
     @Test fun `copy_file copies content`() {
         val src = tmp.newFile("csrc.txt")
         src.writeText("hello world")
-        val dst = "${tmp.root.absolutePath}/cdst.txt"
+        val dst = "${tmp.root.absolutePath.replace('\\', '/')}/cdst.txt"
         val result = invokeTool(copyFileTool(),
-            """{"src":"${src.absolutePath}","dst":"$dst"}""")
+            """{"src":"${src.absolutePath.replace('\\', '/')}","dst":"$dst"}""")
         assertTrue(result["success"]!!.jsonPrimitive.boolean)
         assertTrue(src.exists()) // original preserved
         assertEquals("hello world", File(dst).readText())
@@ -319,7 +336,7 @@ class FileManagerToolTest {
         val dst = tmp.newFile("cdst2.txt")
         src.writeText("new"); dst.writeText("old")
         val result = invokeTool(copyFileTool(),
-            """{"src":"${src.absolutePath}","dst":"${dst.absolutePath}"}""")
+            """{"src":"${src.absolutePath.replace('\\', '/')}","dst":"${dst.absolutePath.replace('\\', '/')}"}""")
         assertEquals("destination_exists", result["error"]?.jsonPrimitive?.content)
         assertEquals("old", dst.readText()) // unchanged
     }
@@ -329,7 +346,7 @@ class FileManagerToolTest {
     @Test fun `read_file returns text content`() {
         val f = tmp.newFile("read.txt")
         f.writeText("the quick brown fox")
-        val result = invokeTool(readFileTool(), """{"path":"${f.absolutePath}"}""")
+        val result = invokeTool(readFileTool(), """{"path":"${f.absolutePath.replace('\\', '/')}"}""")
         assertEquals("the quick brown fox", result["content"]?.jsonPrimitive?.content)
         assertFalse(result["truncated"]!!.jsonPrimitive.boolean)
     }
@@ -338,20 +355,20 @@ class FileManagerToolTest {
         val f = tmp.newFile("big.txt")
         f.writeBytes(ByteArray(200) { 'A'.code.toByte() })
         val result = invokeTool(readFileTool(),
-            """{"path":"${f.absolutePath}","max_bytes":100}""")
+            """{"path":"${f.absolutePath.replace('\\', '/')}","max_bytes":100}""")
         assertTrue(result["truncated"]!!.jsonPrimitive.boolean)
         assertEquals(100, result["bytes_read"]?.jsonPrimitive?.content?.toInt())
     }
 
     @Test fun `read_file returns not_found for missing file`() {
         val result = invokeTool(readFileTool(),
-            """{"path":"${tmp.root.absolutePath}/missing.txt"}""")
+            """{"path":"${tmp.root.absolutePath.replace('\\', '/')}/missing.txt"}""")
         assertEquals("not_found", result["error"]?.jsonPrimitive?.content)
     }
 
     @Test fun `read_file returns is_directory for dir`() {
         val d = tmp.newFolder("rdir")
-        val result = invokeTool(readFileTool(), """{"path":"${d.absolutePath}"}""")
+        val result = invokeTool(readFileTool(), """{"path":"${d.absolutePath.replace('\\', '/')}"}""")
         assertEquals("is_directory", result["error"]?.jsonPrimitive?.content)
     }
 
@@ -363,7 +380,7 @@ class FileManagerToolTest {
         File(dir, "beta.txt").writeText("b")
         File(dir, "gamma.mp3").writeText("c")
         val result = invokeTool(findFilesTool(),
-            """{"root":"${dir.absolutePath}","query":"alpha"}""")
+            """{"root":"${dir.absolutePath.replace('\\', '/')}","query":"alpha"}""")
         assertNull(result["error"])
         val files = result["files"].toString()
         assertTrue(files.contains("alpha.txt"))
@@ -376,7 +393,7 @@ class FileManagerToolTest {
         File(dir, "song2.mp3").writeText("s")
         File(dir, "doc.pdf").writeText("d")
         val result = invokeTool(findFilesTool(),
-            """{"root":"${dir.absolutePath}","query":"*.mp3"}""")
+            """{"root":"${dir.absolutePath.replace('\\', '/')}","query":"*.mp3"}""")
         assertNull(result["error"])
         val files = result["files"].toString()
         assertTrue(files.contains("song1.mp3"))

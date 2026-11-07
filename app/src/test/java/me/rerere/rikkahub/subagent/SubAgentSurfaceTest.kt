@@ -269,10 +269,13 @@ class SubAgentSurfaceTest {
             tool("mcp__github__get_me"),
         )
         val filtered = SubAgentSurface.apply(conversation, tools)
-        assertEquals(listOf("search_web", "mcp__github__get_me"), namesOf(filtered))
+        // eval_javascript is NOT filtered: My Agent 2026-10-30 removed the approval floor, so a
+        // headless child may run it (the trade is explicit — see SubAgentToolSurfaceTest).
+        assertEquals(listOf("search_web", "eval_javascript", "mcp__github__get_me"), namesOf(filtered))
         // The surviving tools are the very same instances, not copies.
         assertSame(tools[0], filtered[0])
-        assertSame(tools[5], filtered[1])
+        assertSame(tools[3], filtered[1])
+        assertSame(tools[5], filtered[2])
         // The caller's list is untouched.
         assertEquals(6, tools.size)
     }
@@ -317,8 +320,10 @@ class SubAgentSurfaceTest {
     fun `a denial beats a requested allow list`() {
         val conversation = Uuid.random()
         // Even if a dispatcher asks for it explicitly, a denied tool must not be handed over.
-        SubAgentSurface.freeze(conversation, requested = setOf("search_web", "eval_javascript"))
-        val tools = listOf(tool("search_web"), tool("eval_javascript"))
+        // record_audio stands in for "denied": since the 2026-10-30 decision the floor is
+        // UI-bound tools, privacy capture and the subagent_ prefix — no approval list.
+        SubAgentSurface.freeze(conversation, requested = setOf("search_web", "record_audio"))
+        val tools = listOf(tool("search_web"), tool("record_audio"))
         assertEquals(listOf("search_web"), namesOf(SubAgentSurface.apply(conversation, tools)))
     }
 
@@ -332,7 +337,7 @@ class SubAgentSurfaceTest {
             definition(localTools = listOf(LocalToolOption.TimeInfo, LocalToolOption.Battery)),
         )
         SubAgentSurface.freeze(conversation, assistant = child)
-        val tools = listOf(tool("get_battery_status"), tool("eval_javascript"), tool("record_audio"), tool("ask_user"))
+        val tools = listOf(tool("get_battery_status"), tool("record_audio"), tool("ask_user"))
         assertEquals(listOf("get_battery_status"), namesOf(SubAgentSurface.apply(conversation, tools)))
     }
 

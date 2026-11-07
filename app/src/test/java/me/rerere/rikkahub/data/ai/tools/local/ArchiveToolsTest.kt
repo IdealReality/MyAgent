@@ -33,16 +33,16 @@ class ArchiveToolsTest {
         val nested = File(srcDir, "sub").apply { mkdirs() }
         File(nested, "c.txt").writeText("gamma")
 
-        val zipPath = "${tmp.root.absolutePath}/out.zip"
+        val zipPath = "${tmp.root.absolutePath.replace('\\', '/')}/out.zip"
         val zipResult = obj(execTool(
             zipFilesTool(NULL_CONTEXT),
-            """{"sources":["${srcDir.absolutePath}"],"destination":"$zipPath"}""",
+            """{"sources":["${srcDir.absolutePath.replace('\\', '/')}"],"destination":"$zipPath"}""",
         ))
         assertTrue(zipResult["success"]!!.jsonPrimitive.content.toBoolean())
         assertEquals(3, zipResult["entry_count"]!!.jsonPrimitive.content.toInt())
         assertTrue(File(zipPath).exists())
 
-        val destDir = "${tmp.root.absolutePath}/extracted"
+        val destDir = "${tmp.root.absolutePath.replace('\\', '/')}/extracted"
         val unzipResult = obj(execTool(
             unzipFileTool(NULL_CONTEXT),
             """{"source":"$zipPath","destination_dir":"$destDir"}""",
@@ -64,10 +64,10 @@ class ArchiveToolsTest {
             zos.write("pwned".toByteArray())
             zos.closeEntry()
         }
-        val destDir = tmp.newFolder("safe").absolutePath
+        val destDir = tmp.newFolder("safe").absolutePath.replace('\\', '/')
         val result = obj(execTool(
             unzipFileTool(NULL_CONTEXT),
-            """{"source":"${evilZip.absolutePath}","destination_dir":"$destDir"}""",
+            """{"source":"${evilZip.absolutePath.replace('\\', '/')}","destination_dir":"$destDir"}""",
         ))
         assertEquals("unsafe_zip_entry", result["error"]?.jsonPrimitive?.content)
     }
@@ -86,17 +86,17 @@ class ArchiveToolsTest {
     @Test fun `unzip refuses to overwrite by default`() {
         val srcDir = tmp.newFolder("o_src")
         File(srcDir, "dup.txt").writeText("v1")
-        val zipPath = "${tmp.root.absolutePath}/o.zip"
+        val zipPath = "${tmp.root.absolutePath.replace('\\', '/')}/o.zip"
         execTool(
             zipFilesTool(NULL_CONTEXT),
-            """{"sources":["${srcDir.absolutePath}"],"destination":"$zipPath"}""",
+            """{"sources":["${srcDir.absolutePath.replace('\\', '/')}"],"destination":"$zipPath"}""",
         )
         val destDir = tmp.newFolder("o_dest")
         // Pre-create the colliding file.
         File(destDir, "o_src/dup.txt").apply { parentFile?.mkdirs(); writeText("existing") }
         val result = obj(execTool(
             unzipFileTool(NULL_CONTEXT),
-            """{"source":"$zipPath","destination_dir":"${destDir.absolutePath}"}""",
+            """{"source":"$zipPath","destination_dir":"${destDir.absolutePath.replace('\\', '/')}"}""",
         ))
         assertEquals("entry_exists", result["error"]?.jsonPrimitive?.content)
     }
@@ -104,10 +104,10 @@ class ArchiveToolsTest {
     @Test fun `list_zip_contents returns entry shape`() {
         val srcDir = tmp.newFolder("l_src")
         File(srcDir, "one.txt").writeText("hello world")
-        val zipPath = "${tmp.root.absolutePath}/l.zip"
+        val zipPath = "${tmp.root.absolutePath.replace('\\', '/')}/l.zip"
         execTool(
             zipFilesTool(NULL_CONTEXT),
-            """{"sources":["${srcDir.absolutePath}"],"destination":"$zipPath"}""",
+            """{"sources":["${srcDir.absolutePath.replace('\\', '/')}"],"destination":"$zipPath"}""",
         )
         val result = obj(execTool(
             listZipContentsTool(NULL_CONTEXT),
@@ -126,7 +126,7 @@ class ArchiveToolsTest {
         notZip.writeText("definitely not a zip")
         val result = obj(execTool(
             listZipContentsTool(NULL_CONTEXT),
-            """{"source":"${notZip.absolutePath}"}""",
+            """{"source":"${notZip.absolutePath.replace('\\', '/')}"}""",
         ))
         assertEquals("invalid_zip", result["error"]?.jsonPrimitive?.content)
     }
@@ -134,7 +134,7 @@ class ArchiveToolsTest {
     @Test fun `zip_files errors on unreadable source`() {
         val result = obj(execTool(
             zipFilesTool(NULL_CONTEXT),
-            """{"sources":["/nonexistent/path/xyz"],"destination":"${tmp.root.absolutePath}/x.zip"}""",
+            """{"sources":["/nonexistent/path/xyz"],"destination":"${tmp.root.absolutePath.replace('\\', '/')}/x.zip"}""",
         ))
         assertEquals("source_unreadable", result["error"]?.jsonPrimitive?.content)
     }
@@ -155,10 +155,10 @@ class ArchiveToolsTest {
             zos.write("content".toByteArray())
             zos.closeEntry()
         }
-        val destDir = tmp.newFolder("gbk_extracted").absolutePath
+        val destDir = tmp.newFolder("gbk_extracted").absolutePath.replace('\\', '/')
         val result = obj(execTool(
             unzipFileTool(NULL_CONTEXT),
-            """{"source":"${gbkZip.absolutePath}","destination_dir":"$destDir"}""",
+            """{"source":"${gbkZip.absolutePath.replace('\\', '/')}","destination_dir":"$destDir"}""",
         ))
         assertTrue("expected success, got $result", result["success"]!!.jsonPrimitive.content.toBoolean())
         val extracted = File(destDir).walkTopDown().firstOrNull { it.name == chineseName }
@@ -178,7 +178,7 @@ class ArchiveToolsTest {
         }
         val result = obj(execTool(
             listZipContentsTool(NULL_CONTEXT),
-            """{"source":"${gbkZip.absolutePath}"}""",
+            """{"source":"${gbkZip.absolutePath.replace('\\', '/')}"}""",
         ))
         val entries = result["entries"]!!.jsonArray
         assertEquals(1, entries.size)
@@ -197,22 +197,22 @@ class ArchiveToolsTest {
             zos.write("x".toByteArray())
             zos.closeEntry()
         }
-        val result = obj(execTool(listZipContentsTool(NULL_CONTEXT), """{"source":"${zip.absolutePath}"}"""))
+        val result = obj(execTool(listZipContentsTool(NULL_CONTEXT), """{"source":"${zip.absolutePath.replace('\\', '/')}"}"""))
         assertEquals(name, result["entries"]!!.jsonArray[0].jsonObject["name"]!!.jsonPrimitive.content)
     }
 
     @Test fun `an all-ASCII archive is unaffected by the charset probe`() {
         val srcDir = tmp.newFolder("ascii_src")
         File(srcDir, "plain.txt").writeText("hello")
-        val zipPath = "${tmp.root.absolutePath}/ascii.zip"
+        val zipPath = "${tmp.root.absolutePath.replace('\\', '/')}/ascii.zip"
         execTool(
             zipFilesTool(NULL_CONTEXT),
-            """{"sources":["${srcDir.absolutePath}"],"destination":"$zipPath"}""",
+            """{"sources":["${srcDir.absolutePath.replace('\\', '/')}"],"destination":"$zipPath"}""",
         )
         val listed = obj(execTool(listZipContentsTool(NULL_CONTEXT), """{"source":"$zipPath"}"""))
         assertTrue(listed["entries"]!!.jsonArray[0].jsonObject["name"]!!.jsonPrimitive.content.endsWith("plain.txt"))
 
-        val destDir = "${tmp.root.absolutePath}/ascii_extracted"
+        val destDir = "${tmp.root.absolutePath.replace('\\', '/')}/ascii_extracted"
         val unzipped = obj(execTool(
             unzipFileTool(NULL_CONTEXT),
             """{"source":"$zipPath","destination_dir":"$destDir"}""",

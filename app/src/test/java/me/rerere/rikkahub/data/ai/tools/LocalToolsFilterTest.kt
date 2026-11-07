@@ -72,11 +72,13 @@ class LocalToolsFilterTest {
     fun `ungrouped names are not a per-assistant opt-out`() {
         assertSame(emptySet<String>(), LocalToolFilter.applicableDisabledNames(emptySet()))
         assertEquals(
-            setOf("read_file"),
+            setOf("read_file", "generate_bug_report"),
             LocalToolFilter.applicableDisabledNames(
                 setOf("read_file", "web_fetch", "web_extract", "generate_bug_report"),
             ),
         )
+        // generate_bug_report is a grouped tool (LocalToolOption.Reliability), so it stayed
+        // switchable; web_fetch/web_extract are the ungrouped pair and are stripped above.
         assertEquals(
             emptySet<String>(),
             LocalToolFilter.applicableDisabledNames(LocalToolFilter.UNGROUPED_TOOL_NAMES),
