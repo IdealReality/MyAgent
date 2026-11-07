@@ -125,7 +125,7 @@ class ToolCatalogAutoActivationTest {
     @Test
     fun `the catalog builder still returns exactly the search and open pair`() {
         val tools = buildToolCatalogTools(catalog(), ToolActivationState())
-        assertEquals(listOf("tool_search", "tool_open"), tools.map { it.name })
+        assertEquals(listOf("tool_search", "tool_open", "tool_close"), tools.map { it.name })
     }
 
     @Test

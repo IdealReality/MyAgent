@@ -271,7 +271,8 @@ class ChatCompletionsAPI(
         val eventSource = EventSources.createFactory(client).newEventSource(request, listener)
 
         awaitClose {
-            println("[awaitClose] 关闭eventSource ")
+            // 2026-11-07: 这里是生产热路径（每次 SSE 收尾都会走），println 是同步写 stdout，
+            // 既拖慢关闭、又往 logcat 灌实现细节。要排查就用 Log.d，不要 println。
             eventSource.cancel()
         }
         // trySend 在缓冲满时会静默丢弃 delta，导致回复中间缺字 (#1295)，因此缓冲必须无界

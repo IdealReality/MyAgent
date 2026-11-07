@@ -194,7 +194,6 @@ fun ChainOfThoughtScope.ChatMessageToolStep(
     var userExpanded by remember { mutableStateOf<Boolean?>(null) }
     val isPending = tool.isPending
     val isDenied = tool.approvalState is ToolApprovalState.Denied
-    val images = tool.output.filterIsInstance<UIMessagePart.Image>()
     // Text parts nested in tool.output (e.g. run_js's webview payload) that carry
     // rikkahub.webview metadata never reach the top-level Text rendering branch in
     // ChatMessage.kt, since tool output is always folded into this step. Surface them
@@ -203,7 +202,7 @@ fun ChainOfThoughtScope.ChatMessageToolStep(
         .filter { it.hasSkillWebviewMeta() }
     val toolCallStyle = LocalToolCallStyle.current
     val capsule = toolCallStyle == ToolCallStyle.CAPSULE
-    val capsuleForceOpen = isPending || isDenied || images.isNotEmpty() || webviewParts.isNotEmpty()
+    val capsuleForceOpen = isPending || isDenied || webviewParts.isNotEmpty()
     val expanded = userExpanded ?: when {
         capsule && capsuleForceOpen -> true
         capsule -> false
@@ -212,7 +211,7 @@ fun ChainOfThoughtScope.ChatMessageToolStep(
 
     // Summary detection is delegated to the registered renderer; image output, webview
     // cards, and denial reasons are common to all tools.
-    val hasExtraContent = renderer.hasSummary(context) || isDenied || images.isNotEmpty() || webviewParts.isNotEmpty()
+    val hasExtraContent = renderer.hasSummary(context) || isDenied || webviewParts.isNotEmpty()
 
     ControlledChainOfThoughtStep(
         expanded = expanded,
@@ -414,21 +413,6 @@ fun ChainOfThoughtScope.ChatMessageToolStep(
                     renderer.Summary(context)
                     webviewParts.forEach { webviewPart ->
                         SkillWebviewCardOrNull(part = webviewPart)
-                    }
-                    if (images.isNotEmpty()) {
-                        LazyRow(
-                            horizontalArrangement = Arrangement.spacedBy(4.dp),
-                            modifier = Modifier.wrapContentWidth(),
-                        ) {
-                            items(images, key = { it.url }) { image ->
-                                ToolResultImage(
-                                    url = image.url,
-                                    modifier = Modifier
-                                        .height(64.dp)
-                                        .wrapContentWidth(),
-                                )
-                            }
-                        }
                     }
                     if (isDenied) {
                         val reason = (tool.approvalState as ToolApprovalState.Denied).reason

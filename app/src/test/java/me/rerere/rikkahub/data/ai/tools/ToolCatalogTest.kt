@@ -150,13 +150,25 @@ class ToolCatalogTest {
 
     @Test
     fun `activate caps the total number of active schemas`() {
-        val catalog = ToolCatalog((1..10).map { entry("t_$it") })
+        // 2026-11-07: 原来的断言写死了「总上限 6」（先开 4 再开 3，只 2 个成功）。上限改成 20
+        // 之后这条就挂了。测试应当跟随常量，而不是把常量抄一份——否则每次调参都要改测试，
+        // 而「测试挂了」和「实现坏了」长得一模一样，容易被顺手改断言糊过去。
+        val cap = TOOL_CATALOG_MAX_ACTIVE_SCHEMAS
+        val perCall = TOOL_CATALOG_MAX_OPEN_PER_CALL
+        val catalog = ToolCatalog((1..(cap + perCall)).map { entry("t_$it") })
         val activation = ToolActivationState()
-        activation.activate(catalog, listOf("t_1", "t_2", "t_3", "t_4"))
-        val outcome = activation.activate(catalog, listOf("t_5", "t_6", "t_7"))
-        assertEquals(listOf("t_5", "t_6"), outcome.activated)
-        assertEquals(listOf("t_7"), outcome.rejectedOverCap)
-        assertEquals(6, outcome.activeCount)
+        var filled = 0
+        while (filled < cap) {
+            val upTo = minOf(filled + perCall, cap)
+            activation.activate(catalog, (filled + 1..upTo).map { "t_$it" })
+            filled = upTo
+        }
+        assertEquals(cap, activation.active().size)
+        // One past the cap must be refused rather than silently dropped.
+        val outcome = activation.activate(catalog, listOf("t_${cap + 1}"))
+        assertEquals(emptyList<String>(), outcome.activated)
+        assertEquals(listOf("t_${cap + 1}"), outcome.rejectedOverCap)
+        assertEquals(cap, outcome.activeCount)
     }
 
     @Test
@@ -228,7 +240,7 @@ class ToolCatalogTest {
     @Test
     fun `factory returns the search and open tools`() {
         val tools = buildToolCatalogTools(catalogOf("t_1"), ToolActivationState())
-        assertEquals(listOf("tool_search", "tool_open"), tools.map { it.name })
+        assertEquals(listOf("tool_search", "tool_open", "tool_close"), tools.map { it.name })
     }
 
     @Test

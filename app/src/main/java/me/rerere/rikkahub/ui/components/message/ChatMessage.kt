@@ -93,6 +93,7 @@ import me.rerere.rikkahub.R
 import me.rerere.rikkahub.Screen
 import me.rerere.rikkahub.data.datastore.ToolCallStyle
 import me.rerere.rikkahub.data.model.Assistant
+import me.rerere.rikkahub.ui.components.message.tools.ToolResultImage
 import me.rerere.rikkahub.data.model.AssistantAffectScope
 import me.rerere.rikkahub.data.model.AssistantBackgroundMode
 import me.rerere.rikkahub.data.model.MessageNode
@@ -504,6 +505,31 @@ private fun MessagePartsBlock(
                                         assistant = assistant,
                                     )
                                 }
+                            }
+                        }
+                    }
+                    // 工具产出的图片不再塞进「工具调用」折叠卡：直接铺到正文流里。
+                    // show_image / take_screenshot / 生图工具都走这里，图随正文一起滚，
+                    // 不用点开工具链才看得见。卡内缩略图已在 ChatMessageToolStep 移除。
+                    val toolStepImages = block.steps
+                        .filterIsInstance<ThinkingStep.ToolStep>()
+                        .flatMap { step ->
+                            step.tool.output.filterIsInstance<UIMessagePart.Image>()
+                        }
+                    if (toolStepImages.isNotEmpty()) {
+                        Column(
+                            modifier = Modifier
+                                .padding(top = 8.dp)
+                                .fillMaxWidth(),
+                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            toolStepImages.forEach { image ->
+                                ToolResultImage(
+                                    url = image.url,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clip(RoundedCornerShape(14.dp)),
+                                )
                             }
                         }
                     }
