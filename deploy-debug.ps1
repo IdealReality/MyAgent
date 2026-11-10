@@ -16,7 +16,7 @@ param(
 )
 
 $proj      = 'A:\Dev\MyAgent'
-$pkg       = 'com.myagent.app.debug'
+$pkg       = 'com.myagent.app'
 $svc       = "$pkg/me.rerere.myagent.service.RikkaAccessibilityService"
 $adbPhone  = 'C:\Users\guest\bin\adb-phone.py'
 
