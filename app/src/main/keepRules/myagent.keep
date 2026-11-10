@@ -131,6 +131,6 @@
 # Shizuku (shizuku_exec): ShizukuUserService's no-arg constructor is called reflectively by
 # Shizuku's server in the process it spawns for the service, not by any code of ours R8 can
 # see. Without this rule R8 can strip the constructor on release and the bind fails.
--keepclassmembers class me.rerere.rikkahub.shizuku.ShizukuUserService {
+-keepclassmembers class me.rerere.myagent.shizuku.ShizukuUserService {
     public <init>(...);
 }
