@@ -17,7 +17,7 @@ param(
 
 $proj      = 'A:\Dev\MyAgent'
 $pkg       = 'com.myagent.app.debug'
-$svc       = "$pkg/me.rerere.rikkahub.service.RikkaAccessibilityService"
+$svc       = "$pkg/me.rerere.myagent.service.RikkaAccessibilityService"
 $adbPhone  = 'C:\Users\guest\bin\adb-phone.py'
 
 # 判定「无障碍真的能用」的唯一可信信号是 Bound services 里出现自己：
