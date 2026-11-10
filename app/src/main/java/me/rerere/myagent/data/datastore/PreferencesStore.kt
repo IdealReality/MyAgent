@@ -225,6 +225,8 @@ class SettingsStore(
         // 助手
         val SELECT_ASSISTANT = stringPreferencesKey("select_assistant")
         val ASSISTANTS = stringPreferencesKey("assistants")
+        /** 应用级系统提示词：所有助手共用的最底层人格段，持久化在 settings 里。 */
+        val GLOBAL_SYSTEM_PROMPT = stringPreferencesKey("global_system_prompt")
         val ASSISTANT_TAGS = stringPreferencesKey("assistant_tags")
         // 这两个字段此前只存在于 `Settings` 数据类里, 没有对应 key, 也就没进逐键读写管道:
         // 值只活在 settingsFlow 的内存快照中, 本进程内看着生效, 重启/升级后又回到默认值
@@ -331,6 +333,7 @@ class SettingsStore(
                 preferences[IMAGE_GENERATION_MODEL] = settings.imageGenerationModelId.toString()
                 preferences[VIDEO_GENERATION_MODEL] = settings.videoGenerationModelId.toString()
                 preferences[TITLE_PROMPT] = settings.titlePrompt
+                preferences[GLOBAL_SYSTEM_PROMPT] = settings.globalSystemPrompt
                 preferences[TRANSLATION_PROMPT] = settings.translatePrompt
                 preferences[TRANSLATE_THINKING_BUDGET] = settings.translateThinkingBudget
                 preferences[SUGGESTION_PROMPT] = settings.suggestionPrompt
@@ -460,6 +463,7 @@ class SettingsStore(
                 imageGenerationModelId = preferences[IMAGE_GENERATION_MODEL]?.let { runCatching { Uuid.parse(it) }.getOrNull() } ?: Uuid.random(),
                 videoGenerationModelId = preferences[VIDEO_GENERATION_MODEL]?.let { runCatching { Uuid.parse(it) }.getOrNull() } ?: Uuid.random(),
                 titlePrompt = preferences[TITLE_PROMPT] ?: DEFAULT_TITLE_PROMPT,
+                globalSystemPrompt = preferences[GLOBAL_SYSTEM_PROMPT] ?: "",
                 translatePrompt = preferences[TRANSLATION_PROMPT] ?: DEFAULT_TRANSLATION_PROMPT,
                 translateThinkingBudget = preferences[TRANSLATE_THINKING_BUDGET] ?: 0,
                 suggestionPrompt = preferences[SUGGESTION_PROMPT] ?: DEFAULT_SUGGESTION_PROMPT,
@@ -675,12 +679,8 @@ class SettingsStore(
             // One-shot upgrade for existing installs that pre-date the agent-core auto-load:
             // if a default-IDed assistant has an empty enabledSkills, treat it as fresh and
             // pin agent-core. Users who deliberately added other skills are untouched.
-            assistants = assistants.map { assistant ->
-                val isDefault = DEFAULT_ASSISTANTS.any { it.id == assistant.id }
-                if (isDefault && assistant.enabledSkills.isEmpty()) {
-                    assistant.copy(enabledSkills = setOf("agent-core"))
-                } else assistant
-            }.toMutableList()
+            // 应用自带 persona skill 已从 APK 移除：不再给默认助手补 agent-core。
+            assistants = assistants.toMutableList()
             // One-shot additive enable for newly-bundled default-on skills. Each name is added
             // to every default assistant exactly once, tracked in autoEnabledDefaultSkills, so a
             // user who later disables one is not re-opted-in on the next launch. A brand-new
@@ -987,6 +987,8 @@ data class Settings(
     val imageGenerationModelId: Uuid = Uuid.random(),
     val videoGenerationModelId: Uuid = Uuid.random(),
     val titlePrompt: String = DEFAULT_TITLE_PROMPT,
+    /** 应用级系统提示词：所有助手共用的最底层人格段，拼在每个助手自己的提示词之前。 */
+    val globalSystemPrompt: String = "",
     val translateModeId: Uuid = Uuid.random(),
     val translatePrompt: String = DEFAULT_TRANSLATION_PROMPT,
     val translateThinkingBudget: Int = 0,
@@ -1465,7 +1467,7 @@ internal val DEFAULT_ASSISTANT_ID = Uuid.parse("0950e2dc-9bd5-4801-afa3-aa887aa3
  * `autoEnabledDefaultSkills` already records it) and new users can install it from the
  * catalog.
  */
-internal val DEFAULT_AUTO_ENABLED_SKILLS = setOf("autonomous-agent")
+internal val DEFAULT_AUTO_ENABLED_SKILLS: Set<String> = emptySet()
 
 internal val DEFAULT_ASSISTANTS = listOf(
     Assistant(
@@ -1476,7 +1478,7 @@ internal val DEFAULT_ASSISTANTS = listOf(
         // teaches every model "you are running on My Agent, here are the tools, here is how
         // to avoid loops". Auto-enabling it on default assistants means new users get an
         // agent-aware model out of the box without having to discover the skill toggle.
-        enabledSkills = setOf("agent-core") + DEFAULT_AUTO_ENABLED_SKILLS,
+        enabledSkills = emptySet(),
     ),
     Assistant(
         id = Uuid.parse("3d47790c-c415-4b90-9388-751128adb0a0"),
@@ -1496,7 +1498,7 @@ internal val DEFAULT_ASSISTANTS = listOf(
             - If the user does not specify a language, reply in the user's primary language.
             - Remember to use Markdown syntax for formatting, and use latex for mathematical expressions.
         """.trimIndent(),
-        enabledSkills = setOf("agent-core") + DEFAULT_AUTO_ENABLED_SKILLS,
+        enabledSkills = emptySet(),
     ),
 )
 

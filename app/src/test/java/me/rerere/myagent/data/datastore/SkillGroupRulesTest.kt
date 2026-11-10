@@ -74,9 +74,8 @@ class SkillGroupRulesTest {
     }
 
     @Test
-    fun `core skills cannot be grouped`() {
-        assertFalse(SkillGroupRules.canGroupSkill("agent-core"))
-        assertFalse(SkillGroupRules.canGroupSkill("autonomous-agent"))
+    fun `every skill can be grouped since the bundled persona skills are gone`() {
+        assertEquals(emptySet<String>(), SkillGroupRules.CORE_SKILL_NAMES)
         assertTrue(SkillGroupRules.canGroupSkill("auto-reply"))
         assertTrue(SkillGroupRules.canGroupSkill("my-own-skill"))
     }

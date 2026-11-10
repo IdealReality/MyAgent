@@ -324,6 +324,23 @@ class SkillManager(
     }
 
     /**
+     * 应用自带的 persona skill（agent-core / autonomous-agent）已从 APK 移除。
+     * 老设备的 files/skills 里还留着它们的目录，会继续把旧提示词喂给模型，
+     * 这里每次启动清扫一次；目录不存在时是空操作。
+     */
+    private fun purgeRemovedBundledSkills() {
+        runCatching {
+            val skillsDir = getSkillsDir()
+            REMOVED_BUNDLED_SKILLS.forEach { name ->
+                val dir = SkillPaths.resolveSkillDir(skillsDir, name) ?: return@forEach
+                if (!dir.exists()) return@forEach
+                if (dir.deleteRecursively()) {
+                    Log.i(TAG, "purgeRemovedBundledSkills: removed $name")
+                }
+            }
+        }.onFailure { Log.w(TAG, "purgeRemovedBundledSkills failed", it) }
+    }
+    /**
      * Copy any default skills bundled in `assets/default-skills/<name>/` into the user's
      * filesDir on first launch, but only if they have not already been installed before.
      * "Before" is tracked with a sentinel marker file inside each seeded skill so subsequent
@@ -331,6 +348,7 @@ class SkillManager(
      * delete a default skill and we will not silently re-install it.
      */
     suspend fun seedDefaultSkillsIfNeeded() {
+        purgeRemovedBundledSkills()
         val assetRoot = "default-skills"
         val assetMgr = context.assets
         val skillNames = try {
@@ -651,3 +669,4 @@ data class SkillContent(
     val metadata: Map<String, String> = emptyMap(),
 )
 
+private val REMOVED_BUNDLED_SKILLS = setOf("agent-core", "autonomous-agent")

@@ -159,6 +159,40 @@ private fun AssistantPromptContent(
             .imePadding(),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
+        // 应用级系统提示词：所有助手共用的最底层人格段，先于助手自己的提示词进入 system。
+        val settingsStore = koinInject<me.rerere.myagent.data.datastore.SettingsStore>()
+        val globalPromptValue = rememberTextFieldState(
+            initialText = settings.globalSystemPrompt,
+        )
+        LaunchedEffect(Unit) {
+            snapshotFlow { globalPromptValue.text }.collect { text ->
+                settingsStore.update { it.copy(globalSystemPrompt = text.toString()) }
+            }
+        }
+        Card(
+            colors = CustomColors.cardColorsOnSurfaceContainer
+        ) {
+            Column(
+                modifier = Modifier.padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Text(
+                    text = "应用级系统提示词",
+                    style = MaterialTheme.typography.titleSmall,
+                )
+                Text(
+                    text = "所有助手共用，拼接在每个助手自己的提示词之前；留空则不注入。",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                TextArea(
+                    state = globalPromptValue,
+                    label = "应用级系统提示词（全局）",
+                    minLines = 5,
+                    maxLines = 10
+                )
+            }
+        }
         Card(
             colors = CustomColors.cardColorsOnSurfaceContainer
         ) {

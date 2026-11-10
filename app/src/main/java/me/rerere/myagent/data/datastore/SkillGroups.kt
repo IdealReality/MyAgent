@@ -65,7 +65,7 @@ object SkillGroupRules {
      * (rather than "any `auto_load: true` skill") so a user's own auto-load skill can still
      * be grouped and switched like any other.
      */
-    val CORE_SKILL_NAMES = setOf("agent-core", "autonomous-agent")
+    val CORE_SKILL_NAMES: Set<String> = emptySet()
 
     /** Core skills are pinned; every other skill may be put in a group. */
     fun canGroupSkill(skillName: String): Boolean = skillName !in CORE_SKILL_NAMES

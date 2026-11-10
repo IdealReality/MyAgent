@@ -1640,12 +1640,19 @@ class GenerationLoop(
         val internalMessages = buildList {
             // Conversation-level system prompt override (upstream): when the assistant
             // allows it and the conversation supplies one, it replaces the assistant prompt.
-            val effectiveSystemPrompt =
+            // 应用级系统提示词（Settings.globalSystemPrompt）是所有助手共用的最底层人格段，
+            // 拼在每个助手自己的提示词之前；两者都为空时整段不注入。
+            val assistantSystemPrompt =
                 if (assistant.allowConversationSystemPrompt && !conversationSystemPrompt.isNullOrBlank()) {
                     conversationSystemPrompt
                 } else {
                     assistant.systemPrompt
                 }
+            val globalPromptText = settings.globalSystemPrompt.trim()
+            val assistantPromptText = assistantSystemPrompt?.trim().orEmpty()
+            val effectiveSystemPrompt = listOf(globalPromptText, assistantPromptText)
+                .filter { it.isNotBlank() }
+                .joinToString("\n\n")
             // 记忆引擎 v1（P1）：L1 注入段由 ChatService 预组装传入（AssistantMemoryEngine），
             // 这里不再读 Room 热记录。旧 buildMemoryPrompt 停用。
             val memoryPrompt = memoryPrompt.trim()
