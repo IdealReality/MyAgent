@@ -25,6 +25,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.foundation.text.input.rememberTextFieldState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
@@ -50,6 +51,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.key
 import androidx.compose.ui.Alignment
@@ -102,6 +104,10 @@ import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
 import org.koin.core.parameter.parametersOf
 import sh.calvin.reorderable.ReorderableColumn
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.withContext
 import kotlin.uuid.Uuid
 
 @Composable
@@ -135,7 +141,10 @@ fun AssistantPromptPage(id: String) {
             innerPadding = innerPadding,
             assistant = assistant,
             settings = settings,
-            onUpdate = { vm.update(it) }
+            onUpdate = { vm.update(it) },
+            onPromptChange = { text ->
+                vm.updateAssistant { current -> current.copy(systemPrompt = text) }
+            }
         )
     }
 }
@@ -145,7 +154,8 @@ private fun AssistantPromptContent(
     innerPadding: PaddingValues,
     assistant: Assistant,
     settings: Settings,
-    onUpdate: (Assistant) -> Unit
+    onUpdate: (Assistant) -> Unit,
+    onPromptChange: (String) -> Unit,
 ) {
     val context = LocalContext.current
     val templateTransformer = koinInject<TemplateTransformer>()
@@ -164,10 +174,9 @@ private fun AssistantPromptContent(
         val globalPromptValue = rememberTextFieldState(
             initialText = settings.globalSystemPrompt,
         )
-        LaunchedEffect(Unit) {
-            snapshotFlow { globalPromptValue.text }.collect { text ->
-                settingsStore.update { it.copy(globalSystemPrompt = text.toString()) }
-            }
+        // 防抖写盘：逐键 settingsStore.update 等于逐键全量序列化 + 落盘。
+        rememberPromptTextSync(globalPromptValue) { text ->
+            settingsStore.update { it.copy(globalSystemPrompt = text) }
         }
         Card(
             colors = CustomColors.cardColorsOnSurfaceContainer
@@ -203,14 +212,9 @@ private fun AssistantPromptContent(
                 val systemPromptValue = rememberTextFieldState(
                     initialText = assistant.systemPrompt,
                 )
-                LaunchedEffect(Unit) {
-                    snapshotFlow { systemPromptValue.text }.collect {
-                        onUpdate(
-                            assistant.copy(
-                                systemPrompt = it.toString()
-                            )
-                        )
-                    }
+                // 防抖 + 事务式字段更新：整对象回写在防抖窗口内会吃掉别的字段改动。
+                rememberPromptTextSync(systemPromptValue) { text ->
+                    onPromptChange(text)
                 }
 
                 TextArea(
@@ -831,6 +835,42 @@ private fun AssistantRegexCard(
                         Text(stringResource(R.string.delete))
                     }
                 }
+            }
+        }
+    }
+}
+
+
+/**
+ * 把 TextFieldState 的文本变化防抖后再写出去。
+ *
+ * 逐键写盘的代价：settingsStore.update 每次都要把整份 Settings 序列化并落盘，
+ * 长文本输入时每敲一个键就是一次全量写，是打字卡顿的来源之一。
+ *
+ * - `drop(1)`：snapshotFlow 首帧立即发射当前值，不去掉等于打开页面就白写一次盘。
+ * - `debounce(500)`：连续输入只在停手半秒后写一次。
+ * - `finally`：离开页面时协程被取消，补最后一次写，避免防抖窗口内的输入丢失。
+ */
+@Composable
+private fun rememberPromptTextSync(
+    state: TextFieldState,
+    onText: (String) -> Unit,
+) {
+    val latestOnText by rememberUpdatedState(onText)
+    LaunchedEffect(state) {
+        var lastWritten: String? = null
+        try {
+            snapshotFlow { state.text.toString() }
+                .drop(1)
+                .debounce(500)
+                .collect { text ->
+                    lastWritten = text
+                    latestOnText(text)
+                }
+        } finally {
+            val pending = runCatching { state.text.toString() }.getOrNull()
+            if (pending != null && pending != lastWritten) {
+                withContext(NonCancellable) { runCatching { latestOnText(pending) } }
             }
         }
     }
