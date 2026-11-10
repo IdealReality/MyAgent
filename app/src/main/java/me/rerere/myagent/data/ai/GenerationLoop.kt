@@ -1652,6 +1652,7 @@ class GenerationLoop(
             val assistantPromptText = assistantSystemPrompt?.trim().orEmpty()
             val effectiveSystemPrompt = listOf(globalPromptText, assistantPromptText)
                 .filter { it.isNotBlank() }
+                .distinct()
                 .joinToString("\n\n")
             // 记忆引擎 v1（P1）：L1 注入段由 ChatService 预组装传入（AssistantMemoryEngine），
             // 这里不再读 Room 热记录。旧 buildMemoryPrompt 停用。
