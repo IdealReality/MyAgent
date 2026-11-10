@@ -692,7 +692,16 @@ class SettingsStore(
                 }.toMutableList()
             }
             val newAutoEnabled = it.autoEnabledDefaultSkills + DEFAULT_AUTO_ENABLED_SKILLS
-            val ttsProviders = it.ttsProviders.ifEmpty { DEFAULT_TTS_PROVIDERS }.toMutableList()
+            // AiHubMix TTS is no longer bundled. Drop the persisted row only while it is still
+            // untouched (no key) - same rule the chat-provider sweep uses, so a row the user
+            // configured keeps its key instead of vanishing under them.
+            val ttsProviders = it.ttsProviders
+                .filterNot { provider ->
+                    provider.id in REMOVED_BUILTIN_TTS_PROVIDER_IDS &&
+                        (provider as? TTSProviderSetting.OpenAI)?.apiKey.isNullOrBlank()
+                }
+                .ifEmpty { DEFAULT_TTS_PROVIDERS }
+                .toMutableList()
             DEFAULT_TTS_PROVIDERS.forEach { defaultTTSProvider ->
                 if (ttsProviders.none { provider -> provider.id == defaultTTSProvider.id }) {
                     ttsProviders.add(defaultTTSProvider.copyProvider())
@@ -715,6 +724,11 @@ class SettingsStore(
                     ?: assistants.first().id,
                 autoEnabledDefaultSkills = newAutoEnabled,
                 ttsProviders = ttsProviders,
+                // A removed bundled TTS provider may still be the selected one; repoint the
+                // pointer at a row that still exists instead of leaving the selection dangling.
+                selectedTTSProviderId = it.selectedTTSProviderId
+                    .takeIf { id -> ttsProviders.any { provider -> provider.id == id } }
+                    ?: DEFAULT_SYSTEM_TTS_ID,
                 asrProviders = asrProviders,
                 // An existing install stored an empty provider list, so the "selected" id is
                 // null; point it at the seeded system recognizer instead of leaving the
@@ -1564,14 +1578,17 @@ private val DEFAULT_TTS_PROVIDERS = listOf(
     TTSProviderSetting.SystemTTS(
         id = DEFAULT_SYSTEM_TTS_ID,
         name = "",
-    ),
-    TTSProviderSetting.OpenAI(
-        id = Uuid.parse("e36b22ef-ca82-40ab-9e70-60cad861911c"),
-        name = "AiHubMix",
-        baseUrl = "https://aihubmix.com/v1",
-        model = "gpt-4o-mini-tts",
-        voice = "alloy",
     )
+)
+
+/**
+ * TTS providers this build no longer bundles. Same reasoning as [REMOVED_BUILTIN_ASSISTANT_IDS]:
+ * reseeding only ever *adds*, so deleting the entry from [DEFAULT_TTS_PROVIDERS] stops it being
+ * seeded again but leaves the row already persisted on upgraded installs. The record is applied
+ * on every settings read (see the reseed pass), and only to rows the user never configured.
+ */
+val REMOVED_BUILTIN_TTS_PROVIDER_IDS: Set<Uuid> = setOf(
+    Uuid.parse("e36b22ef-ca82-40ab-9e70-60cad861911c"), // AiHubMix TTS
 )
 
 internal val DEFAULT_ASSISTANTS_IDS = DEFAULT_ASSISTANTS.map { it.id }
