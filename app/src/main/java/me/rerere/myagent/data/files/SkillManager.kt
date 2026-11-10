@@ -340,6 +340,7 @@ class SkillManager(
             }
         }.onFailure { Log.w(TAG, "purgeRemovedBundledSkills failed", it) }
     }
+
     /**
      * Copy any default skills bundled in `assets/default-skills/<name>/` into the user's
      * filesDir on first launch, but only if they have not already been installed before.

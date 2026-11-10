@@ -676,9 +676,6 @@ class SettingsStore(
                 stored = AssistantSeedRules.dropRemovedAssistants(it.assistants),
                 deletedIds = it.deletedBuiltInAssistantIds,
             ).toMutableList()
-            // One-shot upgrade for existing installs that pre-date the agent-core auto-load:
-            // if a default-IDed assistant has an empty enabledSkills, treat it as fresh and
-            // pin agent-core. Users who deliberately added other skills are untouched.
             // 应用自带 persona skill 已从 APK 移除：不再给默认助手补 agent-core。
             assistants = assistants.toMutableList()
             // One-shot additive enable for newly-bundled default-on skills. Each name is added
@@ -1457,15 +1454,11 @@ private fun Model.findModelProviderFromList(providers: List<ProviderSetting>): P
 internal val DEFAULT_ASSISTANT_ID = Uuid.parse("0950e2dc-9bd5-4801-afa3-aa887aa36b4e")
 
 /**
- * Bundled skills shipped enabled-by-default on top of agent-core. The behavioral
- * `autonomous-agent` skill is auto_load (injected every turn). It is seeded to disk by
- * [SkillManager.seedDefaultSkillsIfNeeded] and added to the default assistants'
- * enabledSkills once via [Settings.autoEnabledDefaultSkills].
- *
- * `openclaw-converter` used to live here too but moved to the catalog-only set when the
- * bundled skills were trimmed to the two auto_load cores; existing users keep it (their
- * `autoEnabledDefaultSkills` already records it) and new users can install it from the
- * catalog.
+ * Bundled skills the APK ships enabled-by-default. Empty since the persona skills
+ * (`agent-core`, `autonomous-agent`) were removed from the APK: personality now lives in
+ * [Settings.globalSystemPrompt] plus each assistant's own prompt. The mechanism stays so a
+ * future bundled skill can still opt itself in exactly once via
+ * [Settings.autoEnabledDefaultSkills].
  */
 internal val DEFAULT_AUTO_ENABLED_SKILLS: Set<String> = emptySet()
 
@@ -1474,10 +1467,8 @@ internal val DEFAULT_ASSISTANTS = listOf(
         id = DEFAULT_ASSISTANT_ID,
         name = "",
         systemPrompt = "",
-        // The agent-core skill bundle (SOUL/HEARTBEAT/TOOLS) ships with the app and is what
-        // teaches every model "you are running on My Agent, here are the tools, here is how
-        // to avoid loops". Auto-enabling it on default assistants means new users get an
-        // agent-aware model out of the box without having to discover the skill toggle.
+        // 不预置技能：应用自带的 persona skills 已移除，人格由
+        // Settings.globalSystemPrompt 与助手自己的提示词承担。
         enabledSkills = emptySet(),
     ),
     Assistant(

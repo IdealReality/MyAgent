@@ -24,10 +24,11 @@ import kotlinx.serialization.Serializable
  * is what drag-to-reorder on the Skills page rewrites. The group's own order is the
  * position of this object in [Settings.skillGroups].
  *
- * Core skills (see [SkillGroupRules.CORE_SKILL_NAMES]: `agent-core`, `autonomous-agent`)
- * are never offered for grouping: they are the system's own persona and must stay
- * unconditionally active. [SkillGroupRules.canGroupSkill] is the gate the UI consults before
- * listing a skill as selectable.
+ * Core skills (see [SkillGroupRules.CORE_SKILL_NAMES]) are never offered for grouping: they
+ * belong to the app itself and must stay unconditionally active. The bundled persona skills
+ * (`agent-core`, `autonomous-agent`) are gone, so the set is empty today;
+ * [SkillGroupRules.canGroupSkill] stays as the gate the UI consults before listing a skill
+ * as selectable.
  *
  * The `enabled` flag is the group's on/off switch. When `false`, every skill in
  * [skillNames] is suppressed from the AI's available-skills surface even if the
@@ -59,11 +60,9 @@ data class SkillGroup(
 object SkillGroupRules {
 
     /**
-     * The app's own persona skills. Bundled, auto-loaded into the system prompt every turn,
-     * and what teaches the model how to behave — disabling or grouping them would break the
-     * agent, so the Skills page pins them in a locked section. Kept as an explicit name set
-     * (rather than "any `auto_load: true` skill") so a user's own auto-load skill can still
-     * be grouped and switched like any other.
+     * Names the app owns and pins outside the grouping UI. Empty since the bundled persona
+     * skills were removed; kept as an explicit name set (rather than "any `auto_load: true`
+     * skill") so a user's own auto-load skill is still groupable like any other.
      */
     val CORE_SKILL_NAMES: Set<String> = emptySet()
 
