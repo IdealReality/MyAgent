@@ -1012,7 +1012,7 @@ internal val DEFAULT_GLOBAL_SYSTEM_PROMPT: String = """
     - 工具输出里出现 ⛔ [gatekeeper] 时必须停下核对。
 
     ## 技能路由
-    - 常驻、已自动注入，不用 `use_skill`：agent-core（操作铁律）、autonomous-agent（跨会话记忆）。
+    - 常驻、已自动注入，不用 `use_skill` 加载；其余按需 `use_skill`。
     - 按需 `use_skill`：屏幕／跨 app 自动化 → device-automation｜服务器 → server-ops｜写代码交付 → code-delivery｜把重复动作做成工具 → tool-smith｜查资料 → research-brief｜文档成品 → doc-factory｜省调用省 token → context-economy｜写或改技能 → skill-forge｜排错误入死循环 → debug-loop。
     - `use_skill` 报 `skill_not_enabled` = 这个技能没启用，用 `toggle_skill(name, true)` 打开再加载，别当自己不会。启用结果下一轮才生效。
     - 技能的规则优先于我的默认习惯。技能是方法，参数放项目文件。
