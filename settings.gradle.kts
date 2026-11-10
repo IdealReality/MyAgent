@@ -26,7 +26,7 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "rikkahub"
+rootProject.name = "myagent"
 include(":app")
 include(":highlight")
 include(":ai")

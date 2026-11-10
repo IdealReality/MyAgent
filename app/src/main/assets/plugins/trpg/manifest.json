@@ -1,0 +1,147 @@
+{
+  "schema_version": 1,
+  "id": "trpg",
+  "name": "TRPG Runner",
+  "version": "1.0.0",
+  "description": "Tabletop RPG runtime: deterministic dice (CoC 7e / DnD 5e / generic), character sheets with clamped deltas, scene + clue + clock tracking, and named save slots. Every random outcome comes from the device PRNG, never from the model.",
+  "author": "ZhouX",
+  "entry": "main.js",
+  "permissions": ["storage"],
+  "prompt": {
+    "text": "TRPG 跑团协议（仅当本轮是跑团/主持/KP/DM/开团/进入模组时适用，日常对话请忽略本段）：\n1. 随机性只能来自工具。任何需要点数的判定（攻击/闪避/技能/理智/伤害/抗性/概率）必须先调用 trpg_dice，叙述里出现的每一个骰值都必须与紧邻的工具输出逐字一致。禁止口述\"掷出了 73\"这类未经工具产生的点数，禁止自行决定成败。\n2. 状态改动必须落地。HP/MP/SAN/物品/属性/经验的变化，必须在同一轮内用 trpg_sheet 的 delta 写入；没有写入就当没发生。叙述与卡片冲突时以卡片为准。\n3. 场景与线索用 trpg_scene 维护：地点/时间/在场 NPC 用 set，发生过的事实用 fact，发现的线索用 clue，倒计时与威胁用 clock。开新模组前先 status 看现状，不要重复 begin。\n4. 长局存档用 trpg_save（save/load/list）。玩家说\"存档/读档/回滚到刚才\"时按名字执行，并回述恢复后的关键状态。\n5. 主持口径：只描述世界与 NPC，不替玩家角色做决定、不代替玩家发言；每轮结尾停在\"等玩家行动\"。NPC 台词单独成行，格式 `**名字**：台词`；环境与旁白用普通段落；判定的点数与结果放在引用行 `> 🎲 ...` 里。\n6. 检定请求要先说清\"谁的什么技能、目标值多少、失败代价是什么\"，再调用 trpg_dice，最后按返回的成功等级叙事；成功等级不得自行改写。"
+  },
+  "tools": [
+    {
+      "name": "trpg_dice",
+      "description": "Roll dice with the device PRNG and get a fixed, authoritative outcome. Supports CoC 7e checks (target + bonus/penalty dice, success levels), DnD 5e checks (d20 + mod vs DC, advantage), and generic 'NdM±K' expressions. Use this for EVERY random outcome in a tabletop session; never invent numbers.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "system": {
+            "type": "string",
+            "description": "coc | dnd | generic (default: generic, or inferred from target/dc presence)"
+          },
+          "expr": {
+            "type": "string",
+            "description": "Dice expression for generic/dnd rolls: '1d100', '3d6+2', '2d20kh1', '4#1d6'. Ignored for coc."
+          },
+          "target": {
+            "type": "number",
+            "description": "CoC skill/attribute value to roll under (e.g. 55)."
+          },
+          "bonus": {
+            "type": "number",
+            "description": "CoC bonus dice (positive) or penalty dice (negative), e.g. 1 or -2."
+          },
+          "dc": {
+            "type": "number",
+            "description": "DnD difficulty class."
+          },
+          "mod": {
+            "type": "number",
+            "description": "DnD flat modifier added to the d20."
+          },
+          "mode": {
+            "type": "string",
+            "description": "dnd roll mode: none | adv | dis"
+          },
+          "label": {
+            "type": "string",
+            "description": "What is being rolled, e.g. '侦查' or '凯尔的攻击'. Echoed back for the log."
+          }
+        },
+        "required": []
+      },
+      "needs_approval": false
+    },
+    {
+      "name": "trpg_sheet",
+      "description": "Read and mutate character sheets stored on the device. HP/MP/SAN/attribute/item changes MUST go through this tool (delta for numeric changes, patch for absolute/deep updates) or they did not happen. 'show' with no name lists all sheets; with a name returns that sheet.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "description": "show | new | update | delete"
+          },
+          "name": {
+            "type": "string",
+            "description": "Character name (case-sensitive key)."
+          },
+          "system": {
+            "type": "string",
+            "description": "coc7e | dnd5e | custom (for action=new)."
+          },
+          "patch": {
+            "type": "string",
+            "description": "JSON object string deep-merged into the sheet, e.g. {\"hp\":{\"cur\":9,\"max\":12},\"items\":[\"手电筒\"]}."
+          },
+          "delta": {
+            "type": "string",
+            "description": "JSON object string of numeric deltas, applied and clamped to [0,max], e.g. {\"hp.cur\":-3,\"san.cur\":-5}."
+          }
+        },
+        "required": ["action"]
+      },
+      "needs_approval": false
+    },
+    {
+      "name": "trpg_scene",
+      "description": "Track the running session: campaign/act/location/time, facts that already happened, discovered clues, NPCs present, and named clocks (threat/progress). 'status' returns the whole picture. Use 'fact' for anything that must not be contradicted later.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "description": "status | begin | set | fact | clue | npc | clock | reset"
+          },
+          "patch": {
+            "type": "string",
+            "description": "JSON object string for action=set, e.g. {\"campaign\":\"暗夜之门\",\"act\":2,\"location\":\"地下室\",\"time\":\"凌晨 2:10\"}."
+          },
+          "text": {
+            "type": "string",
+            "description": "For fact/clue/npc: the entry text (prefix NPC entries with the name)."
+          },
+          "name": {
+            "type": "string",
+            "description": "For clock: clock name. For reset: ignored."
+          },
+          "value": {
+            "type": "number",
+            "description": "For clock: new value (0..max)."
+          },
+          "max": {
+            "type": "number",
+            "description": "For clock: maximum (default 6 when creating)."
+          }
+        },
+        "required": ["action"]
+      },
+      "needs_approval": false
+    },
+    {
+      "name": "trpg_save",
+      "description": "Named save slots for a tabletop session (sheets + scene as one snapshot). save overwrites that slot; load restores it and returns what was restored; list shows slots with timestamps and act/location.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "description": "save | load | list | delete"
+          },
+          "name": {
+            "type": "string",
+            "description": "Slot name, e.g. '第二章开头'."
+          },
+          "note": {
+            "type": "string",
+            "description": "Optional note stored with the snapshot."
+          }
+        },
+        "required": ["action"]
+      },
+      "needs_approval": false
+    }
+  ]
+}

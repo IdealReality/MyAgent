@@ -84,3 +84,5 @@ dist/
 /strings-p6.json
 /strings-payload.json
 /.buildlog-path
+/build-*.err
+/build-run.out

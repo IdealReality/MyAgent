@@ -15,6 +15,14 @@ data class Tool(
     val parameters: () -> InputSchema? = { null },
     val systemPrompt: (model: Model, messages: List<UIMessage>) -> String = { _, _ -> "" },
     val needsApproval: (JsonElement) -> Boolean = { false },
+    /**
+     * Wall-clock ceiling for ONE call of this tool, in ms. `null` (default) means only the
+     * turn-wide budget applies — the historical behaviour. When set, the executor uses
+     * `min(toolTimeoutMs, turnRemainingMs)` and reports a distinct
+     * `tool_cancelled_timeout` envelope, so the model can tell "this tool took too long"
+     * apart from "the whole turn ran out of time".
+     */
+    val timeoutMs: Long? = null,
     val execute: suspend (JsonElement) -> List<UIMessagePart>
 )
 

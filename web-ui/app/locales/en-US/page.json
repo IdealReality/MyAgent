@@ -41,6 +41,7 @@
     "status_connected": "Connected",
     "status_connecting": "Connecting",
     "status_offline": "Offline",
+    "reconnect": "Reconnect",
     "refresh": "Refresh",
     "add": "Add host",
     "add_title": "Add host",
@@ -99,7 +100,22 @@
       "missing_name": "Missing host name",
       "missing_pattern": "Missing host pattern",
       "missing_host": "Missing host payload",
-      "too_many_frames": "Too many requests, connection closed"
-    }
+      "too_many_frames": "Too many requests, connection closed",
+      "too_many_tests": "Too many connection tests at once, try again shortly",
+      "no_result": "The test produced no result",
+      "request_failed": "Request failed",
+      "save_failed": "Save failed",
+      "delete_failed": "Delete failed",
+      "forget_failed": "Failed to remove the host key",
+      "tcp_unreachable": "Unreachable (every available network was tried)",
+      "connect_failed": "Connection failed",
+      "no_credentials": "This host has no stored password or key",
+      "host_key_changed": "Host key changed — forget the old key on the phone first",
+      "auth_failed": "Authentication failed (password, key or user)",
+      "busy": "Too many connection tests are running, try again shortly",
+      "web_terminal_invalid": "The web terminal URL must start with http:// or https://"
+    },
+    "forget_confirm_title": "Forget this host key?",
+    "forget_confirm_description": "The stored key for \"{{pattern}}\" will be deleted. It is recorded again the next time the host presents the same key — which is exactly what a reinstalled host needs."
   }
 }

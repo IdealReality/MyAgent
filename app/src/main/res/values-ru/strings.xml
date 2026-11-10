@@ -268,15 +268,8 @@
   <string name="chat_page_cancel">Отмена</string>
   <string name="chat_page_check_fast_model_settings">Проверьте настройки быстрой модели</string>
   <string name="chat_page_clear_all_errors">Очистить всё</string>
-  <string name="chat_page_compress_additional_prompt">Дополнительные инструкции (по желанию)</string>
-  <string name="chat_page_compress_additional_prompt_hint">Укажите, что сохранить или на чём сосредоточиться</string>
-  <string name="chat_page_compress_context">Сжать историю</string>
-  <string name="chat_page_compress_context_desc">Сжать переписку в краткое резюме, чтобы сэкономить токены</string>
-  <string name="chat_page_compress_context_title">Сжать историю чата</string>
-  <string name="chat_page_compress_keep_recent">Сохранять недавние сообщения</string>
+  <string name="chat_page_ssh_window">SSH window</string>
   <string name="chat_page_compress_not_enough_messages">Недостаточно сообщений для сжатия. Уменьшите количество сохраняемых сообщений или добавьте больше сообщений.</string>
-  <string name="chat_page_compress_target_tokens">Целевой размер токенов</string>
-  <string name="chat_page_compress_warning">Сжатие обновляет только сводку контекста для модели; исходные сообщения сохраняются.</string>
   <string name="chat_page_compressing">Сжатие...</string>
   <string name="chat_page_conversation_system_prompt">Системный запрос для беседы</string>
   <string name="chat_page_conversation_system_prompt_clear">Очистить</string>
@@ -298,7 +291,6 @@
   <string name="chat_page_history">История чата</string>
   <string name="chat_page_menu_ai_translator">AI-переводчик</string>
   <string name="chat_page_menu_image_generation">Генерация изображений</string>
-  <string name="chat_page_message_count">%d сообщений</string>
   <string name="chat_page_move_to_assistant">Перейти к ассистенту</string>
   <string name="chat_page_new_chat">Новый чат</string>
   <string name="chat_page_new_message">Новое сообщение</string>
@@ -553,7 +545,7 @@
   <string name="regenerate">Сгенерировать заново</string>
   <string name="regenerate_confirm_message">Вы уверены, что хотите перегенерировать это сообщение?</string>
   <string name="render_with_webview">Отображать в WebView</string>
-  <string name="rikkahub_provider_description">Официальный бесплатный AI-сервис, использующий средства спонсоров для предоставления новым пользователям бесплатных моделей в качестве резерва; API-ключ не требуется. Действуют строгие ограничения по частоте запросов. Если у вас есть собственный провайдер, используйте его по возможности.</string>
+  <string name="myagent_provider_description">Официальный бесплатный AI-сервис, использующий средства спонсоров для предоставления новым пользователям бесплатных моделей в качестве резерва; API-ключ не требуется. Действуют строгие ограничения по частоте запросов. Если у вас есть собственный провайдер, используйте его по возможности.</string>
   <string name="safe_mode_assistants">Помощники</string>
   <string name="safe_mode_copy">Копировать</string>
   <string name="safe_mode_crash_report">Отчёт о сбое</string>
@@ -872,7 +864,7 @@
   <string name="setting_page_web_server_address_note_desc">LAN-адрес: использует IP-адрес устройства в Wi-Fi, доступен другим устройствам в той же сети. Недоступен при использовании мобильных данных.
 Локальный адрес: использует localhost, доступен только на этом устройстве.
 Адрес mDNS: использует имя хоста .local, доступен по имени с других устройств в той же сети без знания IP-адреса.</string>
-  <string name="setting_page_web_server_desc">Разрешить доступ к RikkaHub через веб</string>
+  <string name="setting_page_web_server_desc">Разрешить доступ к My Agent через веб</string>
   <string name="setting_page_web_server_error">Ошибка</string>
   <string name="setting_page_web_server_jwt_enable">Включить аутентификацию</string>
   <string name="setting_page_web_server_jwt_enable_desc">Требовать проверку пароля при доступе к веб-интерфейсу</string>
@@ -1152,7 +1144,7 @@
   <!-- fork (agent) strings preserved from merge -->
   <string name="setting_display_page_show_date_below_name_desc">Показывать дату сообщения под ником или названием модели</string>
   <string name="setting_display_page_show_date_below_name_title">Показывать дату под именем</string>
-  <string name="accessibility_service_summary">Позволяет RikkaHub нажимать, проводить, прокручивать, читать содержимое экрана и делать снимки экрана, когда LLM использует инструменты автоматизации экрана.</string>
+  <string name="accessibility_service_summary">Позволяет My Agent нажимать, проводить, прокручивать, читать содержимое экрана и делать снимки экрана, когда LLM использует инструменты автоматизации экрана.</string>
   <string name="assistant_page_fast_path_router">Маршрутизатор быстрого пути</string>
   <string name="assistant_page_fast_path_router_desc">Пропуск LLM для высокоуверенных запросов вроде «какой у меня заряд», «который час» или «список рабочих процессов». Подходящий инструмент выполняется напрямую, и вы получаете мгновенный ответ. Консервативно — всё неоднозначное всё равно идёт к модели. Записывается в logcat (тег: FastPathRouter).</string>
   <string name="assistant_page_local_tools_app_launcher_desc">Открытие установленных приложений по имени пакета (например, Chrome, Настройки) и список доступных приложений. В сочетании с автоматизацией экрана даёт полное управление интерфейсом.</string>
@@ -1256,7 +1248,7 @@
   <string name="assistant_page_local_tools_wifi_desc">Чтение текущего подключения Wi-Fi (SSID, IP, сигнал). Для SSID требуется разрешение на местоположение.</string>
   <string name="assistant_page_local_tools_wifi_title">Сведения о Wi-Fi</string>
   <string name="assistant_page_local_tools_workflows_desc">Позволяет ассистенту создавать автоматизации, запускаемые по триггерам — подключение WiFi, расписание, геозона, приход уведомления и другое.</string>
-  <string name="assistant_page_local_tools_workflows_hint_message">Рабочие процессы включены. Некоторым типам триггеров нужны разрешения, которые переключатель не может запросить:\n\n• Геозоны (вы куда-то прибываете): Настройки → Приложения → RikkaHub → Разрешения → Местоположение → Разрешить всегда.\n• Приходит уведомление: Настройки → Приложения → Особый доступ → Доступ к уведомлениям → включить RikkaHub.\n• Запуск/закрытие приложений: Настройки → Специальные возможности → включить RikkaHub.\n• Подключение/отключение Bluetooth: предоставьте BLUETOOTH_CONNECT, когда система спросит.\n\nТриггеры расписания, WiFi, наушников, питания, включения/выключения экрана и батареи работают сразу. Ассистент укажет на любую дополнительную настройку в момент, когда вы создаёте рабочий процесс, которому она нужна.</string>
+  <string name="assistant_page_local_tools_workflows_hint_message">Рабочие процессы включены. Некоторым типам триггеров нужны разрешения, которые переключатель не может запросить:\n\n• Геозоны (вы куда-то прибываете): Настройки → Приложения → My Agent → Разрешения → Местоположение → Разрешить всегда.\n• Приходит уведомление: Настройки → Приложения → Особый доступ → Доступ к уведомлениям → включить My Agent.\n• Запуск/закрытие приложений: Настройки → Специальные возможности → включить My Agent.\n• Подключение/отключение Bluetooth: предоставьте BLUETOOTH_CONNECT, когда система спросит.\n\nТриггеры расписания, WiFi, наушников, питания, включения/выключения экрана и батареи работают сразу. Ассистент укажет на любую дополнительную настройку в момент, когда вы создаёте рабочий процесс, которому она нужна.</string>
   <string name="assistant_page_local_tools_workflows_hint_title">Рабочим процессам нужна доп. настройка</string>
   <string name="assistant_page_local_tools_workflows_title">Рабочие процессы</string>
   <string name="browser_address_bar_back">Браузер назад</string>
@@ -1302,7 +1294,7 @@
   <string name="local_llm_download_cancel">Отмена</string>
   <string name="local_llm_download_continue">Загрузить</string>
   <string name="local_llm_download_default">Загрузить модель по умолчанию</string>
-  <string name="local_llm_download_message">RikkaHub нужно загрузить стартовую модель для этого провайдера. Загрузка ~1,5 ГБ (Qwen2.5 1.5B Q8). Продолжить?</string>
+  <string name="local_llm_download_message">My Agent нужно загрузить стартовую модель для этого провайдера. Загрузка ~1,5 ГБ (Qwen2.5 1.5B Q8). Продолжить?</string>
   <string name="local_llm_download_progress">Загрузка… %1$d%%</string>
   <string name="local_llm_download_title">Загрузить модель по умолчанию</string>
   <string name="local_llm_downloading_format">Загрузка… %1$d%% (%2$s / %3$s)</string>
@@ -1412,7 +1404,7 @@
   <string name="setting_page_accessibility_overlay_open_settings">Предоставить «Поверх других приложений»</string>
   <string name="setting_page_accessibility_overlay_section">Наложение активности</string>
   <string name="setting_page_accessibility_recent_section">Недавние действия</string>
-  <string name="setting_page_accessibility_status_help">RikkaHub нужно разрешение специальных возможностей для выполнения нажатий, проведений и чтения экрана для LLM. Откройте Настройки → Специальные возможности → Установленные приложения → RikkaHub и включите его.</string>
+  <string name="setting_page_accessibility_status_help">My Agent нужно разрешение специальных возможностей для выполнения нажатий, проведений и чтения экрана для LLM. Откройте Настройки → Специальные возможности → Установленные приложения → My Agent и включите его.</string>
   <string name="setting_page_accessibility_status_not_running">Служба: не работает</string>
   <string name="setting_page_accessibility_status_running">Служба: работает</string>
   <string name="setting_page_accessibility_status_section">Статус</string>
@@ -1435,7 +1427,7 @@
   <string name="setting_page_notifications_recent_empty">Пока не захвачено ни одного уведомления.</string>
   <string name="setting_page_notifications_recent_section">Недавняя активность</string>
   <string name="setting_page_notifications_status_connected">Служба: подключена</string>
-  <string name="setting_page_notifications_status_help">RikkaHub нужен доступ к уведомлениям для чтения входящих уведомлений. Откройте Настройки → Доступ к уведомлениям → Доступ к уведомлениям и включите RikkaHub.</string>
+  <string name="setting_page_notifications_status_help">My Agent нужен доступ к уведомлениям для чтения входящих уведомлений. Откройте Настройки → Доступ к уведомлениям → Доступ к уведомлениям и включите My Agent.</string>
   <string name="setting_page_notifications_status_not_connected">Служба: не подключена</string>
   <string name="setting_page_notifications_status_section">Статус</string>
   <string name="setting_page_notifications_whitelist_help">Приложения, уведомления которых автоматически пересылаются в ваш чат Telegram по умолчанию. Пусто = ничего не пересылается. Включайте или выключайте каждое приложение в списке выбора.</string>
@@ -1451,7 +1443,7 @@
   <string name="setting_page_notifications_whitelist_summary_n_plural">%1$d приложений в белом списке</string>
   <string name="setting_page_notifications_whitelist_summary_zero">Нет приложений в белом списке</string>
   <string name="setting_page_permissions">Разрешения</string>
-  <string name="setting_page_permissions_desc">Автоматически обнаруженный список всех разрешений, используемых RikkaHub, с кнопкой предоставления в одно нажатие для каждого.</string>
+  <string name="setting_page_permissions_desc">Автоматически обнаруженный список всех разрешений, используемых My Agent, с кнопкой предоставления в одно нажатие для каждого.</string>
   <string name="setting_page_permissions_group_auto">Предоставлены автоматически</string>
   <string name="setting_page_permissions_group_runtime">Разрешения времени выполнения</string>
   <string name="setting_page_permissions_group_services">Службы и интеграции</string>
@@ -1501,7 +1493,7 @@
   <string name="setting_page_scheduled_jobs_subtitle_when">Когда: %1$s</string>
   <string name="setting_page_telegram">Telegram-бот</string>
   <string name="setting_page_telegram_battery_already_ok">Уже в белом списке оптимизации батареи.</string>
-  <string name="setting_page_telegram_battery_desc">При выключении экрана агрессивные OEM-прошивки (Xiaomi, OPPO, OnePlus, Vivo) отключают сеть для приложений не из белого списка. Бот сможет доставлять только во время редких окон обслуживания. Нажмите, чтобы добавить RikkaHub в белый список.</string>
+  <string name="setting_page_telegram_battery_desc">При выключении экрана агрессивные OEM-прошивки (Xiaomi, OPPO, OnePlus, Vivo) отключают сеть для приложений не из белого списка. Бот сможет доставлять только во время редких окон обслуживания. Нажмите, чтобы добавить My Agent в белый список.</string>
   <string name="setting_page_telegram_battery_needed">Оптимизация батареи: не в белом списке - нажмите для исправления</string>
   <string name="setting_page_telegram_battery_ok">Оптимизация батареи: в белом списке</string>
   <string name="setting_page_telegram_boot_note">После запуска бот также автоматически запускается при загрузке устройства.</string>
@@ -1568,7 +1560,7 @@
   <string name="setting_page_workflows_subtitle_ran_success">Запущен %1$s • Успех</string>
   <string name="setting_page_workflows_subtitle_when">Когда: %1$s</string>
   <string name="setting_provider_aicore_release_stage">Стадия выпуска</string>
-  <string name="setting_provider_aicore_status_help">На устройстве. Требуется Pixel 8/9/10 с установленным приложением AICore И регистрация в программе раннего доступа GenAI Prompt-API (отдельное согласие). Если при первом запуске вы видите ErrorCode 606 / FEATURE_NOT_FOUND, у вас установлен AICore, но нет канала Prompt-API — запросите доступ через форму раннего доступа GenAI Prompt-API, затем перезагрузитесь. Вызов инструментов поддерживается через инженерию запросов — Gemini Nano выдаёт разметку &lt;tool_call&gt;, которую RikkaHub разбирает и обрабатывает.</string>
+  <string name="setting_provider_aicore_status_help">На устройстве. Требуется Pixel 8/9/10 с установленным приложением AICore И регистрация в программе раннего доступа GenAI Prompt-API (отдельное согласие). Если при первом запуске вы видите ErrorCode 606 / FEATURE_NOT_FOUND, у вас установлен AICore, но нет канала Prompt-API — запросите доступ через форму раннего доступа GenAI Prompt-API, затем перезагрузитесь. Вызов инструментов поддерживается через инженерию запросов — Gemini Nano выдаёт разметку &lt;tool_call&gt;, которую My Agent разбирает и обрабатывает.</string>
   <string name="setting_provider_delete_body">Это навсегда удалит %1$s и все его настроенные модели. Вы сможете добавить его снова позже.</string>
   <string name="setting_provider_delete_cancel">Отмена</string>
   <string name="setting_provider_delete_confirm">Удалить</string>
@@ -1736,7 +1728,7 @@
   <string name="setting_asr_configure_step_itn">Включить ITN</string>
   <string name="setting_asr_configure_step_itn_desc">Обратная нормализация текста: преобразует произнесённые числа в цифры (например, 三百 → 300)</string>
   <string name="setting_asr_configure_step_timestamp">Включить временные метки</string>
-  <string name="setting_asr_configure_step_timestamp_desc">Возвращать временные метки на уровне слов. Сейчас rikkahub их не использует, поэтому по умолчанию отключено для экономии token</string>
+  <string name="setting_asr_configure_step_timestamp_desc">Возвращать временные метки на уровне слов. Сейчас myagent их не использует, поэтому по умолчанию отключено для экономии token</string>
   <string name="setting_asr_configure_step_hotwords">Горячие слова</string>
   <string name="setting_asr_configure_step_hotwords_desc">Список горячих слов через запятую для повышения точности распознавания имён собственных и терминов предметной области</string>
   <string name="log_page_record_requests">Записывать запросы</string>

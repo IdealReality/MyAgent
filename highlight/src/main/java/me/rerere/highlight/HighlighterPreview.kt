@@ -82,7 +82,7 @@ private class HighlightPreviewProvider : PreviewParameterProvider<HighlightPrevi
             language = "properties",
             code = """
                 # Application settings
-                app.name = RikkaHub
+                app.name = MyAgent
                 app.version=1.4.0
                 app.locale : zh-CN
                 app.debug false
@@ -290,7 +290,7 @@ private class HighlightPreviewProvider : PreviewParameterProvider<HighlightPrevi
         HighlightPreviewSample(
             language = "csharp",
             code = """
-                namespace RikkaHub;
+                namespace MyAgent;
 
                 public sealed record User(string Name, int Age = 18)
                 {
@@ -376,7 +376,7 @@ private class HighlightPreviewProvider : PreviewParameterProvider<HighlightPrevi
         HighlightPreviewSample(
             language = "markdown",
             code = """
-                # RikkaHub
+                # MyAgent
 
                 A native **Android** LLM chat client.
 

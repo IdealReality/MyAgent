@@ -22,7 +22,7 @@ plugins {
 val skipLintVital = providers.gradleProperty("skipLintVital").isPresent
 
 android {
-    namespace = "me.rerere.rikkahub"
+    namespace = "me.rerere.myagent"
     compileSdk = 37
 
     defaultConfig {
@@ -96,20 +96,19 @@ android {
             buildConfigField("String", "VERSION_CODE", "\"${android.defaultConfig.versionCode}\"")
         }
         debug {
-            applicationIdSuffix = ".debug"
+            signingConfig = signingConfigs.getByName("release")
             buildConfigField("String", "VERSION_NAME", "\"${android.defaultConfig.versionName}\"")
             buildConfigField("String", "VERSION_CODE", "\"${android.defaultConfig.versionCode}\"")
         }
-        // Shipping variant for RikkaHub Agent · Pure. Turns on the same
+        // Shipping variant for MyAgent Agent · Pure. Turns on the same
         // release-grade R8 + (AGP 9) optimized resource shrinking as `release`
-        // — the keep rules live in src/main/keepRules/rikkahub.keep — while
-        // staying on the ".debug" applicationId so devices already running the
-        // debug-signed build upgrade in place. It is built unsigned on purpose:
-        // p2.keystore never leaves the VPS, which re-signs this APK with the
-        // same key as the old debug package, so the on-device signature is
-        // unchanged. Debug builds stay unoptimized for day-to-day iteration.
+        // — the keep rules live in src/main/keepRules/myagent.keep.
+        // All three build types share applicationId com.myagent.app and the
+        // same signing key, so any variant overwrites any other in place
+        // without losing app data. Debug builds stay unoptimized for
+        // day-to-day iteration.
         create("pure") {
-            applicationIdSuffix = ".debug"
+            signingConfig = signingConfigs.getByName("release")
             // The library subprojects (:ai, :local-llm, :llama-cpp, …) only
             // publish debug/release variants, so "pure" resolves to their
             // release variant.

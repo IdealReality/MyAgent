@@ -1,0 +1,68 @@
+[?9001h[?1004h[?25l[2J[m[HPowerShell 7.6.9
+]0;C:\WINDOWS\system32\conhost.exe[?25h]0;Administrator: C:\WINDOWS\system32\conhost.exePS C:\Users\guest> [?25l[91m[2;18H> [93mWrite-Host [36m"line one    [2;40H[?25h[?25l[m[2;18H> [93mWrite-Host [36m"line one"
+[?25h[mline one
+PS C:\Users\guest> [?25l[4;18H> [93mWrite-Host [36m"line two"[m
+line two
+PS C:\Users\guest> [?25h[?25l[93mClear-Host   
+[?25h[?25l[m[H[K
+[K
+[K
+[K
+[K
+[K
+[K
+[K
+[K
+[K
+[K
+[K
+[K
+[K
+[K
+[K
+[K
+[K
+[K
+[K
+[K
+[K
+[K
+[K
+[K
+[K
+[K
+[K
+[K
+[K[H[?25h[3J[?25lPS C:\Users\guest>[K
+[K
+[K
+[K
+[K
+[K
+[K
+[K
+[K
+[K
+[K
+[K
+[K
+[K
+[K
+[K
+[K
+[K
+[K
+[K
+[K
+[K
+[K
+[K
+[K
+[K
+[K
+[K
+[K
+[K[1;20H[?25h[?25l[1;18H> [93mWrite-Host [36m"after clear"[m
+after clear
+PS C:\Users\guest> [?25h[?25l[92mexit
+[?25h[?9001l[?1004l[m

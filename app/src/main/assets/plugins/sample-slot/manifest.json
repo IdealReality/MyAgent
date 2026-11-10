@@ -1,0 +1,46 @@
+{
+  "schema_version": 1,
+  "id": "sample-slot",
+  "name": "Sample Slots",
+  "version": "1.0.0",
+  "description": "Reference implementation of chat slots: a chip row above the input box and an HTML card under the newest message. Everything is a file in this directory, so editing it changes the chat interface without a rebuild.",
+  "author": "MyAgent",
+  "entry": "main.js",
+  "permissions": [],
+  "prompt": {
+    "text": "sample-slot 是「聊天内界面」的参考实现：manifest 声明两个槽位——输入框上方的 chips 行（按钮）和最新一条消息下方的 HTML 卡片（card.html）。用户说「在这里加个按钮」「在回复下面显示一张卡片」「给我做个快捷操作」时，照它的 shape 写：manifest 的 ui.slots + 插件目录里的 html/js，然后 plugin_reload。chips 的按钮要么 action 指向 main.js 里 plugin.action(name, fn) 注册的函数，要么 panel 指向某个插件面板（空串=本插件）。动作返回 {insert, send, toast, panel}：填输入框、直接发送、弹提示、开面板。HTML 槽位拿到 window.MyAgentHost：theme()、args()（conversation_id/message_id/role/text）、call(action, args)、insert(text)、send(text)、openPanel(id)、toast(msg)。消息槽位默认只挂在最新一条消息下，all_messages=true 才逐条挂（每条一个 WebView，长对话会变重）。"
+  },
+  "ui": {
+    "title": "Sample Slots",
+    "slots": [
+      {
+        "where": "composer",
+        "type": "chips",
+        "title": "插件",
+        "items": [
+          {
+            "label": "回执",
+            "action": "ping",
+            "icon": "✓"
+          },
+          {
+            "label": "面板",
+            "panel": "sample-panel",
+            "icon": "▣"
+          }
+        ]
+      },
+      {
+        "where": "message",
+        "type": "html",
+        "file": "card.html",
+        "height": 92,
+        "items": [
+          {
+            "action": "ping"
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -8,7 +8,7 @@ import java.net.InetAddress
 import java.net.UnknownHostException
 import java.util.concurrent.TimeUnit
 
-// This intentionally parallels me.rerere.rikkahub.data.ai.net.GuardedDns in the app module:
+// This intentionally parallels me.rerere.myagent.data.ai.net.GuardedDns in the app module:
 // :search cannot depend on :app, so the scrape() egress guard for SearXNG/Bing is duplicated
 // here rather than shared.
 

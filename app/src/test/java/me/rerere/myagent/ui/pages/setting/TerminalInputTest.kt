@@ -1,0 +1,119 @@
+package me.rerere.myagent.ui.pages.setting
+
+import androidx.compose.ui.input.key.Key
+import org.junit.Assert.assertArrayEquals
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
+import org.junit.Test
+
+/**
+ * The SSH terminal no longer has a composer: the page forwards the invisible field's edits and
+ * hardware keys straight to the PTY. Both halves are pure functions, so the parts that are easy
+ * to get subtly wrong — a swallowed backspace, an IME composition leaking pinyin to the shell,
+ * a key that would be sent twice — are pinned here without an Android runtime.
+ */
+class TerminalInputTest {
+
+    @Test
+    fun `typing past the shadow sends only the new characters`() {
+        assertEquals(TerminalEdit.Append("l"), imeEdit("l", shadow = "", composing = false))
+        assertEquals(TerminalEdit.Append("s -la"), imeEdit("ls -la", shadow = "l", composing = false))
+    }
+
+    @Test
+    fun `a space is ordinary input`() {
+        assertEquals(TerminalEdit.Append(" "), imeEdit("ls ", shadow = "ls", composing = false))
+    }
+
+    @Test
+    fun `newline from the IME return key reaches the shell`() {
+        assertEquals(TerminalEdit.Append("\n"), imeEdit("ls\n", shadow = "ls", composing = false))
+    }
+
+    @Test
+    fun `deleting is a shrink, not a lost keystroke`() {
+        // With an empty field a backspace produces no change at all, which is why the diff is
+        // taken against the shadow of what the shell already has.
+        assertEquals(TerminalEdit.Backspace, imeEdit("ls", shadow = "ls ", composing = false))
+        assertEquals(TerminalEdit.Backspace, imeEdit("", shadow = "l", composing = false))
+    }
+
+    @Test
+    fun `a composing IME is not forwarded character by character`() {
+        // Pinyin "ni" must not be typed into the shell; the commit arrives with composition null.
+        assertEquals(TerminalEdit.Buffer, imeEdit("ni", shadow = "", composing = true))
+        assertEquals(TerminalEdit.Append("你"), imeEdit("你", shadow = "", composing = false))
+    }
+
+    @Test
+    fun `an IME rewriting the buffer is resynced instead of replayed`() {
+        assertEquals(TerminalEdit.Resync, imeEdit("x", shadow = "ls -la", composing = false))
+    }
+
+    @Test
+    fun `cursor keys send xterm sequences`() {
+        assertArrayEquals(esc("[A"), terminalKeyBytes(Key.DirectionUp, ctrlPressed = false))
+        assertArrayEquals(esc("[B"), terminalKeyBytes(Key.DirectionDown, ctrlPressed = false))
+        assertArrayEquals(esc("[C"), terminalKeyBytes(Key.DirectionRight, ctrlPressed = false))
+        assertArrayEquals(esc("[D"), terminalKeyBytes(Key.DirectionLeft, ctrlPressed = false))
+        assertArrayEquals(esc("[H"), terminalKeyBytes(Key.MoveHome, ctrlPressed = false))
+        assertArrayEquals(esc("[F"), terminalKeyBytes(Key.MoveEnd, ctrlPressed = false))
+        assertArrayEquals(esc("[3~"), terminalKeyBytes(Key.Delete, ctrlPressed = false))
+        assertArrayEquals(esc("[5~"), terminalKeyBytes(Key.PageUp, ctrlPressed = false))
+        assertArrayEquals(esc("[6~"), terminalKeyBytes(Key.PageDown, ctrlPressed = false))
+    }
+
+    @Test
+    fun `tab and escape are single control bytes`() {
+        assertArrayEquals(byteArrayOf(0x09), terminalKeyBytes(Key.Tab, ctrlPressed = false))
+        assertArrayEquals(byteArrayOf(0x1b), terminalKeyBytes(Key.Escape, ctrlPressed = false))
+    }
+
+    @Test
+    fun `ctrl letters map to control bytes`() {
+        assertArrayEquals(byteArrayOf(0x03), terminalKeyBytes(Key.C, ctrlPressed = true))
+        assertArrayEquals(byteArrayOf(0x04), terminalKeyBytes(Key.D, ctrlPressed = true))
+        assertArrayEquals(byteArrayOf(0x1a), terminalKeyBytes(Key.Z, ctrlPressed = true))
+    }
+
+    @Test
+    fun `enter and backspace stay with the text field`() {
+        // Both already arrive as text edits (newline / sentinel deletion); intercepting them
+        // here would send every keystroke twice.
+        assertNull(terminalKeyBytes(Key.Enter, ctrlPressed = false))
+        assertNull(terminalKeyBytes(Key.Backspace, ctrlPressed = false))
+        assertNull(terminalKeyBytes(Key.Spacebar, ctrlPressed = false))
+    }
+
+    @Test
+    fun `shift-tab is back-tab, which no soft keyboard can produce`() {
+        // omp binds it (cycle thinking effort) and readline-style prompts use it too.
+        assertArrayEquals(esc("[Z"), terminalKeyBytes(Key.Tab, ctrlPressed = false, shiftPressed = true))
+        // Plain tab must stay a control byte, not the other way round.
+        assertArrayEquals(byteArrayOf(0x09), terminalKeyBytes(Key.Tab, ctrlPressed = false, shiftPressed = false))
+    }
+
+    @Test
+    fun `a paste is framed when the remote asked for bracketed paste`() {
+        // Ink submits on every CR it reads; without the framing a two-line clipboard message
+        // arrives as two messages.
+        assertArrayEquals(
+            "\u001b[200~hello\rworld\u001b[201~".toByteArray(),
+            terminalInputBytes("hello\nworld", bracketedPaste = true),
+        )
+        // The same text without the mode must stay plain: markers would print as garbage.
+        assertArrayEquals("hello\rworld".toByteArray(), terminalInputBytes("hello\nworld"))
+    }
+
+    @Test
+    fun `the return key is sent as CR, not LF`() {
+        // ConPTY does not run the tty's ICRNL translation: a bare LF left PowerShell waiting
+        // for the rest of the line and echoing a `>>` prompt after every command.
+        assertArrayEquals("ls\r".toByteArray(), terminalInputBytes("ls\n"))
+        assertArrayEquals("ls\r".toByteArray(), terminalInputBytes("ls\r\n"))
+        assertArrayEquals("a\rb\rc\r".toByteArray(), terminalInputBytes("a\r\nb\nc\n"))
+        assertArrayEquals("ls".toByteArray(), terminalInputBytes("ls"))
+    }
+
+    private fun esc(rest: String): ByteArray = ("\u001b" + rest).toByteArray()
+}

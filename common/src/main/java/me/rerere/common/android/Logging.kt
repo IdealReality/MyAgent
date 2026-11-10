@@ -64,7 +64,7 @@ object Logging {
 
     // Modules below :app (e.g. :ai) have no BuildConfig of their own to gate verbose
     // android.util.Log calls with, the way :app already gates HttpLoggingInterceptor
-    // behind BuildConfig.DEBUG. RikkaHubApp.onCreate() sets this once from
+    // behind BuildConfig.DEBUG. MyAgentApp.onCreate() sets this once from
     // BuildConfig.DEBUG so provider code can gate full request/response body logging
     // (which otherwise carries prompts and tool results into logcat on every release
     // build too) without a per-module build.gradle change.

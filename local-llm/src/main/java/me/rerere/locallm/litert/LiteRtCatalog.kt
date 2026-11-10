@@ -27,7 +27,7 @@ object LiteRtCatalog {
      * Sourced from the `litert-community` org (281 repos as of 2026-07-29), filtered to the
      * ten most-downloaded models that satisfy all three requirements:
      *
-     *  1. **Tool-calling capable.** RikkaHub is an agent: a model that cannot call tools is
+     *  1. **Tool-calling capable.** MyAgent is an agent: a model that cannot call tools is
      *     close to useless here. Verified objectively by reading each *base* model's chat
      *     template and confirming it accepts a `tools` argument and emits tool calls, rather
      *     than trusting marketing copy. This is what excluded

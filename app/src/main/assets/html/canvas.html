@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>
+  :root{--c-fg:var(--rk-fg,#1b1b1f);--c-muted:var(--rk-muted,#8a8a93);--c-surface:var(--rk-surface,#f2f2f5);--c-border:var(--rk-border,#d5d5dc);--c-accent:var(--rk-primary,#4f6ef7)}
+  *{box-sizing:border-box}
+  html,body{margin:0;background:transparent;color:var(--c-fg);font:13px/1.35 system-ui,-apple-system,"PingFang SC","Noto Sans CJK SC",sans-serif;-webkit-tap-highlight-color:transparent}
+  #bar{display:flex;gap:6px;padding:6px 2px 8px;flex-wrap:wrap}
+  #bar button{flex:1 1 auto;min-width:54px;padding:8px 6px;border:1px solid var(--c-border);background:var(--c-surface);color:var(--c-fg);border-radius:9px;font-size:12px;font-family:inherit}
+  #bar button.on{background:var(--c-accent);color:#fff;border-color:transparent}
+  #stage{position:relative;border:1px solid var(--c-border);border-radius:10px;overflow:hidden;touch-action:none;background:transparent}
+  svg{display:block;width:100%;height:auto;touch-action:none}
+  .n rect,.n circle,.n polygon{fill:var(--c-surface);stroke:var(--c-border);stroke-width:1.5}
+  .n.sel rect,.n.sel circle,.n.sel polygon{stroke:var(--c-accent);stroke-width:2.6}
+  .n text{fill:var(--c-fg);text-anchor:middle;pointer-events:none}
+  .n text.t1{font-size:13px;font-weight:500}
+  .n text.t2{font-size:10px;fill:var(--c-muted)}
+  .e{stroke:var(--c-muted);stroke-width:1.5;fill:none}
+  .e.hit{stroke:transparent;stroke-width:14;fill:none;pointer-events:stroke;cursor:pointer}
+  .eb{fill:var(--c-muted)}
+  .el{fill:var(--c-muted);font-size:9px;text-anchor:middle}
+  #hint{padding:7px 2px 2px;color:var(--c-muted);font-size:11px;display:flex;justify-content:space-between;gap:8px}
+  #hint span:first-child{flex:1}
+  #hint b{color:var(--c-accent);font-weight:600}
+</style>
+</head>
+<body>
+<div id="bar">
+  <button data-a="add">+ 节点</button>
+  <button data-a="link">连线</button>
+  <button data-a="del">删除</button>
+  <button data-a="layout">重排</button>
+  <button data-a="json">复制</button>
+</div>
+<div id="stage"><svg id="s" xmlns="http://www.w3.org/2000/svg"></svg></div>
+<div id="hint"><span>拖动排版 · 双击改字 · 空白双击加节点</span><span id="cnt"></span></div>
+<script>
+(function(){
+  var B64 = "__CANVAS_B64__";
+  function b64utf8(b){
+    var bin = atob(b), n = bin.length, a = new Uint8Array(n);
+    for (var i=0;i<n;i++) a[i] = bin.charCodeAt(i);
+    return new TextDecoder().decode(a);
+  }
+  var data;
+  try { data = JSON.parse(b64utf8(B64)); } catch(e) { data = {}; }
+  var nodes = (data.nodes||[]).map(function(n){
+    return {id:n.id,label:n.label||n.id,note:n.note||"",shape:n.shape||"rect",color:n.color||null,x:+n.x||0,y:+n.y||0};
+  });
+  var edges = (data.edges||[]).map(function(e){
+    return {from:e.from,to:e.to,label:e.label||"",dashed:!!e.dashed};
+  });
+  var title = data.title || "";
+  var canvasId = data.canvas_id || "";
+  var NW = 180, NH = 76, GAPX = 44, GAPY = 78, PAD = 32, MAXL = 20;
+  var sel = null, mode = "select", linkFrom = null, drag = null, zoom = 1, panX = 0, panY = 0;
+  var hist = [], fut = [];
+
+  function snapshot(){
+    return JSON.stringify({nodes:nodes,edges:edges});
+  }
+  function pushHist(){
+    hist.push(snapshot());
+    if (hist.length > 40) hist.shift();
+    fut.length = 0;
+  }
+  function save(){
+    var payload = {v:1, canvas_id:canvasId, title:title, nodes:nodes, edges:edges};
+    try { if (window.RikkaHubPreview && RikkaHubPreview.save) RikkaHubPreview.save(JSON.stringify(payload)); } catch(e) {}
+  }
+  var saveTimer = null;
+  function touch(){ if(saveTimer) clearTimeout(saveTimer); saveTimer = setTimeout(save, 300); }
+
+  function boardSize(){
+    var w = 0, h = 0;
+    nodes.forEach(function(n){
+      w = Math.max(w, n.x + NW);
+      h = Math.max(h, n.y + NH);
+    });
+    return {w: w + PAD, h: h + PAD};
+  }
+
+  function layer(nodesList, edgeList){
+    var ids = nodesList.map(function(n){return n.id});
+    var inc = {}, out = {};
+    ids.forEach(function(id){ inc[id]=0; out[id]=[]; });
+    edgeList.forEach(function(e){
+      if (e.from === e.to) return;
+      if (out[e.from]) out[e.from].push(e.to);
+      if (inc[e.to] !== undefined) inc[e.to]++;
+    });
+    var layerOf = {}, frontier = ids.filter(function(id){return !inc[id]});
+    if (!frontier.length) frontier = ids.slice(0,1);
+    var d = 0;
+    while (frontier.length && d < MAXL) {
+      var next = [];
+      frontier.forEach(function(id){
+        if (layerOf[id] !== undefined) return;
+        layerOf[id] = d;
+        (out[id]||[]).forEach(function(t){ if (layerOf[t] === undefined) next.push(t); });
+      });
+      frontier = next.filter(function(v,i,a){return a.indexOf(v)===i});
+      d++;
+    }
+    ids.forEach(function(id){ if (layerOf[id] === undefined) layerOf[id] = d; });
+
+    var rows = {}, order = [];
+    ids.forEach(function(id){
+      var L = layerOf[id];
+      if (!rows[L]) { rows[L] = []; order.push(L); }
+      rows[L].push(id);
+    });
+    order.sort(function(a,b){return a-b});
+    var widest = 0;
+    order.forEach(function(L){
+      var r = rows[L], w = r.length*NW + (r.length-1)*GAPX;
+      if (w > widest) widest = w;
+    });
+    var pos = {};
+    order.forEach(function(L, idx){
+      var r = rows[L], w = r.length*NW + (r.length-1)*GAPX;
+      var sx = PAD + (widest - w)/2, y = PAD + idx*(NH+GAPY);
+      r.forEach(function(id, c){ pos[id] = {x: sx + c*(NW+GAPX), y: y}; });
+    });
+    nodesList.forEach(function(n){
+      var p = pos[n.id];
+      if (p) { n.x = p.x; n.y = p.y; }
+    });
+  }
+
+  function esc(s){
+    return String(s==null?"":s).replace(/[&<>"']/g, function(c){
+      return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
+    });
+  }
+
+  function nodeAttrs(n){
+    var fill = n.color ? n.color : "var(--c-surface)";
+    if (n.shape === "circle") return {cx:n.x+NW/2, cy:n.y+NH/2, r:Math.min(NW,NH)/2};
+    if (n.shape === "diamond") {
+      var cx=n.x+NW/2, cy=n.y+NH/2;
+      return {points:(cx)+","+n.y+" "+(n.x+NW)+","+cy+" "+cx+","+(n.y+NH)+" "+n.x+","+cy};
+    }
+    return null;
+  }
+
+  function render(){
+    var b = boardSize();
+    var svg = document.getElementById("s");
+    svg.setAttribute("viewBox", "0 0 " + b.w + " " + b.h);
+    svg.setAttribute("width", "100%");
+    svg.style.height = "auto";
+    var h = "";
+    var byId = {};
+    nodes.forEach(function(n){ byId[n.id] = n; });
+
+    edges.forEach(function(e, ei){
+      var a = byId[e.from], z = byId[e.to];
+      if (!a || !z) return;
+      var x1 = a.x + NW/2, y1 = a.y + NH, x2 = z.x + NW/2, y2 = z.y;
+      var mid = (y1 + y2)/2;
+      var d = "M"+x1+" "+y1+" C"+x1+" "+mid+" "+x2+" "+mid+" "+x2+" "+y2;
+      h += '<path class="e" d="'+d+'"'+(e.dashed?' stroke-dasharray="7 6"':'')+'/>';
+      h += '<path class="e hit" data-edge="'+ei+'"/>';
+      var ang = Math.atan2(y2-mid, x2-x2) || 0;
+      h += '<polygon class="eb" points="'+x2+','+y2+' '+(x2-6)+','+(y2-10)+' '+(x2+6)+','+(y2-10)+'"/>';
+      if (e.label) h += '<text class="el" x="'+((x1+x2)/2)+'" y="'+((y1+y2)/2 - 4)+'">'+esc(e.label)+'</text>';
+    });
+
+    nodes.forEach(function(n){
+      var cls = "n" + (sel === n.id ? " sel" : "");
+      var fill = n.color ? ' style="fill:'+n.color+'"' : '';
+      h += '<g class="'+cls+'" data-id="'+esc(n.id)+'">';
+      if (n.shape === "circle") {
+        h += '<circle cx="'+(n.x+NW/2)+'" cy="'+(n.y+NH/2)+'" r="'+(Math.min(NW,NH)/2)+'"'+fill+'/>';
+      } else if (n.shape === "diamond") {
+        var cx=n.x+NW/2, cy=n.y+NH/2;
+        h += '<polygon points="'+cx+','+n.y+' '+(n.x+NW)+','+cy+' '+cx+','+(n.y+NH)+' '+n.x+','+cy+'"'+fill+'/>';
+      } else {
+        var rx = (n.shape === "round") ? NH/2 : 10;
+        h += '<rect x="'+n.x+'" y="'+n.y+'" width="'+NW+'" height="'+NH+'" rx="'+rx+'"'+fill+'/>';
+      }
+      var ty = n.note ? n.y + NH/2 - 7 : n.y + NH/2;
+      h += '<text class="t1" x="'+(n.x+NW/2)+'" y="'+ty+'" dominant-baseline="middle">'+esc(n.label)+'</text>';
+      if (n.note) {
+        h += '<text class="t2" x="'+(n.x+NW/2)+'" y="'+(n.y+NH/2+10)+'" dominant-baseline="middle">'+esc(n.note)+'</text>';
+      }
+      h += '</g>';
+    });
+
+    svg.innerHTML = h;
+    document.getElementById("cnt").textContent = nodes.length + " 节点 / " + edges.length + " 连线";
+  }
+
+  function pt2board(ev){
+    var svg = document.getElementById("s");
+    var r = svg.getBoundingClientRect();
+    var b = boardSize();
+    var scale = Math.min(r.width / b.w, 1);
+    if (!scale || !isFinite(scale)) scale = 1;
+    var offX = (r.width - b.w*scale)/2;
+    return {
+      x: ((ev.clientX - r.left) - offX)/scale,
+      y: (ev.clientY - r.top)/scale
+    };
+  }
+
+  var stage = document.getElementById("stage");
+  var svgEl = document.getElementById("s");
+
+  function hitNode(target){
+    var g = target.closest ? target.closest("g.n") : null;
+    return g ? g.getAttribute("data-id") : null;
+  }
+
+  svgEl.addEventListener("pointerdown", function(ev){
+    var id = hitNode(ev.target);
+    if (mode === "link") {
+      if (!id) return;
+      if (!linkFrom) { linkFrom = id; sel = id; render(); }
+      else if (linkFrom !== id) {
+        pushHist();
+        edges.push({from:linkFrom, to:id, label:"", dashed:false});
+        linkFrom = null; mode = "select"; syncMode(); sel = null; render(); touch();
+      }
+      return;
+    }
+    if (!id) {
+      // 起点在节点上才算拖动节点，否则拖动是平移画布
+      drag = {pan:true, sx:ev.clientX, sy:ev.clientY, px:panX, py:panY};
+      return;
+    }
+    pushHist();
+    sel = id;
+    var n = null;
+    nodes.forEach(function(x){ if (x.id === id) n = x; });
+    var p = pt2board(ev);
+    drag = {id:id, dx:p.x - n.x, dy:p.y - n.y};
+    render();
+  });
+
+  svgEl.addEventListener("pointermove", function(ev){
+    if (!drag) return;
+    if (drag.pan) {
+      panX = drag.px + (ev.clientX - drag.sx);
+      panY = drag.py + (ev.clientY - drag.sy);
+      svgEl.style.transform = "translate("+panX+"px,"+panY+"px)";
+      return;
+    }
+    ev.preventDefault();
+    var p = pt2board(ev);
+    nodes.forEach(function(n){
+      if (n.id !== drag.id) return;
+      var b = boardSize();
+      n.x = Math.max(0, Math.min(b.w - NW + 200, p.x - drag.dx));
+      n.y = Math.max(0, Math.min(b.h - NH + 200, p.y - drag.dy));
+    });
+    render();
+  });
+
+  window.addEventListener("pointerup", function(){
+    if (drag && !drag.pan) touch();
+    drag = null;
+  });
+
+  svgEl.addEventListener("dblclick", function(ev){
+    var id = hitNode(ev.target);
+    if (id) {
+      var n = null;
+      nodes.forEach(function(x){ if (x.id === id) n = x; });
+      var v = prompt("节点文字（第二行用 / 分隔）", n.note ? (n.label + "/" + n.note) : n.label);
+      if (v === null) return;
+      var parts = String(v).split("/");
+      pushHist();
+      n.label = (parts[0]||"").trim() || n.id;
+      n.note = (parts[1]||"").trim();
+      render(); touch();
+      return;
+    }
+    // 空白双击加节点
+    var p = pt2board(ev);
+    var id2 = "n" + Date.now().toString(36).slice(-5);
+    pushHist();
+    nodes.push({id:id2, label:"新节点", note:"", shape:"rect", color:null, x:Math.max(0,p.x-NW/2), y:Math.max(0,p.y-NH/2)});
+    sel = id2; render(); touch();
+  });
+
+  function syncMode(){
+    document.querySelectorAll("#bar button").forEach(function(b){
+      b.classList.toggle("on", b.getAttribute("data-a") === "link" && mode === "link");
+    });
+  }
+
+  document.getElementById("bar").addEventListener("click", function(ev){
+    var btn = ev.target.closest("button");
+    if (!btn) return;
+    var a = btn.getAttribute("data-a");
+    if (a === "add") {
+      pushHist();
+      var id = "n" + Date.now().toString(36).slice(-5);
+      var b = boardSize();
+      nodes.push({id:id, label:"新节点", note:"", shape:"rect", color:null, x: Math.max(0, b.w/2 - NW/2), y: b.h - NH + PAD});
+      sel = id; render(); touch();
+    } else if (a === "link") {
+      mode = (mode === "link") ? "select" : "link";
+      linkFrom = null; syncMode(); render();
+    } else if (a === "del") {
+      if (!sel) return;
+      pushHist();
+      nodes = nodes.filter(function(n){ return n.id !== sel; });
+      edges = edges.filter(function(e){ return e.from !== sel && e.to !== sel; });
+      sel = null; render(); touch();
+    } else if (a === "layout") {
+      pushHist();
+      layer(nodes, edges);
+      panX = panY = 0; svgEl.style.transform = "";
+      render(); touch();
+    } else if (a === "json") {
+      var payload = JSON.stringify({v:1, canvas_id:canvasId, title:title, nodes:nodes, edges:edges}, null, 1);
+      try {
+        if (window.RikkaHubPreview && RikkaHubPreview.copy) RikkaHubPreview.copy(payload);
+      } catch(e) {}
+    }
+  });
+
+  // 双指缩放
+  var pinch = null;
+  stage.addEventListener("touchstart", function(ev){
+    if (ev.touches.length === 2) {
+      pinch = {d: Math.hypot(ev.touches[0].clientX-ev.touches[1].clientX, ev.touches[0].clientY-ev.touches[1].clientY), z: zoom};
+    }
+  }, {passive:true});
+  stage.addEventListener("touchmove", function(ev){
+    if (!pinch || ev.touches.length !== 2) return;
+    var d = Math.hypot(ev.touches[0].clientX-ev.touches[1].clientX, ev.touches[0].clientY-ev.touches[1].clientY);
+    zoom = Math.max(0.55, Math.min(2.4, pinch.z * (d / pinch.d)));
+    svgEl.style.transform = "translate("+panX+"px,"+panY+"px) scale("+zoom+")";
+    svgEl.style.transformOrigin = "0 0";
+  }, {passive:true});
+  stage.addEventListener("touchend", function(ev){
+    if (ev.touches.length < 2) pinch = null;
+  }, {passive:true});
+
+  render();
+})();
+</script>
+</body>
+</html>

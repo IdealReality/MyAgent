@@ -1,5 +1,5 @@
 plugins {
-    id("rikkahub.android.library.compose")
+    id("myagent.android.library.compose")
 }
 
 android {

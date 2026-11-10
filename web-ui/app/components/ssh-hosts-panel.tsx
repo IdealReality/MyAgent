@@ -34,6 +34,7 @@ import { cn } from "~/lib/utils";
 import {
   acquireSshHostSocket,
   releaseSshHostSocket,
+  SshHostRequestError,
   type SshAuthMethod,
   type SshHostDto,
   type SshHostTestResult,
@@ -61,6 +62,22 @@ function useSshHostSocket(): SshHostSocket {
 }
 
 /**
+ * A server failure carries a machine code; the UI prefers its own translation of that code and
+ * only falls back to the server's English detail for codes this build does not know.
+ */
+interface DisplayError {
+  code: string | null;
+  text: string;
+}
+
+function toDisplayError(error: unknown): DisplayError {
+  if (error instanceof SshHostRequestError) {
+    return { code: error.errorCode, text: error.message };
+  }
+  return { code: null, text: error instanceof Error ? error.message : String(error) };
+}
+
+/**
  * SSH host manager backed by `/api/ssh/hosts/ws`.
  *
  * Two rules the layout encodes, both learned from the native settings page:
@@ -83,23 +100,54 @@ export function SshHostsPanel({ className }: { className?: string }) {
   const [hosts, setHosts] = React.useState<SshHostDto[]>([]);
   const [knownHosts, setKnownHosts] = React.useState<SshKnownHostEntry[]>([]);
   const [loading, setLoading] = React.useState(true);
-  const [error, setError] = React.useState<string | null>(null);
+  const [error, setError] = React.useState<DisplayError | null>(null);
   const [editing, setEditing] = React.useState<SshHostDto | null>(null);
   const [creating, setCreating] = React.useState(false);
   const [pendingDelete, setPendingDelete] = React.useState<SshHostDto | null>(null);
-  const [testingName, setTestingName] = React.useState<string | null>(null);
+  // Forgetting a key is destructive for the *next* connection (a changed key stops connecting
+  // until it is trusted again), so it gets the same confirmation the native page has.
+  const [pendingForget, setPendingForget] = React.useState<SshKnownHostEntry | null>(null);
+  // A set, not a single name: the server now answers tests concurrently, so two rows may spin
+  // at once and each must clear its own indicator.
+  const [testingNames, setTestingNames] = React.useState<ReadonlySet<string>>(() => new Set());
   const [testResults, setTestResults] = React.useState<Record<string, SshHostTestResult>>({});
 
+  /** Prefers the localised code; falls back to the server's detail for unknown codes. */
+  const localize = React.useCallback(
+    (code: string | null, fallback: string): string => {
+      if (!code) return fallback;
+      const key = `ssh_hosts.errors.${code}`;
+      const translated = t(key, { defaultValue: fallback });
+      return translated === key ? fallback : translated;
+    },
+    [t],
+  );
+
+  /** Turns a caught failure into text a user can act on. */
+  const describe = React.useCallback(
+    (failure: unknown): string => {
+      const display = toDisplayError(failure);
+      return localize(display.code, display.text);
+    },
+    [localize],
+  );
+
+  // Broadcast refreshes, manual refreshes and the reconnect refresh can overlap; only the
+  // newest response may write state, or a slow `list` would resurrect a deleted host.
+  const refreshSeq = React.useRef(0);
   const refresh = React.useCallback(async () => {
+    const seq = ++refreshSeq.current;
     try {
       const [nextHosts, nextKnown] = await Promise.all([socket.list(), socket.knownHosts()]);
+      if (seq !== refreshSeq.current) return;
       setHosts(nextHosts);
       setKnownHosts(nextKnown);
       setError(null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
+      if (seq !== refreshSeq.current) return;
+      setError(toDisplayError(err));
     } finally {
-      setLoading(false);
+      if (seq === refreshSeq.current) setLoading(false);
     }
   }, [socket]);
 
@@ -108,9 +156,13 @@ export function SshHostsPanel({ className }: { className?: string }) {
     const unsubscribeHosts = socket.onHostsChanged(() => {
       void refresh();
     });
+    const unsubscribeKnownHosts = socket.onKnownHostsChanged(() => {
+      void refresh();
+    });
     return () => {
       unsubscribeStatus();
       unsubscribeHosts();
+      unsubscribeKnownHosts();
     };
   }, [socket, refresh]);
 
@@ -125,20 +177,22 @@ export function SshHostsPanel({ className }: { className?: string }) {
 
   const handleTest = React.useCallback(
     async (name: string) => {
-      setTestingName(name);
+      setTestingNames((current) => new Set(current).add(name));
       try {
         const result = await socket.test(name);
         setTestResults((current) => ({ ...current, [name]: result }));
       } catch (err) {
+        const display = toDisplayError(err);
         setTestResults((current) => ({
           ...current,
-          [name]: {
-            ok: false,
-            errorCode: err instanceof Error ? err.message : String(err),
-          },
+          [name]: { ok: false, errorCode: display.code ?? display.text },
         }));
       } finally {
-        setTestingName(null);
+        setTestingNames((current) => {
+          const next = new Set(current);
+          next.delete(name);
+          return next;
+        });
       }
     },
     [socket],
@@ -149,7 +203,9 @@ export function SshHostsPanel({ className }: { className?: string }) {
       try {
         const frame = await socket.deleteHost(name);
         if (!frame.ok) {
-          toast.error(frame.message ?? frame.error ?? t("ssh_hosts.delete_failed"));
+          toast.error(
+            describe(new SshHostRequestError(frame.error ?? "delete_failed", frame.message)),
+          );
           return;
         }
         toast.success(t("ssh_hosts.deleted", { name }));
@@ -160,10 +216,10 @@ export function SshHostsPanel({ className }: { className?: string }) {
         });
         await refresh();
       } catch (err) {
-        toast.error(err instanceof Error ? err.message : String(err));
+        toast.error(describe(err));
       }
     },
-    [socket, refresh, t],
+    [socket, refresh, t, describe],
   );
 
   const handleForgetKey = React.useCallback(
@@ -171,16 +227,18 @@ export function SshHostsPanel({ className }: { className?: string }) {
       try {
         const frame = await socket.forgetHostKey(pattern);
         if (!frame.ok) {
-          toast.error(frame.message ?? frame.error ?? t("ssh_hosts.forget_failed"));
+          toast.error(
+            describe(new SshHostRequestError(frame.error ?? "forget_failed", frame.message)),
+          );
           return;
         }
         toast.success(t("ssh_hosts.forgotten", { pattern }));
         await refresh();
       } catch (err) {
-        toast.error(err instanceof Error ? err.message : String(err));
+        toast.error(describe(err));
       }
     },
-    [socket, refresh, t],
+    [socket, refresh, t, describe],
   );
 
   return (
@@ -228,7 +286,7 @@ export function SshHostsPanel({ className }: { className?: string }) {
           {error ? (
             <div className="flex items-start gap-2 rounded-lg border border-destructive/40 bg-destructive/5 p-3 text-sm text-destructive">
               <CircleAlert className="mt-0.5 size-4 shrink-0" />
-              <span className="min-w-0 break-words">{error}</span>
+              <span className="min-w-0 break-words">{localize(error.code, error.text)}</span>
             </div>
           ) : null}
 
@@ -240,11 +298,16 @@ export function SshHostsPanel({ className }: { className?: string }) {
           ) : null}
 
           {/* A socket that never opened leaves `loading` true forever; say so instead of
-              showing a spinner the user cannot act on. */}
+              showing a spinner the user cannot act on. After the automatic retries stop,
+              reconnecting is a decision only the user can make. */}
           {status === "closed" ? (
-            <div className="flex items-center justify-center gap-2 py-12 text-sm text-muted-foreground">
+            <div className="flex flex-col items-center justify-center gap-3 py-12 text-sm text-muted-foreground">
               <CircleAlert className="size-4" />
-              {t("ssh_hosts.status_offline")}
+              <span>{t("ssh_hosts.status_offline")}</span>
+              <Button size="sm" variant="outline" type="button" onClick={() => socket.retry()}>
+                <RefreshCw className="size-4" />
+                {t("ssh_hosts.reconnect")}
+              </Button>
             </div>
           ) : null}
 
@@ -295,7 +358,12 @@ export function SshHostsPanel({ className }: { className?: string }) {
                               {result.ok
                                 ? t("ssh_hosts.test_ok")
                                 : t("ssh_hosts.test_failed", {
-                                    reason: result.errorCode ?? "error",
+                                    // Codes like tcp_unreachable / auth_failed are translated;
+                                    // an unknown one falls back to itself.
+                                    reason: localize(
+                                      result.errorCode ?? null,
+                                      result.errorCode ?? "error",
+                                    ),
                                   })}
                             </div>
                             {!result.ok && result.detail ? (
@@ -307,7 +375,7 @@ export function SshHostsPanel({ className }: { className?: string }) {
                         ) : null}
                       </div>
                       <div className="flex shrink-0 items-center gap-1">
-                        {testingName === host.name ? (
+                        {testingNames.has(host.name) ? (
                           <Loader2 className="mx-2 size-4 animate-spin text-muted-foreground" />
                         ) : (
                           <Button
@@ -378,7 +446,7 @@ export function SshHostsPanel({ className }: { className?: string }) {
                         aria-label={t("ssh_hosts.forget_key")}
                         title={t("ssh_hosts.forget_key")}
                         className="text-destructive"
-                        onClick={() => void handleForgetKey(entry.pattern)}
+                        onClick={() => setPendingForget(entry)}
                       >
                         <X className="size-4" />
                       </Button>
@@ -412,6 +480,40 @@ export function SshHostsPanel({ className }: { className?: string }) {
           await refresh();
         }}
       />
+
+      <Dialog
+        open={pendingForget !== null}
+        onOpenChange={(open) => {
+          if (!open) setPendingForget(null);
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t("ssh_hosts.forget_confirm_title")}</DialogTitle>
+            <DialogDescription>
+              {t("ssh_hosts.forget_confirm_description", {
+                pattern: pendingForget?.pattern ?? "",
+              })}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" type="button" onClick={() => setPendingForget(null)}>
+              {t("ssh_hosts.cancel")}
+            </Button>
+            <Button
+              variant="destructive"
+              type="button"
+              onClick={() => {
+                const target = pendingForget;
+                setPendingForget(null);
+                if (target) void handleForgetKey(target.pattern);
+              }}
+            >
+              {t("ssh_hosts.forget_key")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog
         open={pendingDelete !== null}
@@ -455,6 +557,7 @@ interface EditorErrors {
   user?: string;
   secret?: string;
   authMethod?: string;
+  webTerminalUrl?: string;
 }
 
 function SshHostEditorDialog({
@@ -523,8 +626,7 @@ function SshHostEditorDialog({
     // A stored secret is kept when the field is left blank — only a new host must supply one.
     const suppliedSecret =
       authMethod === "password" ? password.trim().length > 0 : privateKey.trim().length > 0;
-    const storedSecretExists =
-      authMethod === "password" ? keepsStoredPassword : keepsStoredKey;
+    const storedSecretExists = authMethod === "password" ? keepsStoredPassword : keepsStoredKey;
     if (!suppliedSecret && !storedSecretExists) nextErrors.secret = "credential_missing";
 
     if (Object.keys(nextErrors).length > 0) {
@@ -553,12 +655,18 @@ function SshHostEditorDialog({
       const frame = await socket.save(input);
       if (!frame.ok) {
         setErrors((frame.errors ?? {}) as EditorErrors);
-        toast.error(frame.message ?? frame.error ?? t("ssh_hosts.save_failed"));
+        // The field-level `errors` map drives the inline highlights; the toast explains the
+        // failure as a whole, preferring our translation of the server code.
+        const code = frame.error ?? "save_failed";
+        const key = `ssh_hosts.errors.${code}`;
+        const fallback = frame.message ?? t("ssh_hosts.save_failed");
+        const translated = t(key, { defaultValue: fallback });
+        toast.error(translated === key ? fallback : translated);
         return;
       }
       await onSaved(input.name);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : String(err));
+      toast.error(toDisplayError(err).text);
     } finally {
       setSaving(false);
     }
@@ -593,7 +701,10 @@ function SshHostEditorDialog({
         </DialogHeader>
 
         <div className="grid gap-3">
-          <Field label={t("ssh_hosts.field_name")} error={errors.name && t(`ssh_hosts.errors.${errors.name}`)}>
+          <Field
+            label={t("ssh_hosts.field_name")}
+            error={errors.name && t(`ssh_hosts.errors.${errors.name}`)}
+          >
             <Input
               value={name}
               onChange={(event) => setName(event.target.value)}
@@ -603,7 +714,10 @@ function SshHostEditorDialog({
           </Field>
 
           <div className="grid grid-cols-[1fr_6rem] gap-3">
-            <Field label={t("ssh_hosts.field_host")} error={errors.host && t(`ssh_hosts.errors.${errors.host}`)}>
+            <Field
+              label={t("ssh_hosts.field_host")}
+              error={errors.host && t(`ssh_hosts.errors.${errors.host}`)}
+            >
               <Input
                 value={hostName}
                 onChange={(event) => setHostName(event.target.value)}
@@ -611,7 +725,10 @@ function SshHostEditorDialog({
                 aria-invalid={Boolean(errors.host)}
               />
             </Field>
-            <Field label={t("ssh_hosts.field_port")} error={errors.port && t(`ssh_hosts.errors.${errors.port}`)}>
+            <Field
+              label={t("ssh_hosts.field_port")}
+              error={errors.port && t(`ssh_hosts.errors.${errors.port}`)}
+            >
               <Input
                 value={port}
                 onChange={(event) => setPort(event.target.value)}
@@ -621,7 +738,10 @@ function SshHostEditorDialog({
             </Field>
           </div>
 
-          <Field label={t("ssh_hosts.field_user")} error={errors.user && t(`ssh_hosts.errors.${errors.user}`)}>
+          <Field
+            label={t("ssh_hosts.field_user")}
+            error={errors.user && t(`ssh_hosts.errors.${errors.user}`)}
+          >
             <Input
               value={user}
               onChange={(event) => setUser(event.target.value)}
@@ -688,11 +808,20 @@ function SshHostEditorDialog({
             </>
           )}
 
-          <Field label={t("ssh_hosts.field_web_terminal")} hint={t("ssh_hosts.field_web_terminal_hint")}>
+          <Field
+            label={t("ssh_hosts.field_web_terminal")}
+            hint={t("ssh_hosts.field_web_terminal_hint")}
+            error={
+              errors.webTerminalUrl && t(`ssh_hosts.errors.${errors.webTerminalUrl}`, {
+                defaultValue: errors.webTerminalUrl,
+              })
+            }
+          >
             <Input
               value={webTerminalUrl}
               onChange={(event) => setWebTerminalUrl(event.target.value)}
               placeholder="http://192.168.0.10:7681"
+              aria-invalid={Boolean(errors.webTerminalUrl)}
             />
           </Field>
         </div>

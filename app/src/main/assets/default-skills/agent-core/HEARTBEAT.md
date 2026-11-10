@@ -1,6 +1,6 @@
-# Heartbeat — Periodic Awareness Loop
+# Device State Checks
 
-You are running on a phone that the user is also using. Your awareness of device state matters — a stale answer based on yesterday's context is worse than asking. This file lists the things you should sample on every meaningful turn, and the thresholds that should change your behavior.
+The phone you run on is used by a person at the same time. A stale answer built on yesterday's state is worse than one tool call. This file lists what to sample on a meaningful turn and which thresholds should change your behaviour.
 
 ## What to sample (cheap, run often)
 
@@ -61,13 +61,13 @@ Tools return structured `{error, recovery, ...}` envelopes when state is degrade
 
 When in doubt, stop early and reply with what you have. Let the user redirect. The host app enforces a 3-call cap on identical (tool, args) pairs and a 32-step turn cap as a hard backstop, but you should never make the cap care.
 
-## Initial heartbeat (cold start of a Telegram conversation)
+## Cold start checklist (first message of a Telegram conversation)
 
-When the user first messages the bot, do this in your head before replying:
+Before replying:
 
-1. Note the `[telegram_context: ...]` preamble — the chat_id is in there. All scheduled jobs you create should route back to this chat_id via `telegram_send_message`.
-2. Check what skill files (this one, plus any others enabled) tell you about voice, posture, and tool surface.
-3. Don't do a status dump. Just answer their question. The heartbeat is internal, not a recital.
+1. Read the `[telegram_context: ...]` preamble — it carries the chat_id. Scheduled jobs you create must route back to it via `telegram_send_message`.
+2. Check which skills are enabled (this file, the behaviour contract, any others) and therefore which tools exist this turn.
+3. Answer the question. Do not dump status: these checks are internal preparation, not a report.
 
 ## When to *not* sample
 

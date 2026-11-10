@@ -1,0 +1,95 @@
+package me.rerere.myagent.ui.pages.extensions
+
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.material3.Icon
+import androidx.compose.material3.LargeFlexibleTopAppBar
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.dp
+import me.rerere.hugeicons.HugeIcons
+import me.rerere.myagent.ui.components.ui.SettingIcon
+import me.rerere.myagent.R
+import me.rerere.hugeicons.stroke.Book03
+import me.rerere.hugeicons.stroke.File02
+import me.rerere.hugeicons.stroke.Folder01
+import me.rerere.hugeicons.stroke.Plug01
+import me.rerere.hugeicons.stroke.Puzzle
+import me.rerere.hugeicons.stroke.Zap
+import me.rerere.myagent.Screen
+import me.rerere.myagent.ui.components.nav.BackButton
+import me.rerere.myagent.ui.components.ui.CardGroup
+import me.rerere.myagent.ui.context.LocalNavController
+import me.rerere.myagent.ui.theme.CustomColors
+import me.rerere.myagent.utils.plus
+
+@Composable
+fun ExtensionsPage() {
+    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
+    val navController = LocalNavController.current
+
+    Scaffold(
+        topBar = {
+            LargeFlexibleTopAppBar(
+                title = { Text(stringResource(R.string.extensions_page_title)) },
+                navigationIcon = { BackButton() },
+                scrollBehavior = scrollBehavior,
+                colors = CustomColors.topBarColors
+            )
+        },
+        modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
+        containerColor = CustomColors.topBarColors.containerColor
+    ) { innerPadding ->
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = innerPadding + PaddingValues(8.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            item {
+                CardGroup(
+                    modifier = Modifier.padding(horizontal = 8.dp),
+                    title = { Text(stringResource(R.string.extensions_page_section_extensions)) },
+                ) {
+                    item(
+                        onClick = { navController.navigate(Screen.QuickMessages) },
+                        leadingContent = { SettingIcon(HugeIcons.Zap) },
+                        headlineContent = { Text(stringResource(R.string.assistant_page_quick_messages)) },
+                        supportingContent = { Text(stringResource(R.string.extensions_page_quick_messages_desc)) },
+                    )
+                    item(
+                        onClick = { navController.navigate(Screen.Prompts) },
+                        leadingContent = { SettingIcon(HugeIcons.Book03) },
+                        headlineContent = { Text(stringResource(R.string.extensions_page_prompts)) },
+                        supportingContent = { Text(stringResource(R.string.extensions_page_prompts_desc)) },
+                    )
+                    item(
+                        onClick = { navController.navigate(Screen.Skills) },
+                        leadingContent = { SettingIcon(HugeIcons.Puzzle) },
+                        headlineContent = { Text(stringResource(R.string.extensions_page_agent_skills)) },
+                        supportingContent = { Text(stringResource(R.string.extensions_page_agent_skills_desc)) },
+                    )
+                    item(
+                        onClick = { navController.navigate(Screen.Plugins) },
+                        leadingContent = { SettingIcon(HugeIcons.Plug01) },
+                        headlineContent = { Text(stringResource(R.string.extensions_page_plugins)) },
+                        supportingContent = { Text(stringResource(R.string.extensions_page_plugins_desc)) },
+                    )
+                    item(
+                        onClick = { navController.navigate(Screen.Workspaces) },
+                        leadingContent = { SettingIcon(HugeIcons.Folder01) },
+                        headlineContent = { Text(stringResource(R.string.extensions_page_workspace)) },
+                        supportingContent = { Text(stringResource(R.string.extensions_page_workspace_desc)) },
+                    )
+                }
+            }
+        }
+    }
+}

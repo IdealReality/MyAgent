@@ -17,16 +17,16 @@ import me.rerere.search.SearchService.Companion.json
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 
-private const val TAG = "RikkaHubSearchService"
+private const val TAG = "MyAgentSearchService"
 
-object RikkaHubSearchService : SearchService<SearchServiceOptions.RikkaHubOptions> {
-    override val name: String = "RikkaHub"
+object MyAgentSearchService : SearchService<SearchServiceOptions.MyAgentOptions> {
+    override val name: String = "MyAgent"
 
     @Composable
     override fun Description() {
     }
 
-    override fun parameters(options: SearchServiceOptions.RikkaHubOptions): InputSchema? =
+    override fun parameters(options: SearchServiceOptions.MyAgentOptions): InputSchema? =
         InputSchema.Obj(
             properties = buildJsonObject {
                 put("query", buildJsonObject {
@@ -37,13 +37,13 @@ object RikkaHubSearchService : SearchService<SearchServiceOptions.RikkaHubOption
             required = listOf("query")
         )
 
-    override fun scrapingParameters(options: SearchServiceOptions.RikkaHubOptions): InputSchema? =
+    override fun scrapingParameters(options: SearchServiceOptions.MyAgentOptions): InputSchema? =
         null
 
     override suspend fun search(
         params: JsonObject,
         commonOptions: SearchCommonOptions,
-        serviceOptions: SearchServiceOptions.RikkaHubOptions
+        serviceOptions: SearchServiceOptions.MyAgentOptions
     ): Result<SearchResult> = withContext(Dispatchers.IO) {
         runCatching {
             val query = params["query"]?.jsonPrimitive?.content ?: error("query is required")
@@ -66,7 +66,7 @@ object RikkaHubSearchService : SearchService<SearchServiceOptions.RikkaHubOption
             val response = httpClient.newCall(request).await()
             if (response.isSuccessful) {
                 val responseBody = response.body.string().let {
-                    json.decodeFromString<RikkaHubSearchResponse>(it)
+                    json.decodeFromString<MyAgentSearchResponse>(it)
                 }
 
                 return@withContext Result.success(
@@ -90,13 +90,13 @@ object RikkaHubSearchService : SearchService<SearchServiceOptions.RikkaHubOption
     override suspend fun scrape(
         params: JsonObject,
         commonOptions: SearchCommonOptions,
-        serviceOptions: SearchServiceOptions.RikkaHubOptions
+        serviceOptions: SearchServiceOptions.MyAgentOptions
     ): Result<ScrapedResult> {
-        error("RikkaHub does not support scraping")
+        error("MyAgent does not support scraping")
     }
 
     @Serializable
-    data class RikkaHubSearchResponse(
+    data class MyAgentSearchResponse(
         val answer: String,
         val sources: List<Source>
     )

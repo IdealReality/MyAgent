@@ -1,7 +1,7 @@
 import org.apache.tools.ant.taskdefs.condition.Os
 
 plugins {
-    id("rikkahub.android.library")
+    id("myagent.android.library")
 }
 
 val webUiDir = rootProject.layout.projectDirectory.dir("web-ui")
@@ -58,7 +58,7 @@ val buildWebUi = tasks.register<Exec>("buildWebUi") {
 }
 
 android {
-    namespace = "me.rerere.rikkahub.web"
+    namespace = "me.rerere.myagent.web"
 }
 
 tasks.named("preBuild") {

@@ -1,0 +1,23 @@
+[?9001h[?1004h[?25l[2J[m[HPowerShell 7.6.9
+]0;C:\WINDOWS\system32\conhost.exe[?25h]0;Administrator: C:\WINDOWS\system32\conhost.exePS C:\Users\guest> [?25l[93mGet-ChildItem [37mC:\ | [93mSelect-Object [90m-F[97m[2m[3mirst 4[2;56H[?25h[?25l[m[93m[2;20HGet-ChildItem [37mC:\ | [93mSelect-Object [90m-First [97m4
+[?25h[m
+[?25l    Directory: C:\[6;1HMode                 LastWriteTime         Length Name
+----                 -------------         ------ ----
+d----          2026/10/29    22:08                ae-bridge
+d----          2026/10/30     5:53                AI
+d----           2026/11/2     4:51                build
+d----           2026/11/4    11:08                BuildTools[13;1HPS C:\Users\guest> [?25h[?25l[37m
+>> [13;20H[?25h[m[?25l[13;18H> [93mWrite-Host [36m"中文测试 ok"[37m
+>> [m
+中文测试 ok
+[?25h[?25lPS C:\Users\guest> [37m
+>> [16;20H[?25h[m[?25l[93mGet-Process [37m| [93mSelect-Object [90m-First [97m2 [37m| [93mFormat-Table [90m-AutoSize[37m
+>> 
+[?25h[m
+NPM(K) PM(M) WS(M) CPU(s)     Id SI ProcessName
+[?25l------ ----- ----- ------     -- -- -----------
+    20  3.96 20.19  11.92 100252  1 2345PicWorker
+    11  1.73 11.91   0.06  17756  0 Aac3572DramHal_x86[24;1HPS C:\Users\guest> [37m
+>> [24;20H[?25h[m[?25l[92mexit[37m
+>> 
+[?25h[?9001l[?1004l[m

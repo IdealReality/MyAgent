@@ -48,10 +48,28 @@ if (-not (Test-Path $Apk)) { Write-Host "找不到 $Apk" -ForegroundColor Red; e
 $size = (Get-Item $Apk).Length
 Write-Host ("安装 {0}  ({1:N0} 字节)" -f $Apk, $size)
 
-$install = Invoke-Adb @('install', '-r', $Apk)
+# 必须 push 到 /data/local/tmp 再 `pm install`，**不能用 `adb install`**。
+# 实测（Honor / Android 17，2026-11-08，同一份 APK 两次安装对比）：
+#   adb install -r            → 系统日志 Performing Streamed Install，装完 flags 里没有
+#                               DEBUGGABLE，run-as 直接报 "package not debuggable"
+#   adb push + pm install -r  → flags=[ DEBUGGABLE ...] 保留
+# 丢了 DEBUGGABLE 就没有 adb run-as（读库、对话 dump）和整条调试通路。
+$remote = '/data/local/tmp/myagent-deploy.apk'
+$push = Invoke-Adb @('push', $Apk, $remote)
+if ($push.code -ne 0) {
+    Write-Host "push 到手机失败:`n$($push.out)" -ForegroundColor Red
+    exit 1
+}
+$install = Invoke-Adb @('shell', "pm install -r $remote")
+Invoke-Adb @('shell', "rm -f $remote") | Out-Null
 if ($install.code -ne 0 -or $install.out -notmatch 'Success') {
     Write-Host "安装失败:`n$($install.out)" -ForegroundColor Red
     exit 1
+}
+
+$dbg = Invoke-Adb @('shell', "dumpsys package $pkg | grep -m1 'flags=\['")
+if ($dbg.out -notmatch 'DEBUGGABLE') {
+    Write-Host '警告: 包没有 DEBUGGABLE 标志 —— run-as/调试会失效（是不是又用了 adb install？）' -ForegroundColor Yellow
 }
 
 # 先把进程停掉：pm install 之后旧进程往往还活着，无障碍绑定也还在，

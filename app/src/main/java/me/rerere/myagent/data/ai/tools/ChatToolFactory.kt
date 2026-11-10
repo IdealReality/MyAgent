@@ -1,0 +1,125 @@
+package me.rerere.myagent.data.ai.tools
+
+import android.util.Log
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.jsonObject
+import me.rerere.ai.core.Tool
+import me.rerere.ai.provider.BuiltInTools
+import me.rerere.ai.provider.Model
+import me.rerere.myagent.data.ai.mcp.McpManager
+import me.rerere.myagent.data.ai.ToolSurfaceResolver
+import me.rerere.myagent.data.ai.mcp.McpTool
+import me.rerere.myagent.data.datastore.Settings
+import me.rerere.myagent.data.files.SkillManager
+import me.rerere.myagent.data.model.Assistant
+import me.rerere.myagent.data.repository.ConversationRepository
+import me.rerere.myagent.data.repository.WorkspaceRepository
+import me.rerere.workspace.WorkspaceShellStatus
+import kotlin.uuid.Uuid
+
+private const val TAG = "ChatToolFactory"
+
+internal fun shouldUseExternalWebSearch(assistant: Assistant, model: Model): Boolean {
+    return assistant.enableWebSearch && BuiltInTools.Search !in model.tools
+}
+
+class InvalidMcpServerNamesException(val names: List<String>) :
+    IllegalStateException("Invalid MCP server names: ${names.joinToString(", ")}")
+
+/** Creates the complete tool set for one generation run, including approval resumption. */
+class ChatToolFactory(
+    private val json: Json,
+    private val memoryEngine: me.rerere.myagent.data.memory.AssistantMemoryEngine,
+    private val conversationRepository: ConversationRepository,
+    private val localTools: LocalTools,
+    private val mcpManager: McpManager,
+    private val skillManager: SkillManager,
+    private val workspaceRepository: WorkspaceRepository,
+) {
+    suspend fun createTools(
+        settings: Settings,
+        assistant: Assistant,
+        model: Model,
+        workspaceCwd: String? = null,
+    ): List<Tool> = buildList {
+        // 记忆引擎 v1（P1）：旧 memory_tool 热记录停用（原 enableMemory 时注册
+        // create/edit/delete 三操作）。P2：memory_recall / memory_guide / memory_write
+        // 三工具（挂 AssistantMemoryEngine，四层 BM25 检索）。
+        addAll(buildMemoryV1Tools(assistant))
+        if (shouldUseExternalWebSearch(assistant, model)) {
+            addAll(createSearchTools(settings))
+        }
+        addAll(ToolSurfaceResolver.resolve(localTools, assistant, ToolSurfaceResolver.contextless))
+        if (assistant.enableRecentChatsReference) {
+            addAll(createConversationTools(conversationRepository, assistant.id))
+        }
+        addAll(createWorkspaceToolsIfReady(assistant.workspaceId?.toString(), workspaceCwd))
+        val effectiveSkills = me.rerere.myagent.data.datastore.SkillGroupRules.effectiveEnabledSkills(
+            enabledSkills = assistant.enabledSkills,
+            groups = settings.skillGroups,
+            assistantId = assistant.id.toString(),
+        )
+        if (effectiveSkills.isNotEmpty()) {
+            addAll(
+                createSkillTools(
+                    enabledSkills = effectiveSkills,
+                    allSkills = skillManager.listSkills(),
+                )
+            )
+        }
+
+        val mcpTools = validateMcpServerNames()
+        mcpTools.forEach { (serverId, serverName, tool) ->
+            add(
+                Tool(
+                    name = "mcp__${serverName}__${tool.name}",
+                    description = tool.description ?: "",
+                    parameters = { tool.inputSchema },
+                    needsApproval = { tool.needsApproval },
+                    execute = { mcpManager.callTool(serverId, tool.name, it.jsonObject) },
+                )
+            )
+        }
+    }
+
+    /**
+     * Validates that every enabled MCP server's name can form a valid `mcp__<name>__tool`
+     * surface, throwing [InvalidMcpServerNamesException] otherwise. Returns the available
+     * tools so callers that need them (like [createTools]) don't have to re-fetch them.
+     */    suspend fun validateMcpServerNames(): List<Triple<Uuid, String, McpTool>> {
+        val mcpTools = mcpManager.getAllAvailableTools()
+        val invalidNames = mcpTools
+            .map { it.second }
+            .distinct()
+            .filter { name -> name.isEmpty() || !name.all { it in 'a'..'z' || it in 'A'..'Z' || it in '0'..'9' } }
+        if (invalidNames.isNotEmpty()) {
+            throw InvalidMcpServerNamesException(invalidNames)
+        }
+        return mcpTools
+    }
+
+    /** 记忆引擎 v1（P2）：enableMemory 时注册 memory_recall / memory_guide / memory_write。 */
+    private fun buildMemoryV1Tools(assistant: Assistant): List<Tool> =
+        if (assistant.enableMemory) {
+            me.rerere.myagent.data.memory.MemoryToolsV1.build(
+                json = json,
+                engine = memoryEngine,
+                assistant = assistant,
+            )
+        } else {
+            emptyList()
+        }
+
+    private suspend fun createWorkspaceToolsIfReady(workspaceId: String?, cwd: String?): List<Tool> {
+        if (workspaceId.isNullOrBlank()) return emptyList()
+        val workspace = workspaceRepository.getById(workspaceId) ?: return emptyList()
+        if (workspace.shellStatus != WorkspaceShellStatus.READY.name) {
+            Log.d(
+                TAG,
+                "createWorkspaceToolsIfReady: skip workspace tools, workspace=$workspaceId, status=${workspace.shellStatus}"
+            )
+            return emptyList()
+        }
+        return createWorkspaceTools(workspaceId, workspaceRepository, cwd)
+    }
+}

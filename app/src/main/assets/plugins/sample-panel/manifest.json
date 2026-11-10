@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "id": "sample-panel",
+  "name": "Sample Panel",
+  "version": "1.1.0",
+  "description": "Reference implementation of a plugin-shipped UI panel: an HTML page rendered inside the app (Plugins page → Panel) with the injected theme variables and the MyAgentHost bridge. Copy this shape when a model needs to add a real screen, not just a tool.",
+  "author": "MyAgent",
+  "entry": "main.js",
+  "permissions": [],
+  "prompt": {
+    "text": "The sample-panel plugin is the reference for UI plugins. It ships three surfaces: `ui.panel` (panel.html, opened from the Plugins page or from a slot chip), a composer slot (`where:\"composer\", type:\"chips\"` — buttons above the input box) and a message slot (`where:\"message\", type:\"html\"` — card.html under the newest message). Chip items either call `plugin.action(name, fn)` or open a panel with `panel`; slot HTML gets window.MyAgentHost with theme()/toast()/call(action,args)/insert(text)/send(text)/openPanel(id)/args(). Copy these three files as the template when the user asks for new in-app UI: write the html/css/js, declare `ui`, then call plugin_reload — no rebuild, no restart."
+  },
+  "tools": [
+    {
+      "name": "sample_panel_info",
+      "description": "Describe the sample UI panel plugin (what it demonstrates, which bridge calls it uses, how relative assets resolve).",
+      "parameters": {
+        "type": "object",
+        "properties": {},
+        "required": []
+      },
+      "needs_approval": false
+    }
+  ],
+  "ui": {
+    "panel": "panel.html",
+    "title": "Sample Panel"
+  }
+}

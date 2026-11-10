@@ -1,0 +1,45 @@
+{
+  "schema_version": 1,
+  "id": "ui-tuner",
+  "name": "UI Tuner",
+  "version": "1.0.0",
+  "description": "Reference plugin for ctx.app: reads and writes the whitelisted display settings (layout, font size, bubble opacity, code-block behaviour, tool-call style). Copy this shape when the model should change how the app looks or behaves from inside a conversation.",
+  "author": "MyAgent",
+  "entry": "main.js",
+  "permissions": ["app_read", "app_write"],
+  "prompt": {
+    "text": "ui-tuner 提供两个工具用于修改应用界面（不是聊天内容）：ui_get 读取当前显示设置，ui_set 按补丁修改。用户说「界面改简洁一点」「字号大一点」「关掉代码块折叠」「换个工具调用样式」这类要求时，先 ui_get 看当前值，再 ui_set 传最小补丁，然后把真正生效的字段告诉用户。只改用户点到的方面，不要顺手改别的。可写字段见 ui_get 返回的 writable_keys；模型/API key/provider 不在其中，也不要用别的方式绕。"
+  },
+  "tools": [
+    {
+      "name": "ui_get",
+      "description": "Read the whitelisted display settings of the app (layout, font size, bubble opacity, code-block behaviour, tool-call style) plus the list of writable keys.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "what": {
+            "type": "string",
+            "description": "display | assistants (default display)"
+          }
+        },
+        "required": []
+      },
+      "needs_approval": false
+    },
+    {
+      "name": "ui_set",
+      "description": "Apply a patch to the app's display settings. Only whitelisted keys take effect; numbers are clamped to sane ranges and unknown keys are ignored. Returns which keys were actually changed.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "patch": {
+            "type": "object",
+            "description": "Partial display settings, e.g. {\"cleanLayout\":true,\"fontSizeRatio\":1.1,\"codeBlockAutoCollapse\":false}"
+          }
+        },
+        "required": ["patch"]
+      },
+      "needs_approval": false
+    }
+  ]
+}

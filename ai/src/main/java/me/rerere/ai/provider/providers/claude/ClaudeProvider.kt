@@ -531,7 +531,10 @@ class ClaudeProvider(private val client: OkHttpClient, context: Context? = null)
                         add(buildJsonObject {
                             put("type", "text")
                             put("text", part.text)
-                            if (providerSetting.promptCaching && index == systemTextParts.lastIndex) {
+                            // 断点打在 STABLE 块（index 0）上：system 由 [stable, volatile]
+                            // 两段组成，stable 逐轮逐字节相同，volatile 每轮都变。打在 lastIndex
+                            // 上等于把缓存锚点放在会变的尾部，命中率归零。
+                            if (providerSetting.promptCaching && index == 0) {
                                 put("cache_control", cacheControlEphemeral(providerSetting.promptCacheTtl))
                             }
                         })

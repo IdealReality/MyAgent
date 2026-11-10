@@ -1,5 +1,5 @@
 plugins {
-    id("rikkahub.android.library")
+    id("myagent.android.library")
     alias(libs.plugins.kotlin.serialization)
 }
 

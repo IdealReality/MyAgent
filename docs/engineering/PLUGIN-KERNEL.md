@@ -74,9 +74,69 @@ files/plugins/
       "needs_approval": true
     }
   ],
-  "ui": { "panel": "panel.html", "title": "Weather" }
+  "hooks": { "before_turn": "beforeTurn", "after_tool": "afterTool" },
+  "ui": {
+    "panel": "panel.html",
+    "title": "Weather",
+    "slots": [
+      {
+        "where": "composer",
+        "type": "chips",
+        "title": "天气",
+        "items": [
+          { "label": "打开面板", "panel": "" },
+          { "label": "刷新", "action": "refresh", "icon": "↻" }
+        ]
+      },
+      { "where": "message", "type": "html", "file": "card.html", "height": 92 }
+    ]
+  }
 }
 ```
+
+### 3.1 `ui.slots`（聊天内界面）
+
+| 字段 | 取值 | 说明 |
+|---|---|---|
+| `where` | `composer` / `message` | 输入框上方 / 消息下方。其他值 → 校验错误 |
+| `type` | `chips` / `html` | 原生按钮行 / 插件目录里的网页 |
+| `title` | 文本 | chips 行首前缀 |
+| `file` | 相对路径 | `type=html` 的入口，必须存在且不出插件目录 |
+| `height` | 24–400 | `type=html` 的渲染高度（dp），越界只警告并 clamp |
+| `all_messages` | bool | `where=message` 是否逐条挂；默认只挂最新一条（否则一段长对话同时存在几十个 WebView） |
+| `items[]` | `{label, action?, panel?, icon?}` | chips 按钮；`action` 与 `panel` 二选一。`type=html` 也接受 `items[].action`（不渲染，只声明该网页允许调用的函数；`panel` 不允许） |
+
+槽位动作由 `plugin.action(name, fn)` 注册，返回 `{insert?, send?, toast?, panel?}`：
+`insert` 填进输入框、`send` 直接发出去、`toast` 弹提示、`panel` 打开某个插件面板（空串 =
+本插件）。`type=html` 的页面拿到 `window.MyAgentHost`：
+
+| 方法 | 作用 |
+|---|---|
+| `theme()` | 主题 JSON（与注入的 CSS 变量同源） |
+| `args()` | 当前上下文：`conversation_id` / `message_id` / `role` / `text`（composer 槽位是 `draft`） |
+| `call(action, argsJson)` | 跑一个 manifest 声明过的动作，同步返回结果 JSON |
+| `insert(text)` / `send(text)` | 填输入框 / 直接发送 |
+| `openPanel(id)` | 打开插件面板 |
+| `toast(msg)` / `plugin()` | 提示 / 当前插件 id |
+
+### 3.2 `hooks`
+
+| 钩子 | 时机 | 返回值的用途 | 上限 |
+|---|---|---|---|
+| `before_turn` | 每轮生成前 | 追加进本轮系统提示（volatile 段） | 4 KB / 插件，1.2 s |
+| `after_tool` | 每个工具执行完 | **替换**该工具交回模型的文本 | 32 KB，2 s |
+
+没有 `before_tool`：那等于让插件伪造任意工具的入参，绕过工具自己的审批与权限边界。
+`after_tool` 只处理「单个纯文本结果」，带图片/附件的多段结果原样通过。
+
+校验规则补充（`PluginValidationRules.validateSlots`）：
+
+- 槽位是**封闭集合**：`where`/`type` 拼错是错误而不是静默忽略（一个不显示的界面最难查）。
+- `chips` 必须有 `items`，每项 `label` 非空、`action` 与 `panel` 恰有其一，`action` 必须是
+  合法 JS 标识符，`panel` 必须是合法插件 id。
+- `html` 必须有 `file` 且文件存在；`height` 越界只警告（会 clamp）；`items[].action` 可选，用于声明该网页允许调用的函数。
+- 单插件 ≤ 8 个槽位、每行 ≤ 12 个按钮。
+
 
 校验规则（`PluginValidationRules`）：
 
@@ -99,7 +159,8 @@ plugin.tool('weather_now', function (args, ctx) {
 ```
 
 - 加载时**同步**注册；handler 必须同步（宿主桥是同步的）。返回 Promise 会得到明确错误。
-- `ctx`：`log(msg)`、`now()`、`kv.get/set`（storage）、`http(url, {method, headers, body})`（http）、`tool(name, args)`（host_tools）。
+- `ctx`：`log(msg)`、`now()`、`kv.get/set`（storage）、`http(url, {method, headers, body})`（http）、`tool(name, args)`（host_tools）、`app.get/set`（app_read/app_write）。
+- 除工具外还有两条注册通道：`plugin.hook(name, fn)`（宿主按轮次调用）与 `plugin.action(name, fn)`（用户点槽位按钮时调用）。两者返回 Promise 同样报错。
 - 每次调用一个全新的 QuickJS 上下文：32 MiB 堆 / 512 KiB 栈 / 30s 墙钟；超时只影响本次调用。
 - 宿主能力在 **Java 侧**校验 manifest 权限，未声明即结构化报错。
 
@@ -110,6 +171,9 @@ plugin.tool('weather_now', function (args, ctx) {
 | 动作 | 何时生效 |
 |---|---|
 | `plugin_write` / `plugin_create` | **下一轮对话**（registry 每轮比对磁盘签名并重解析） |
+| 改槽位网页（`card.html` 等） | 消息数变化时重新组合槽位；文件按 `(mtime,size)` 判定，改完下次查询即新内容 |
+| 插件文件完全没变 | 槽位列表与卡片内容都命中缓存（同一 List 实例），消息发得再多也不重读磁盘 |
+| 契约变更（`hooks` / `slots` 增删） | 下一轮；槽位列表在消息数变化时重查 |
 | UI「重新加载」/ `plugin_reload` | 立即 |
 | 开新会话 | 无需额外动作（每轮已重载） |
 | 插件连续失败 3 次 | 自动停用（`failures` 计数），插件页可见原因 |
@@ -154,18 +218,20 @@ plugin.tool('weather_now', function (args, ctx) {
 
 已经就位：工具面、提示词、热重载、自修改工具、管理页。
 
+已就位：工具面、提示词、热重载、自修改工具、管理页、`ui.panel`、`ui.slots`（composer
+chips / message 卡片、含 HTML 槽位）、`hooks.before_turn`、`hooks.after_tool`。
+
 下一步按价值排序：
 
 1. **内置工具插件化**：把 `LocalTools` 的 60+ 工具分组迁到「内置 Provider 实现同一 SPI」，让内置与第三方走同一注册路径（行为不变，只是来源统一）。
-2. **UI 面板**：`ui.panel` 已在 manifest 里；渲染器用 WebView + 现有 `evaluateJavascriptAsync` 桥加载插件目录内的 HTML。
-3. **生命周期钩子**：`hooks.beforeTurn / afterTool` 注入 GenerationLoop，实现上下文改写、结果后处理。
-4. **触发器**：复用 `workflow/trigger`，让插件声明 cron/broadcast 触发自己的工具。
+2. **触发器**：复用 `workflow/trigger`，让插件声明 cron/broadcast / 通知点击触发自己的动作。
+3. **槽位的更多位置**：抽屉、顶栏、设置页 —— 每加一处都要在内核里接一个渲染点，所以按需再加。
 
 ---
 
 ## 8. 验证
 
-- JVM 单测（29 条）：manifest 校验、路径逃逸、store 快照/回滚/自动停用/KV、registry 装载/缓存/健康度/管理工具契约。
+- JVM 单测：manifest 校验（含 `ui.slots` 的 where/type/file/items/height）、钩子名与 `after_tool`、路径逃逸、store 快照/回滚/自动停用/KV、registry 装载/缓存/健康度、槽位查询与动作（未声明即拒、失败不计数）、`after_tool` 替换/空返回/零声明零调用。
 - 真机：插件页「自检」走真实 QuickJS 加载入口并报告注册结果；示例插件 `sample-clock` 首次启动投放一次。
 - 回归基线：`testPureUnitTest` 既有失败集合不变（Windows 环境既有 74 条，与本改动无关）。
 
@@ -174,4 +240,6 @@ plugin.tool('weather_now', function (args, ctx) {
 - 插件 handler 必须同步：宿主桥同步、QuickJS 无事件循环，异步会显式报错而不是静默挂起。
 - 单次调用 30s、HTTP 20s、响应体 512 KiB、KV 单文件、插件目录写入 4 MiB/文件。
 - `host_tools` 只能调用**本轮工具面中的内置工具**（插件工具不进入 host 池，避免插件间递归）。
-- 面板渲染尚未接入（manifest 字段已预留）。
+- 槽位不参与权限体系：`chips`/`html` 只是界面，能做的只有 manifest 里声明的动作（填字、发送、提示、开面板）。
+- 消息槽位默认只挂在**最新一条**消息下；`all_messages=true` 时每条都挂一个 WebView，长对话会明显变重。
+- APK 内的 Kotlin/Compose 代码仍然不能热替换：插件只能改「有渲染点的地方」（工具、提示、面板、两种槽位、显示设置白名单）。

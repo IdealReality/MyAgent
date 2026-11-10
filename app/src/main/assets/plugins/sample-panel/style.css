@@ -1,0 +1,251 @@
+/* 面板样式：只用注入的主题变量，亮暗主题自动跟随。
+   color-scheme 不在这里重设：宿主注入的 :root 已经按亮暗主题写好了，
+   覆盖成 inherit 会让滚动条与原生控件在深色下退回浅色。 */
+* {
+  box-sizing: border-box;
+}
+
+html {
+  background: transparent;
+}
+
+body {
+  margin: 0;
+  padding: 16px 16px calc(28px + env(safe-area-inset-bottom, 0px));
+  background: transparent;
+  color: var(--rk-fg, #e6e6e6);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, "Noto Sans SC", sans-serif;
+  font-size: 14px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+}
+
+.page {
+  max-width: 560px;
+  margin: 0 auto;
+}
+
+/* 顶部不再重复 TopAppBar 的标题，只说清「这页是怎么来的」。 */
+.hero {
+  padding: 2px 2px 0;
+}
+
+.eyebrow {
+  margin: 0 0 6px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--rk-muted, #9aa0a6);
+}
+
+.hero h1 {
+  margin: 0 0 6px;
+  font-size: 19px;
+  font-weight: 650;
+  line-height: 1.35;
+  letter-spacing: -0.01em;
+}
+
+.lead {
+  margin: 0;
+  font-size: 13px;
+  color: var(--rk-muted, #9aa0a6);
+}
+
+code {
+  padding: 1px 5px;
+  border-radius: 5px;
+  background: color-mix(in srgb, var(--rk-fg, #e6e6e6) 9%, transparent);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.92em;
+}
+
+.card {
+  margin-top: 14px;
+  padding: 14px;
+  border: 1px solid var(--rk-border, #3a3a3a);
+  border-radius: 16px;
+  background: var(--rk-surface, #1e1e1e);
+}
+
+.card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.card-head h2 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 650;
+}
+
+.tag {
+  flex: 0 0 auto;
+  padding: 2px 8px;
+  border: 1px solid var(--rk-border, #3a3a3a);
+  border-radius: 999px;
+  font-size: 11px;
+  color: var(--rk-muted, #9aa0a6);
+  white-space: nowrap;
+}
+
+.hint {
+  margin: 0 0 10px;
+  font-size: 13px;
+  color: var(--rk-muted, #9aa0a6);
+}
+
+/* 变量表：色块 + 变量名 + 当前值，比四个无名色块能看懂。 */
+.vars {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.vars li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 0;
+  border-top: 1px solid color-mix(in srgb, var(--rk-border, #3a3a3a) 60%, transparent);
+}
+
+.vars li:first-child {
+  border-top: 0;
+  padding-top: 4px;
+}
+
+.vars li:last-child {
+  padding-bottom: 0;
+}
+
+/* 色块用 fg 混出来的描边，而不是 --rk-border：border 色块恰好就在描自己，
+   纯 border 描边时它跟卡片背景糊在一起，看不出是个方块。 */
+.dot {
+  flex: 0 0 auto;
+  width: 22px;
+  height: 22px;
+  border: 1px solid color-mix(in srgb, var(--rk-fg, #e6e6e6) 20%, transparent);
+  border-radius: 7px;
+}
+
+.dot-fg { background: var(--rk-fg, #e6e6e6); }
+.dot-muted { background: var(--rk-muted, #9aa0a6); }
+.dot-primary { background: var(--rk-primary, #7aa0ff); }
+.dot-surface { background: var(--rk-surface, #1e1e1e); }
+.dot-border { background: var(--rk-border, #3a3a3a); }
+
+.vars code {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 0;
+  background: none;
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.vars .value {
+  flex: 0 1 auto;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11.5px;
+  font-variant-numeric: tabular-nums;
+  color: var(--rk-muted, #9aa0a6);
+  text-align: right;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.btn {
+  min-height: 40px;
+  padding: 0 16px;
+  border: 1px solid var(--rk-border, #3a3a3a);
+  border-radius: 12px;
+  background: transparent;
+  color: var(--rk-fg, #e6e6e6);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 550;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 0.12s ease, opacity 0.12s ease, background-color 0.12s ease;
+}
+
+.btn:active {
+  transform: scale(0.97);
+  opacity: 0.85;
+}
+
+.btn:focus-visible {
+  outline: 2px solid var(--rk-primary, #7aa0ff);
+  outline-offset: 2px;
+}
+
+/* 这个主题的 primary 在深色下接近白色：填充按钮的前景必须用 surface（深底），
+   否则白底白字。sample-slot/card.html 里是同一套做法。 */
+.btn.primary {
+  border-color: transparent;
+  background: var(--rk-primary, #7aa0ff);
+  color: var(--rk-surface, #1e1e1e);
+}
+
+#out {
+  display: block;
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--rk-fg, #e6e6e6) 7%, transparent);
+  color: var(--rk-muted, #9aa0a6);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+  line-height: 1.7;
+  overflow-wrap: anywhere;
+}
+
+/* 桥返回值按「键 值」两列排，键用 muted、值用正文色，扫一眼能分清哪是名字哪是内容。 */
+#out .line {
+  display: flex;
+  gap: 10px;
+}
+
+#out .key {
+  flex: 0 0 7ch;
+  color: var(--rk-muted, #9aa0a6);
+}
+
+#out .val {
+  flex: 1 1 auto;
+  min-width: 0;
+  color: var(--rk-fg, #e6e6e6);
+}
+
+.foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-top: 16px;
+  padding: 0 2px;
+  font-size: 12px;
+  color: var(--rk-muted, #9aa0a6);
+}
+
+.foot code {
+  color: var(--rk-fg, #e6e6e6);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .btn {
+    transition: none;
+  }
+}

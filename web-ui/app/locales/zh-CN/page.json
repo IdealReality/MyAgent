@@ -41,6 +41,7 @@
     "status_connected": "已连接",
     "status_connecting": "连接中",
     "status_offline": "离线",
+    "reconnect": "重新连接",
     "refresh": "刷新",
     "add": "添加主机",
     "add_title": "添加主机",
@@ -99,7 +100,22 @@
       "missing_name": "缺少主机名称",
       "missing_pattern": "缺少主机模式",
       "missing_host": "缺少主机内容",
-      "too_many_frames": "请求过多，连接已关闭"
-    }
+      "too_many_frames": "请求过多，连接已关闭",
+      "too_many_tests": "同时进行的连接测试过多，请稍后再试",
+      "no_result": "测试没有返回结果",
+      "request_failed": "请求失败",
+      "save_failed": "保存失败",
+      "delete_failed": "删除失败",
+      "forget_failed": "移除主机密钥失败",
+      "tcp_unreachable": "网络不可达（所有可用的网卡都试过了）",
+      "connect_failed": "连接失败",
+      "no_credentials": "这台主机没有保存密码或私钥",
+      "host_key_changed": "主机密钥已变化，需要先在手机端忘记旧密钥",
+      "auth_failed": "认证失败（密码、私钥或用户名不对）",
+      "busy": "同时进行的连接测试过多，请稍后再试",
+      "web_terminal_invalid": "网页终端地址必须是 http:// 或 https://"
+    },
+    "forget_confirm_title": "忘记这把主机密钥？",
+    "forget_confirm_description": "「{{pattern}}」的密钥会被删除。下次连接时若主机出示同一把密钥会重新记录；如果主机被重装过，这正是需要的操作。"
   }
 }

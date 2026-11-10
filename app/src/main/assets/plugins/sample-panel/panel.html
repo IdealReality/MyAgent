@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="utf-8">
+  <title>Sample Panel</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main class="page">
+    <header class="hero">
+      <p class="eyebrow">插件 · ui.panel</p>
+      <h1>这块界面来自插件目录</h1>
+      <p class="lead">
+        整页由 <code>assets/plugins/sample-panel/</code> 里的 HTML / CSS / JS 生成，
+        没有编译进 APK —— 改完调一次 <code>plugin_reload</code> 就生效。
+      </p>
+    </header>
+
+    <section class="card">
+      <div class="card-head">
+        <h2>主题变量</h2>
+        <span class="tag">跟随亮暗</span>
+      </div>
+      <p class="hint">下面是宿主注入的 <code>--rk-*</code> 当前值，切换 App 主题会同步变化。</p>
+      <ul class="vars">
+        <li data-var="--rk-fg">
+          <span class="dot dot-fg"></span><code>--rk-fg</code><span class="value">—</span>
+        </li>
+        <li data-var="--rk-muted">
+          <span class="dot dot-muted"></span><code>--rk-muted</code><span class="value">—</span>
+        </li>
+        <li data-var="--rk-primary">
+          <span class="dot dot-primary"></span><code>--rk-primary</code><span class="value">—</span>
+        </li>
+        <li data-var="--rk-surface">
+          <span class="dot dot-surface"></span><code>--rk-surface</code><span class="value">—</span>
+        </li>
+        <li data-var="--rk-border">
+          <span class="dot dot-border"></span><code>--rk-border</code><span class="value">—</span>
+        </li>
+      </ul>
+    </section>
+
+    <section class="card">
+      <div class="card-head">
+        <h2>宿主桥</h2>
+        <span class="tag">MyAgentHost</span>
+      </div>
+      <p class="hint">面板能碰到的原生能力只有 <code>theme()</code> / <code>toast()</code> / <code>close()</code> / <code>plugin()</code> 四个。</p>
+      <div class="actions">
+        <button class="btn primary" type="button" id="read-theme">读取主题</button>
+        <button class="btn" type="button" id="toast">弹一条 Toast</button>
+        <button class="btn" type="button" id="close">关闭面板</button>
+      </div>
+      <output id="out" aria-live="polite">点「读取主题」，这里会显示桥的返回值。</output>
+    </section>
+
+    <footer class="foot">
+      <span>新建自己的面板：复制</span>
+      <code>panel.html</code><span>·</span><code>style.css</code><span>·</span><code>app.js</code>
+    </footer>
+  </main>
+  <script src="app.js"></script>
+</body>
+</html>

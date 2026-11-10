@@ -1,0 +1,79 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    /* 槽位高度由 manifest 的 height 决定（这里是 92dp）：不要再撑出滚动条。 */
+    html, body { margin: 0; padding: 0; background: transparent; }
+    body {
+      font: 13px/1.4 system-ui, -apple-system, "Noto Sans SC", sans-serif;
+      color: var(--rk-fg);
+      padding: 4px 16px 8px;
+      box-sizing: border-box;
+    }
+    .card {
+      display: flex; align-items: center; gap: 10px;
+      border: 1px solid var(--rk-border);
+      border-radius: 12px;
+      padding: 10px 12px;
+      background: color-mix(in srgb, var(--rk-surface) 82%, transparent);
+    }
+    .grow { flex: 1; min-width: 0; }
+    .title { font-weight: 600; }
+    .meta { color: var(--rk-muted); font-size: 11px; margin-top: 2px;
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    /* 主按钮用 --rk-primary 当填充：这个主题的 primary 在深色下接近白色，
+       所以前景必须用 --rk-surface（深色下是深底），否则白底白字看不见。 */
+    button {
+      font: inherit; border: 0; border-radius: 999px; padding: 6px 14px;
+      color: var(--rk-surface); background: var(--rk-primary);
+    }
+    button.ghost { color: var(--rk-fg); background: transparent; border: 1px solid var(--rk-border); }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="grow">
+      <div class="title" id="title">Sample slot</div>
+      <div class="meta" id="meta">loading…</div>
+    </div>
+    <button class="ghost" id="panel">面板</button>
+    <button id="ping">回执</button>
+  </div>
+
+<script>
+  // args() 只在被调用时取值：卡片加载时消息可能还在流式生成（正文为空），
+  // 所以这里轮询一次/1.5s，只有内容真的变了才改 DOM。
+  // 插件自己写卡片时同理：需要「活」的数据就轮询或等用户交互时再读。
+  var args = {};
+  var lastMeta = '';
+
+  function refresh() {
+    try { args = JSON.parse(MyAgentHost.args() || '{}'); } catch (e) { return; }
+    var role = args.role || 'message';
+    var text = args.text || '';
+    var meta = 'id ' + String(args.message_id || '-').slice(0, 8) + ' · ' + text.length + ' 字';
+    if (meta === lastMeta) return;
+    lastMeta = meta;
+    document.getElementById('title').textContent =
+      role === 'assistant' ? '助手消息槽位' : (role + ' 消息槽位');
+    document.getElementById('meta').textContent = meta;
+  }
+
+  refresh();
+  setInterval(refresh, 1500);
+
+  // call() 跑 manifest 里声明过的动作，返回 {ok, insert, send, toast, panel, text}。
+  document.getElementById('ping').addEventListener('click', function () {
+    var result = JSON.parse(MyAgentHost.call('ping', MyAgentHost.args()) || '{}');
+    if (result.toast) MyAgentHost.toast(result.toast);
+    if (result.insert) MyAgentHost.insert(result.insert);
+    if (result.send) MyAgentHost.send(result.send);
+  });
+
+  document.getElementById('panel').addEventListener('click', function () {
+    MyAgentHost.openPanel('sample-panel');
+  });
+</script>
+</body>
+</html>
