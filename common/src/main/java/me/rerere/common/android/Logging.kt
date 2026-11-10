@@ -85,6 +85,19 @@ object Logging {
     private val timeFormat = SimpleDateFormat("MM-dd HH:mm:ss.SSS", Locale.US)
     private val writeLock = Any()
 
+    /**
+     * 单线程写盘队列。此前 appendToFile 就在调用线程上直接 open/write/close，而日志调用
+     * 来自任意线程（UI 线程也在内）；debug 构建下 minLevel 是 DEBUG，于是每条日志都是一次
+     * 完整的文件系统往返，外加 format() 里的三条正则脱敏。改成后台单线程后，调用方只付一次
+     * 入队代价，写入顺序不变（单线程 FIFO）。
+     */
+    private val fileWriter = java.util.concurrent.Executors.newSingleThreadExecutor { runnable ->
+        Thread(runnable, "myagent-log-writer").apply {
+            isDaemon = true
+            priority = Thread.MIN_PRIORITY
+        }
+    }
+
     /** Point the rolling file log at [dir]. Safe to call more than once. */
     fun init(dir: File, minLevel: LogLevel = LogLevel.INFO) {
         logDir = dir
@@ -128,8 +141,9 @@ object Logging {
                 recentLogs.removeLastOrNull()
             }
         }
-        if (entry.level >= fileLogLevel) {
-            appendToFile(entry)
+        if (entry.level >= fileLogLevel && logDir != null) {
+            // 入队即返回：format() 的脱敏正则和文件写入都在 log-writer 上完成。
+            runCatching { fileWriter.execute { appendToFile(entry) } }
         }
     }
 
