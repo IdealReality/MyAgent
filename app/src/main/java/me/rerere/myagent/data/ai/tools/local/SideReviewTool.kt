@@ -31,6 +31,13 @@ private const val SIDE_REVIEW_SYSTEM = "You are an independent reviewer. You hav
     "No praise, no restating the input, no style preferences. " +
     "If you find no fatal or important issue, say so explicitly."
 
+private val SIDE_REVIEW_CLIENT: OkHttpClient by lazy {
+    OkHttpClient.Builder()
+        .connectTimeout(20, TimeUnit.SECONDS)
+        .readTimeout(180, TimeUnit.SECONDS)
+        .build()
+}
+
 private fun pickOpenAiProvider(providers: List<ProviderSetting>): Pair<ProviderSetting.OpenAI, Model>? {
     val candidates = providers.filterIsInstance<ProviderSetting.OpenAI>()
         .filter { it.enabled && it.apiKey.isNotBlank() && it.models.isNotEmpty() }
@@ -82,12 +89,7 @@ private fun callSideChannel(
         .post(payload.toString().toRequestBody("application/json".toMediaType()))
         .build()
 
-    val client = OkHttpClient.Builder()
-        .connectTimeout(20, TimeUnit.SECONDS)
-        .readTimeout(180, TimeUnit.SECONDS)
-        .build()
-
-    client.newCall(request).execute().use { resp ->
+    SIDE_REVIEW_CLIENT.newCall(request).execute().use { resp ->
         val body = resp.body?.string().orEmpty()
         if (!resp.isSuccessful) {
             return "ERROR: side channel HTTP " + resp.code + " " + body.take(400)
