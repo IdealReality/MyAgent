@@ -854,7 +854,7 @@ private fun AssistantRegexCard(
 @Composable
 private fun rememberPromptTextSync(
     state: TextFieldState,
-    onText: (String) -> Unit,
+    onText: suspend (String) -> Unit,
 ) {
     val latestOnText by rememberUpdatedState(onText)
     LaunchedEffect(state) {
