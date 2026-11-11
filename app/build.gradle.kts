@@ -112,7 +112,7 @@ android {
             buildConfigField("String", "VERSION_NAME", "\"${android.defaultConfig.versionName}\"")
             buildConfigField("String", "VERSION_CODE", "\"${android.defaultConfig.versionCode}\"")
         }
-        // Shipping variant for MyAgent Agent · Pure. Turns on the same
+        // Shipping variant for My Agent. Turns on the same
         // release-grade R8 + (AGP 9) optimized resource shrinking as `release`
         // — the keep rules live in src/main/keepRules/myagent.keep.
         // All three build types share applicationId com.myagent.app and the
