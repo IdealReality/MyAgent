@@ -6,19 +6,19 @@
 #
 # 用法:
 #   .\deploy-debug.ps1                 # 先构建+重签，再装
-#   .\deploy-debug.ps1 -SkipBuild      # 直接用现成的 C:\Users\guest\myagent-new.apk
+#   .\deploy-debug.ps1 -SkipBuild      # 直接用现成的 %USERPROFILE%\myagent-new.apk
 #   .\deploy-debug.ps1 -Apk path.apk   # 指定别的包
 #
-# 前提: python 在 PATH；C:\Users\guest\bin\adb-phone.py 能打通 arch 的 adb server。
+# 前提: python 在 PATH；%USERPROFILE%\bin\adb-phone.py 能打通 arch 的 adb server。
 param(
     [switch]$SkipBuild = $false,
-    [string]$Apk = 'C:\Users\guest\myagent-new.apk'
+    [string]$Apk = (Join-Path $env:USERPROFILE 'myagent-new.apk')
 )
 
-$proj      = 'A:\Dev\MyAgent'
+$proj      = $PSScriptRoot
 $pkg       = 'com.myagent.app'
 $svc       = "$pkg/me.rerere.myagent.service.RikkaAccessibilityService"
-$adbPhone  = 'C:\Users\guest\bin\adb-phone.py'
+$adbPhone  = (Join-Path $env:USERPROFILE 'bin\adb-phone.py')
 
 # 判定「无障碍真的能用」的唯一可信信号是 Bound services 里出现自己：
 # secure 设置里那串名字可以存在而服务仍是 DISABLED，而且重新绑定有 ~10 秒延迟

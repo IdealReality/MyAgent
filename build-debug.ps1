@@ -2,7 +2,7 @@
 # 固化 2026-11-07 那次手动排查的全部步骤。
 param([switch]$SkipSign = $false)
 
-$proj = 'A:\Dev\MyAgent'
+$proj = $PSScriptRoot
 Set-Location $proj
 
 # ── 1. 前置检查（失败即中止，不可绕过）──
@@ -14,7 +14,14 @@ if ($LASTEXITCODE -ne 0) {
 
 # ── 2. 构建 ──
 $env:JAVA_HOME    = 'C:\Program Files\Java\jdk-17.0.12'
-$env:ANDROID_HOME = 'C:\Users\guest\AppData\Local\Android\Sdk'
+# SDK 从 local.properties 的 sdk.dir 推导：写死账户名在改名后必然失效。
+$sdkLine = (Select-String -Path (Join-Path $proj 'local.properties') -Pattern '^sdk\.dir=' -ErrorAction SilentlyContinue |
+            Select-Object -First 1).Line
+$env:ANDROID_HOME = if ($sdkLine) {
+    $sdkLine -replace '^sdk\.dir=', '' -replace '\\\\', '\' -replace '\\:', ':'
+} else {
+    "$env:LOCALAPPDATA\Android\Sdk"
+}
 $log = Join-Path $proj 'build-debug.log'
 "=== $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss') assembleDebug ===" | Out-File $log -Encoding utf8
 
@@ -71,11 +78,11 @@ Write-Host '--- 签名校验 ---'
 & $signer verify --print-certs $signed | Select-String 'SHA-256'
 
 # ── 5. 备好待传文件（SFTP 目标）──
-$staged = 'C:\Users\guest\myagent-new.apk'
+$staged = Join-Path $env:USERPROFILE 'myagent-new.apk'
 Copy-Item $signed $staged -Force
 $g = Get-Item $staged
 Write-Host ''
 Write-Host ("待安装: {0}  {1} MB" -f $staged, [math]::Round($g.Length/1MB,1)) -ForegroundColor Green
-Write-Host 'SFTP 取包路径: /C:/Users/guest/myagent-new.apk'
+Write-Host "SFTP 取包路径: $staged"
 Write-Host '手机装包: cp 到 /data/local/tmp 后 pm install -r'
 exit 0
