@@ -101,6 +101,6 @@ Copy-Item $signed $staged -Force
 $g = Get-Item $staged
 Write-Host ''
 Write-Host ("待安装: {0}  {1} MB" -f $staged, [math]::Round($g.Length/1MB,1)) -ForegroundColor Green
-Write-Host "SFTP 取包路径: $staged"
+Write-Host ("SFTP staged: {0}" -f $staged)
 Write-Host '手机装包: cp 到 /data/local/tmp 后 pm install -r'
 exit 0
