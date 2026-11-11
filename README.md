@@ -1,9 +1,5 @@
 <div align="center">
 
-<img src="docs/img/hero.png" width="100%" alt="MyAgent" />
-
-<br/>
-
 <p>
   <img src="https://img.shields.io/badge/platform-Android%208%2B-3DDC84?style=flat-square&logo=android&logoColor=white" alt="Android 8+" />
   <img src="https://img.shields.io/badge/Kotlin-Jetpack%20Compose-7F52FF?style=flat-square&logo=kotlin&logoColor=white" alt="Kotlin · Compose" />
