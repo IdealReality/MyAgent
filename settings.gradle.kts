@@ -29,9 +29,8 @@ dependencyResolutionManagement {
         }
         google()
         mavenCentral()
-        maven("https://mirrors.cloud.tencent.com/nexus/repository/jitpack/") {
-            content { includeGroupByRegex("com\\.github\\.(rikkahub|yalantis).*") }
-        }
+        // 腾讯的 jitpack 镜像同样只有 POM 没有 AAR（实测 jitpack/hugeicons-compose-1.4.aar 404），
+        // 留在这里会重演同样的仓库粘性，所以只挂官方源。
         maven("https://jitpack.io") {
             content { includeGroupByRegex("com\\.github\\.(rikkahub|yalantis).*") }
         }
