@@ -73,7 +73,11 @@ val repositoryModule = module {
     }
 
     single {
-        WorkspaceRepository(get(), get(), get(), get())
+        WorkspaceRepository(get(), get(), get(), get(), get())
+    }
+
+    single {
+        me.rerere.myagent.data.repository.VmRepository(get(), get(), get())
     }
 
     single {

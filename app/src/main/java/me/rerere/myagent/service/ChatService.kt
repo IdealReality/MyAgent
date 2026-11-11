@@ -465,10 +465,11 @@ class ChatService(
     private val skillManager: SkillManager,
     private val toolApprovalPreferences: me.rerere.myagent.data.preferences.ToolApprovalPreferences,
     private val workspaceRepository: WorkspaceRepository,
+    private val vmRepository: me.rerere.myagent.data.repository.VmRepository,
     private val folderRepository: FolderRepository,
 ) {
     // workspace 系统提示注入 (依赖 workspaceRepository, 故在类内构造)
-    private val workspaceReminderTransformer = WorkspaceReminderTransformer(workspaceRepository)
+    private val workspaceReminderTransformer = WorkspaceReminderTransformer(workspaceRepository, vmRepository)
 
     // 统一会话管理
     private val sessions = ConcurrentHashMap<Uuid, ConversationSession>()

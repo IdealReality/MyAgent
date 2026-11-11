@@ -30,10 +30,13 @@ import org.junit.Test
  * runs the exact production clients (`RemoteLspClient`, `RemoteDapClient`) over a real JSch
  * session, so a protocol-shaped mistake fails here instead of on the phone.
  *
- * Skipped unless configured, either in `local.properties`:
+ * **Opt-in on purpose.** It talks to a machine that has to be up, running a language server and a
+ * debug adapter; running it as part of `:app:testDebugUnitTest` makes the suite depend on another
+ * host's load — a 240s timeout on a busy day is not a code defect. Enable it in `local.properties`:
  * ```
+ * myagent.it.enabled=true
  * myagent.it.host=100.x.y.z
- * myagent.it.user=baka
+ * myagent.it.user=user
  * myagent.it.key=C:/Users/me/.ssh/id_ed25519
  * myagent.it.port=22                                   (optional)
  * myagent.it.debugpy=/tmp/venv/bin/python               (optional, for the DAP test)
@@ -65,6 +68,7 @@ class RemoteCodeIntegrationTest {
         fun value(prop: String, env: String): String? =
             props.getProperty(prop)?.takeIf { it.isNotBlank() } ?: System.getenv(env)?.takeIf { it.isNotBlank() }
 
+        if (value("myagent.it.enabled", "MYAGENT_IT_ENABLED")?.toBoolean() != true) return null
         val host = value("myagent.it.host", "MYAGENT_IT_HOST") ?: return null
         val user = value("myagent.it.user", "MYAGENT_IT_USER") ?: return null
         val key = value("myagent.it.key", "MYAGENT_IT_KEY") ?: return null
@@ -105,7 +109,7 @@ class RemoteCodeIntegrationTest {
     @Test(timeout = 240_000)
     fun `clangd over ssh answers diagnostics definition references and applies a rename`() = runBlocking {
         val cfg = config()
-        Assume.assumeTrue("set MYAGENT_IT_HOST/USER/KEY to run this integration test", cfg != null)
+        Assume.assumeTrue("no test host (cwd=" + java.io.File(".").absolutePath + " upExists=" + java.io.File("../local.properties").exists() + " hereExists=" + java.io.File("local.properties").exists() + ")", cfg != null)
         val session = connect(cfg!!)
         val root = "/tmp/myagent-it-lsp-${System.nanoTime()}"
         val files = RemoteFileClient(session)
@@ -121,7 +125,7 @@ class RemoteCodeIntegrationTest {
             val command = probe["clangd"]
             Assume.assumeTrue("clangd is not installed on the test host", command != null)
 
-            val client = RemoteLspClient(session, root, spec, command!!, files)
+            val client = RemoteLspClient(session, root, spec, command!!, files, bootstrapFile = main)
             try {
                 val init = client.initialize()
                 assertTrue("initialize must report capabilities", init.containsKey("capabilities"))
@@ -169,7 +173,7 @@ class RemoteCodeIntegrationTest {
     @Test(timeout = 240_000)
     fun `debugpy over ssh stops on a breakpoint and evaluates a variable`() = runBlocking {
         val cfg = config()
-        Assume.assumeTrue("set MYAGENT_IT_HOST/USER/KEY to run this integration test", cfg != null)
+        Assume.assumeTrue("no test host (cwd=" + java.io.File(".").absolutePath + " upExists=" + java.io.File("../local.properties").exists() + " hereExists=" + java.io.File("local.properties").exists() + ")", cfg != null)
         Assume.assumeTrue(
             "set MYAGENT_IT_DEBUGPY to a python interpreter that has debugpy installed",
             cfg?.debugpyPython != null,
@@ -177,9 +181,22 @@ class RemoteCodeIntegrationTest {
         val session = connect(cfg!!)
         val root = "/tmp/myagent-it-dap-${System.nanoTime()}"
         val files = RemoteFileClient(session)
+        // The interpreter lives on the test host and may have been cleaned up since the run that
+        // configured it (a /tmp venv does not survive a reboot); skip rather than fail in that case.
+        val debugpyPython = cfg.debugpyPython!!
+        val interpreterPresent = RemoteExec.run(
+            session,
+            "test -x ${posixShellQuote(debugpyPython)} && printf yes",
+            10_000,
+        ).stdout.trim() == "yes"
+        if (!interpreterPresent) {
+            runCatching { files.close() }
+            runCatching { session.disconnect() }
+            Assume.assumeTrue("debugpy interpreter missing on the host: $debugpyPython", false)
+        }
         val adapter = DapAdapterSpec(
             name = "debugpy",
-            command = "${posixShellQuote(cfg.debugpyPython!!)} -m debugpy.adapter",
+            command = "${posixShellQuote(debugpyPython)} -m debugpy.adapter",
             fileTypes = listOf(".py"),
         )
         try {

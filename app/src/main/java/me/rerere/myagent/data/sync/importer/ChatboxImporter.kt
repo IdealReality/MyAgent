@@ -668,9 +668,9 @@ object ChatboxImporter {
     }
 
     private fun providerIdentity(provider: ProviderSetting): String = when (provider) {
-        is ProviderSetting.OpenAI -> "openai|${provider.baseUrl.trimEnd('/')}|${provider.apiKey}"
-        is ProviderSetting.Google -> "google|${provider.baseUrl.trimEnd('/')}|${provider.apiKey}"
-        is ProviderSetting.Claude -> "claude|${provider.baseUrl.trimEnd('/')}|${provider.apiKey}"
+        is ProviderSetting.OpenAI -> "openai|${provider.baseUrl.trim().trimEnd('/')}|${provider.apiKey}"
+        is ProviderSetting.Google -> "google|${provider.baseUrl.trim().trimEnd('/')}|${provider.apiKey}"
+        is ProviderSetting.Claude -> "claude|${provider.baseUrl.trim().trimEnd('/')}|${provider.apiKey}"
         // Fork-only provider types carry no shared base-url/key pair to dedupe on, so their
         // identity is the provider itself.
         else -> "${provider::class.simpleName?.lowercase()}|${provider.id}"

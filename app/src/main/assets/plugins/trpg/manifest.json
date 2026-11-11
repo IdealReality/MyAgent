@@ -4,7 +4,7 @@
   "name": "TRPG Runner",
   "version": "1.0.0",
   "description": "Tabletop RPG runtime: deterministic dice (CoC 7e / DnD 5e / generic), character sheets with clamped deltas, scene + clue + clock tracking, and named save slots. Every random outcome comes from the device PRNG, never from the model.",
-  "author": "ZhouX",
+  "author": "guest",
   "entry": "main.js",
   "permissions": ["storage"],
   "prompt": {

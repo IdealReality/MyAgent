@@ -86,3 +86,6 @@ dist/
 /.buildlog-path
 /build-*.err
 /build-run.out
+
+# Gradle module build outputs (all modules)
+**/build/

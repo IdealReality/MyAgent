@@ -9,7 +9,8 @@ Set-Location $proj
 "=== build start $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss') tests=$Tests ===" | Out-File $log -Encoding utf8
 
 $env:JAVA_HOME = 'C:\Program Files\Java\jdk-17.0.12'
-$env:ANDROID_HOME = 'C:\Users\guest\AppData\Local\Android\Sdk'
+$env:ANDROID_HOME = (((Select-String -Path (Join-Path $proj 'local.properties') -Pattern '^sdk\.dir=' -ErrorAction SilentlyContinue | Select-Object -First 1).Line -replace '^sdk\.dir=', '' -replace '\\\\', '\' -replace '\\:', ':'))
+if (-not $env:ANDROID_HOME) { $env:ANDROID_HOME = "$env:LOCALAPPDATA\Android\Sdk" }
 
 # ── preflight 闸门（2026-11-07 加）: 环境不对就不构建 ──
 & (Join-Path $proj 'preflight.ps1')

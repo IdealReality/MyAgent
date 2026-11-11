@@ -59,6 +59,14 @@ object ToolApprovalDefaults {
         "virtual_display_key",
         "virtual_display_text",
 
+        // Virtual machines: boots QEMU and runs arbitrary commands inside the guest as root
+        "vm_install_image",
+        "vm_start",
+        "vm_stop",
+        "vm_shell",
+        "vm_install_apk",
+        "vm_input",
+
         // Remote shell (SSH)
         "ssh_exec",
         "ssh_exec_saved",

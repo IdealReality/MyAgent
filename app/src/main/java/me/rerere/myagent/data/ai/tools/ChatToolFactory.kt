@@ -1,6 +1,7 @@
 package me.rerere.myagent.data.ai.tools
 
 import android.util.Log
+import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonObject
 import me.rerere.ai.core.Tool
@@ -35,6 +36,7 @@ class ChatToolFactory(
     private val mcpManager: McpManager,
     private val skillManager: SkillManager,
     private val workspaceRepository: WorkspaceRepository,
+    private val vmRepository: me.rerere.myagent.data.repository.VmRepository,
 ) {
     suspend fun createTools(
         settings: Settings,
@@ -54,6 +56,7 @@ class ChatToolFactory(
             addAll(createConversationTools(conversationRepository, assistant.id))
         }
         addAll(createWorkspaceToolsIfReady(assistant.workspaceId?.toString(), workspaceCwd))
+        addAll(createVmToolsIfAny(assistant.workspaceId?.toString()))
         val effectiveSkills = me.rerere.myagent.data.datastore.SkillGroupRules.effectiveEnabledSkills(
             enabledSkills = assistant.enabledSkills,
             groups = settings.skillGroups,
@@ -109,6 +112,13 @@ class ChatToolFactory(
         } else {
             emptyList()
         }
+
+    private suspend fun createVmToolsIfAny(workspaceId: String?): List<Tool> {
+        if (workspaceId.isNullOrBlank()) return emptyList()
+        val instances = vmRepository.listFlow(workspaceId).firstOrNull().orEmpty()
+        if (instances.isEmpty()) return emptyList()
+        return createVmTools(workspaceId, vmRepository)
+    }
 
     private suspend fun createWorkspaceToolsIfReady(workspaceId: String?, cwd: String?): List<Tool> {
         if (workspaceId.isNullOrBlank()) return emptyList()

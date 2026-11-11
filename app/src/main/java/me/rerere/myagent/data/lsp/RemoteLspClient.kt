@@ -9,7 +9,6 @@ import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.addJsonObject
-import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.intOrNull
@@ -100,7 +99,8 @@ internal class RemoteLspClient(
     private var closedReason: Throwable? = null
 
     private fun commandLine(): String =
-        (listOf(resolvedCommand) + spec.args).joinToString(" ") { posixShellQuote(it) }
+        (listOf(resolvedCommand) + spec.args + listOfNotNull(compileDbDir?.let { "--compile-commands-dir=$it" }))
+            .joinToString(" ") { posixShellQuote(it) }
 
     /** Last stderr text from the remote process; the only clue when it dies during startup. */
     fun stderrTail(): String = exec.stderrSnapshot()
@@ -701,5 +701,6 @@ internal class RemoteLspClient(
         runCatching { peer.close() }
         runCatching { exec.close() }
         serverRequestExecutor.shutdownNow()
+        CompileDatabase.remove(session, compileDbDir)
     }
 }

@@ -19,6 +19,10 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.Response
 import java.io.IOException
+import java.io.InterruptedIOException
+import java.net.ConnectException
+import java.net.UnknownHostException
+import javax.net.ssl.SSLException
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
 import kotlin.coroutines.resume
@@ -152,6 +156,7 @@ object EndpointRacer {
     ): List<ProbeOutcome> {
         val all = endpoints(baseUrl)
         if (all.isEmpty()) return emptyList()
+        Log.d(TAG, "probing ${all.size} endpoints for the config page")
         val probeClient = probeClient(client, timeoutMs)
         return coroutineScope {
             all.map { endpoint -> async(Dispatchers.IO) { probe(probeClient, endpoint) } }.awaitAll()
@@ -227,6 +232,7 @@ object EndpointRacer {
         var best: ProbeOutcome? = null
         var bestEndpoint: ProviderEndpoint? = null
         var graceDeadline = 0L
+        val unreachable = mutableSetOf<String>()
 
         while (pending.isNotEmpty()) {
             val taken = select<Pair<ProviderEndpoint, ProbeOutcome>?> {
@@ -255,13 +261,26 @@ object EndpointRacer {
                     bestEndpoint = endpoint
                     graceDeadline = System.currentTimeMillis() + PROBE_GRACE_MS
                 }
+            } else {
+                // 明确拒连 / 超时的入口：留到最后再试，别让失败切换一头撞上去。
+                unreachable += endpoint.baseUrl
             }
         }
 
-        // 其余地址保持用户填写的顺序：全部不可达时仍按配置顺序兜底，而不是按超时的先后。
-        val chosen = bestEndpoint
-        listOfNotNull(chosen) + endpoints.filter { it != chosen }
+        orderCandidates(endpoints, bestEndpoint, unreachable)
     }
+
+    /**
+     * 候选顺序：胜者第一，其余**按用户填写的顺序**兜底，但已经把这次探测确认不可达的
+     * 入口挪到最后——真实请求失败切换时不会再撞一遍死路。
+     */
+    fun orderCandidates(
+        endpoints: List<ProviderEndpoint>,
+        winner: ProviderEndpoint?,
+        unreachable: Set<String> = emptySet(),
+    ): List<ProviderEndpoint> = listOfNotNull(winner) + endpoints
+        .filter { it != winner }
+        .sortedBy { if (it.baseUrl in unreachable) 1 else 0 }
 
     /**
      * 探测的是 `<baseUrl>/models`，不是裸 baseUrl：CF / 反代对未知路径可能挂起或直接返回
@@ -292,9 +311,19 @@ object EndpointRacer {
                 baseUrl = endpoint.baseUrl,
                 tier = TIER_UNREACHABLE,
                 elapsedMs = elapsedMs(),
-                error = e.message ?: e.javaClass.simpleName,
+                error = failureOf(e),
             )
         }
+    }
+
+    /** 把探测异常压成一个人能读懂的原因，配置页直接显示。 */
+    private fun failureOf(e: Throwable): String = when (e) {
+        is InterruptedIOException -> "timeout"
+        is UnknownHostException -> "dns"
+        is ConnectException -> "refused"
+        is SSLException -> "tls"
+        is IllegalArgumentException -> "bad url"
+        else -> e.javaClass.simpleName
     }
 
     /**

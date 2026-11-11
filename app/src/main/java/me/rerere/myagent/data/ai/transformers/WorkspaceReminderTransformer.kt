@@ -28,6 +28,7 @@ import java.nio.file.Paths
  */
 class WorkspaceReminderTransformer(
     private val workspaceRepository: WorkspaceRepository,
+    private val vmRepository: me.rerere.myagent.data.repository.VmRepository,
 ) : InputMessageTransformer {
     override suspend fun transform(
         ctx: TransformerContext,
@@ -50,6 +51,7 @@ class WorkspaceReminderTransformer(
         // 与 ChatToolFactory.createWorkspaceToolsIfReady 保持一致: 仅在 shell 就绪时才读取 AGENTS.md 作为工作区指令
         if (readyWorkspace != null) {
             prompt += buildAgentsPrompt(readyWorkspace.id, ctx.workspaceCwd)
+            prompt += buildVmPrompt(readyWorkspace.id)
         }
 
         // 追加到第一条 system 消息; 若不存在则插入一条
@@ -62,6 +64,31 @@ class WorkspaceReminderTransformer(
             }
         } else {
             listOf(UIMessage.system(prompt).copy(isSynthetic = true)) + messages
+        }
+    }
+
+    /**
+     * 这个工作区里装了哪些整机环境。模型必须知道「Linux 沙盒」之外还有一台 Android，
+     * 否则它会把所有需求都当成在 proot 里解决。
+     */
+    private suspend fun buildVmPrompt(workspaceId: String): String {
+        val vms = runCatching { vmRepository.instances(workspaceId) }.getOrDefault(emptyList())
+        if (vms.isEmpty()) return ""
+        return buildString {
+            appendLine()
+            appendLine()
+            appendLine("<virtual-environments>")
+            appendLine("This workspace also hosts virtual machines running under QEMU inside the same rootfs. These are whole operating systems, not containers:")
+            vms.forEach { vm ->
+                append("- \"${vm.name}\" (${vm.imageName.ifBlank { vm.imageId }}), state=${vm.vmState().name}")
+                if (vm.vmState() == me.rerere.vm.VmState.RUNNING) {
+                    append(", adb=127.0.0.1:${vm.adbPort}, vnc=127.0.0.1:${vm.vncPort}")
+                }
+                appendLine()
+            }
+            appendLine("Tools: `vm_list`, `vm_status`, `vm_start`, `vm_stop`, `vm_shell` (runs INSIDE the guest, root on Android images), `vm_push`/`vm_pull`, `vm_screencap`, `vm_install_apk`, `vm_input` (tap/swipe/text/key), `vm_ui_dump`, `vm_logcat`, `vm_install_image`.")
+            appendLine("Use the Linux tools (`workspace_shell`) for the host rootfs and the `vm_*` tools for anything that must run inside the VM. Booting can take minutes under pure TCG emulation; poll `vm_status` instead of retrying blindly.")
+            append("</virtual-environments>")
         }
     }
 

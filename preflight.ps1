@@ -7,12 +7,32 @@ $fails = @()
 $warns = @()
 
 # ── 1. JDK 17 ──
-$jdk = 'C:\Program Files\Java\jdk-17.0.12'
-if (-not (Test-Path (Join-Path $jdk 'bin\java.exe'))) {
-    $fails += "JDK17 不存在: $jdk"
-} else {
-    $v = (& (Join-Path $jdk 'bin\java.exe') -version 2>&1 | Select-Object -First 1)
-    if ($v -notmatch '17\.') { $fails += "JDK 版本不是 17: $v" }
+# 不写死单一路径：先看 JAVA_HOME，再按本机常见安装位置探测。JDK 小版本升级或换机后
+# 绝对路径必然失效，而版本要求（17）才是真正的不变量。
+function Get-Jdk17 {
+    $cands = @()
+    if ($env:JAVA_HOME) { $cands += $env:JAVA_HOME }
+    $cands += @(
+        'C:\Program Files\Java\jdk-17.0.12',
+        'C:\Program Files\Java\jdk-17*',
+        'C:\Program Files\Eclipse Adoptium\jdk-17*',
+        (Join-Path $env:USERPROFILE '.jdks\jdk-17*')
+    )
+    $hits = @()
+    foreach ($c in $cands) {
+        $hits += @(Get-Item $c -ErrorAction SilentlyContinue |
+            Where-Object { Test-Path (Join-Path $_.FullName 'bin\java.exe') } |
+            ForEach-Object { $_.FullName })
+    }
+    foreach ($j in ($hits | Select-Object -Unique)) {
+        $v = (& (Join-Path $j 'bin\java.exe') -version 2>&1 | Select-Object -First 1)
+        if ("$v" -match '17\.') { return $j }
+    }
+    return $null
+}
+$jdk = Get-Jdk17
+if (-not $jdk) {
+    $fails += 'JDK 17 不可用（JAVA_HOME 与常见安装位置都没命中）'
 }
 
 # ── 2. local.properties 与签名文件 ──
@@ -63,7 +83,7 @@ Write-Host '=== preflight ===' -ForegroundColor Cyan
 Write-Host "  JAVA_HOME : $jdk"
 Write-Host ("  keystore  : " + $(if ($ksPath) { $ksPath } else { '(未配置)' }))
 Write-Host "  分支      : $branch / 未提交 $dirty"
-Write-Host "  A 盘剩余  : ${free}GB"
+Write-Host "  $drive 盘剩余 : ${free}GB"
 Write-Host ''
 Write-Host '--- 高频坑提醒 ---' -ForegroundColor Yellow
 Write-Host '  * APK 覆盖安装签名必须与已装包一致；debug 变体默认用 debug.keystore，很可能不匹配'

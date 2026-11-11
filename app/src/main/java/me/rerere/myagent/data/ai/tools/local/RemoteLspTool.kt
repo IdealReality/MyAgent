@@ -7,9 +7,7 @@ import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
-import kotlinx.serialization.json.addJsonObject
 import kotlinx.serialization.json.booleanOrNull
-import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.intOrNull
@@ -248,7 +246,7 @@ private suspend fun runRemoteLsp(
         val selection = selectServer(call.server, candidates, probe)
             ?: return errorText(missingServerMessage(host, probePool, probe, fileHint))
 
-        client = RemoteLspClient(session, rootPath, selection.first, selection.second, files)
+        client = RemoteLspClient(session, rootPath, selection.first, selection.second, files, bootstrapFile = filePath)
         client.initialize()
         val handle = RemoteLspHandle(
             key = RemoteLspRegistry.key(host.name, rootPath, selection.first),

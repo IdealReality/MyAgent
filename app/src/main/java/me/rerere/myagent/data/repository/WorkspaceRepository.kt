@@ -30,6 +30,7 @@ class WorkspaceRepository(
     private val manager: WorkspaceManager,
     private val rootfsInstaller: RootfsInstaller,
     private val settingsStore: SettingsStore,
+    private val vmInstanceDao: me.rerere.myagent.data.db.dao.VmInstanceDao,
 ) {
     fun listFlow(): Flow<List<WorkspaceEntity>> = dao.listFlow()
 
@@ -377,6 +378,8 @@ class WorkspaceRepository(
 
     suspend fun delete(id: String): Boolean {
         val workspace = dao.getById(id) ?: return false
+        // VM 记录随工作区一起清，避免留下指向已删目录的实例
+        vmInstanceDao.deleteByWorkspace(id)
         dao.deleteById(id)
         withContext(Dispatchers.IO) {
             manager.deleteWorkspace(workspace.root)

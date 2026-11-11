@@ -276,19 +276,14 @@ internal class McpSessionRegistry(
             }
 
             statusStore.update(config.id, McpStatus.Connecting)
-            // ssh_stdio 的 serverUrl 是 "ssh://<保存的主机名>"，闸门拿不到真实 IP，所以这里
-            // 先按主机表解析出地址再判私网。否则 Android 17 上未授权时用户只会看到 30 秒
-            // 超时，而不是「去授予局域网权限」。
-            val lanReason = when (config) {
-                is McpServerConfig.SshStdioServer ->
-                    sshHosts.getByName(config.sshHost)
-                        ?.let { mcpLocalNetworkBlockReason(context, "ssh://${it.host}") }
-
-                else -> localNetworkGate(config)
-            }
-            lanReason?.let { reason ->
-                statusStore.update(config.id, McpStatus.Error(reason))
-                return@withLock ConnectResult.Failed
+            // ssh_stdio 不走这个硬闸门：它内部有 VPN/WiFi 多路径竞速（tailnet 常通、LAN 可能
+            // 被系统策略拦），一刀切拒绝会把能连的情况也挡掉。权限问题在连接失败时提示（见下方
+            // 的 lanHint）。
+            if (config !is McpServerConfig.SshStdioServer) {
+                localNetworkGate(config)?.let { reason ->
+                    statusStore.update(config.id, McpStatus.Error(reason))
+                    return@withLock ConnectResult.Failed
+                }
             }
             val oldClient = session.client
             session.client = null
@@ -333,12 +328,19 @@ internal class McpSessionRegistry(
                     statusStore.update(config.id, McpStatus.NeedsAuthorization)
                     ConnectResult.NeedsAuthorization
                 } else {
-                    val error = McpStatus.Error.from(e)
-                    statusStore.update(
-                        config.id,
-                        if (remoteStderr == null) error
-                        else error.copy(message = error.message + " — " + remoteStderr.take(300)),
-                    )
+                    val lanHint = if (config is McpServerConfig.SshStdioServer) {
+                        "；若目标是私网地址（192.168/10./172.16-31/100.64-127），先确认已授予" +
+                            "「局域网访问」权限，或改用 TailNET 主机名"
+                    } else {
+                        ""
+                    }
+                    val base = McpStatus.Error.from(e)
+                    val message = buildString {
+                        append(base.message)
+                        if (remoteStderr != null) append(" — ").append(remoteStderr.take(300))
+                        append(lanHint)
+                    }
+                    statusStore.update(config.id, base.copy(message = message))
                     ConnectResult.Failed
                 }
             }

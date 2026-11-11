@@ -33,10 +33,10 @@ They cannot be installed as-is. Run:
     .\sign-pure.ps1
 
 It does zipalign + apksigner (v2/v3) using the release keystore, and writes:
-`C:\Users\guest\AppData\Local\Temp\myagent-mem-signed.apk`
+`%TEMP%\myagent-mem-signed.apk`
 
-Keystore: `C:\Users\guest\AppData\Local\Temp\signing\myagent.jks` (alias `myagent`).
-Credentials live in `local.properties` (storeFile/storePassword/keyAlias/keyPassword) and are already embedded in `sign-pure.ps1`.
+Keystore: `%TEMP%\signing\myagent.jks` (alias `myagent`).
+Credentials are read at run time from `local.properties` (storeFile/storePassword/keyAlias/keyPassword); nothing is hardcoded in `sign-pure.ps1`.
 
 Verify: the script prints the V3 signer cert, `CN=My Agent`.
 applicationId of the pure variant is `com.myagent.app.debug` (base `com.myagent.app` + `.debug` suffix).

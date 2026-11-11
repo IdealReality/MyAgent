@@ -61,8 +61,8 @@ object ImportedDatabaseReconciler {
      * newer *shared* conversation columns were added) or this reconciliation will silently stop
      * matching. `internal` so a JVM test can assert these stay in sync with the schema export.
      */
-    internal const val EXPECTED_VERSION = 32
-    internal const val EXPECTED_IDENTITY_HASH = "a8ac5ddbf9ed467d22d7236c07c7736d"
+    internal const val EXPECTED_VERSION = 33
+    internal const val EXPECTED_IDENTITY_HASH = "d86162193e81a416c30bb6608f40b22a"
 
     /**
      * Columns that a restored file must already have for its shared schema to be considered
@@ -104,6 +104,10 @@ object ImportedDatabaseReconciler {
         "CREATE INDEX IF NOT EXISTS `idx_runs_kind_dom` ON `agent_runs` (`kind`, `domain_id`)",
         "CREATE INDEX IF NOT EXISTS `idx_runs_parent` ON `agent_runs` (`parent_run_id`)",
         "CREATE INDEX IF NOT EXISTS `idx_runs_updated_at` ON `agent_runs` (`updated_at_ms`)",
+        // v33: 虚拟环境表。导入的备份里不存在，必须在这里补建，否则跳到 33 后没有这张表
+        "CREATE TABLE IF NOT EXISTS `vm_instances` (`id` TEXT NOT NULL, `workspace_id` TEXT NOT NULL, `image_id` TEXT NOT NULL, `name` TEXT NOT NULL, `state` TEXT NOT NULL, `image_name` TEXT NOT NULL, `root_mode` TEXT NOT NULL DEFAULT 'ADB_ROOT', `adb_port` INTEGER NOT NULL DEFAULT 5555, `vnc_port` INTEGER NOT NULL DEFAULT 5900, `last_error` TEXT, `background_id` TEXT, `created_at` INTEGER NOT NULL, `updated_at` INTEGER NOT NULL, PRIMARY KEY(`id`))",
+        "CREATE INDEX IF NOT EXISTS `index_vm_instances_workspace_id` ON `vm_instances` (`workspace_id`)",
+        "CREATE UNIQUE INDEX IF NOT EXISTS `index_vm_instances_workspace_id_image_id` ON `vm_instances` (`workspace_id`, `image_id`)",
     )
 
     /**

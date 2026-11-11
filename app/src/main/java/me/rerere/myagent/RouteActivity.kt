@@ -704,6 +704,14 @@ class RouteActivity : ComponentActivity() {
                                 WorkspaceTerminalPage(key.id)
                             }
 
+                            entry<Screen.VmEnvironment> { key ->
+                                me.rerere.myagent.ui.pages.extensions.vm.VmPage(key.workspaceId)
+                            }
+
+                            entry<Screen.VmScreen> { key ->
+                                me.rerere.myagent.ui.pages.extensions.vm.VmScreenPage(key.workspaceId, key.instanceId)
+                            }
+
                             entry<Screen.WorkspaceFileEditor> { key ->
                                 WorkspaceFileEditorPage(
                                     id = key.id,
@@ -985,6 +993,12 @@ sealed interface Screen : NavKey {
 
     @Serializable
     data class WorkspaceFileEditor(val id: String, val area: String, val path: String) : Screen
+
+    @Serializable
+    data class VmEnvironment(val workspaceId: String) : Screen
+
+    @Serializable
+    data class VmScreen(val workspaceId: String, val instanceId: String) : Screen
 
     @Serializable
     data class SkillDetail(val skillName: String) : Screen

@@ -20,6 +20,7 @@ import me.rerere.myagent.data.db.dao.ScheduledJobDao
 import me.rerere.myagent.data.db.dao.ScheduledJobRunDao
 import me.rerere.myagent.data.db.dao.SshHostDao
 import me.rerere.myagent.data.db.dao.TelegramChatDao
+import me.rerere.myagent.data.db.dao.VmInstanceDao
 import me.rerere.myagent.data.db.dao.WorkspaceDAO
 import me.rerere.myagent.data.db.entity.ConversationEntity
 import me.rerere.myagent.data.db.entity.ConversationCompactionEntity
@@ -33,6 +34,7 @@ import me.rerere.myagent.data.db.entity.ScheduledJobEntity
 import me.rerere.myagent.data.db.entity.ScheduledJobRunEntity
 import me.rerere.myagent.data.db.entity.SshHostEntity
 import me.rerere.myagent.data.db.entity.TelegramChatEntity
+import me.rerere.myagent.data.db.entity.VmInstanceEntity
 import me.rerere.myagent.data.db.entity.WorkspaceEntity
 import me.rerere.myagent.data.db.migrations.Migration_16_17
 import me.rerere.myagent.data.db.migrations.Migration_20_21
@@ -62,9 +64,10 @@ import me.rerere.myagent.workflow.db.WorkflowRunEntity
         WorkflowRunEntity::class,
         AgentRun::class,
         WorkspaceEntity::class,
+        VmInstanceEntity::class,
         FolderEntity::class,
     ],
-    version = 32,
+    version = 33,
     autoMigrations = [
         AutoMigration(from = 1, to = 2),
         AutoMigration(from = 2, to = 3),
@@ -115,6 +118,8 @@ import me.rerere.myagent.workflow.db.WorkflowRunEntity
         // crash-loops the app on every launch (issue #105).
         // v32: optional web terminal URL on ssh_hosts (nullable column, pure ADD COLUMN).
         AutoMigration(from = 31, to = 32),
+        // v33: 虚拟环境表（vm_instances）。纯新增表，Room 直接 CREATE。
+        AutoMigration(from = 32, to = 33),
     ]
 )
 @TypeConverters(TokenUsageConverter::class)
@@ -150,6 +155,8 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun workspaceDao(): WorkspaceDAO
 
     abstract fun folderDao(): FolderDAO
+
+    abstract fun vmInstanceDao(): VmInstanceDao
 }
 
 object TokenUsageConverter {

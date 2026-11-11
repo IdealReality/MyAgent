@@ -13,7 +13,25 @@ if ($LASTEXITCODE -ne 0) {
 }
 
 # ── 2. 构建 ──
-$env:JAVA_HOME    = 'C:\Program Files\Java\jdk-17.0.12'
+# JDK：优先沿用环境里的 JAVA_HOME，其次按常见位置探测（preflight 已校验版本是 17）。
+function Resolve-Jdk {
+    $cands = @()
+    if ($env:JAVA_HOME) { $cands += $env:JAVA_HOME }
+    $cands += @(
+        'C:\Program Files\Java\jdk-17.0.12',
+        'C:\Program Files\Java\jdk-17*',
+        'C:\Program Files\Eclipse Adoptium\jdk-17*',
+        (Join-Path $env:USERPROFILE '.jdks\jdk-17*')
+    )
+    foreach ($c in $cands) {
+        $hit = @(Get-Item $c -ErrorAction SilentlyContinue |
+            Where-Object { Test-Path (Join-Path $_.FullName 'bin\java.exe') }) | Select-Object -First 1
+        if ($hit) { return $hit.FullName }
+    }
+    return $null
+}
+$env:JAVA_HOME = Resolve-Jdk
+if (-not $env:JAVA_HOME) { Write-Host '找不到 JDK，中止构建' -ForegroundColor Red; exit 1 }
 # SDK 从 local.properties 的 sdk.dir 推导：写死账户名在改名后必然失效。
 $sdkLine = (Select-String -Path (Join-Path $proj 'local.properties') -Pattern '^sdk\.dir=' -ErrorAction SilentlyContinue |
             Select-Object -First 1).Line

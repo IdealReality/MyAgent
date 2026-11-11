@@ -29,6 +29,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -95,6 +96,7 @@ import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
 import okhttp3.OkHttpClient
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import org.koin.core.parameter.parametersOf
 import kotlin.reflect.KClass
@@ -314,6 +316,8 @@ private fun String.isValidBaseUrl(): Boolean {
     return urls.isNotEmpty() && urls.all { it.toHttpUrlOrNull() != null }
 }
 
+private const val PROBE_DEBOUNCE_MS = 500L
+
 /**
  * 多地址时的入口体检：打开配置页就并发探测一遍，列出每条地址的通断与耗时，
  * 并标出当前请求实际命中的那条（与请求链共享胜者缓存）。
@@ -331,7 +335,9 @@ private fun EndpointProbeSection(providerId: String, baseUrl: String) {
     var refreshCount by remember(baseUrl) { mutableStateOf(0) }
 
     LaunchedEffect(baseUrl, refreshCount) {
+        // 编辑地址时每个按键都会改 baseUrl：先防抖，避免打一个字就并发探测一轮。
         probing = true
+        delay(PROBE_DEBOUNCE_MS)
         outcomes = withContext(Dispatchers.IO) { EndpointRacer.probeAll(httpClient, baseUrl) }
         probing = false
     }
@@ -372,10 +378,15 @@ private fun EndpointProbeSection(providerId: String, baseUrl: String) {
             }
             val status = when {
                 outcome == null -> ""
-                !outcome.reachable -> stringResource(R.string.setting_provider_page_endpoint_unreachable)
+                !outcome.reachable -> buildString {
+                    append(stringResource(R.string.setting_provider_page_endpoint_unreachable))
+                    outcome.error?.let { append(" · ").append(it) }
+                }
+                // 可信入口只报耗时（401/403 是正常的"网关在说话"）；可疑入口带上状态码，方便看出路径配错。
+                outcome.tier == EndpointRacer.TIER_TRUSTED -> "${outcome.elapsedMs} ms"
                 else -> buildString {
+                    outcome.statusCode?.let { append(it).append(" · ") }
                     append(outcome.elapsedMs).append(" ms")
-                    outcome.statusCode?.let { append(" · HTTP ").append(it) }
                 }
             }
             Row(
@@ -442,8 +453,9 @@ private fun ProviderConfigureOpenAI(
     var keyVisible by remember { mutableStateOf(false) }
     OutlinedTextField(
         value = provider.apiKey,
-        onValueChange = { onEdit(provider.copy(apiKey = it.trim())) },
+        onValueChange = { onEdit(provider.copy(apiKey = it)) },
         label = { Text(stringResource(R.string.setting_provider_page_api_key)) },
+        keyboardOptions = KeyboardOptions(imeAction = ImeAction.None),
         modifier = Modifier.fillMaxWidth(),
         maxLines = 3,
         visualTransformation = if (keyVisible) VisualTransformation.None else PasswordVisualTransformation(),
@@ -456,8 +468,9 @@ private fun ProviderConfigureOpenAI(
 
     OutlinedTextField(
         value = provider.baseUrl,
-        onValueChange = { onEdit(provider.copy(baseUrl = it.trim())) },
+        onValueChange = { onEdit(provider.copy(baseUrl = it)) },
         label = { Text(stringResource(R.string.setting_provider_page_api_base_url)) },
+        keyboardOptions = KeyboardOptions(imeAction = ImeAction.None),
         modifier = Modifier.fillMaxWidth(),
         maxLines = 4,
         isError = provider.baseUrl.isNotBlank() && !provider.baseUrl.isValidBaseUrl(),
@@ -749,8 +762,9 @@ private fun ProviderConfigureClaude(
     var keyVisible by remember { mutableStateOf(false) }
     OutlinedTextField(
         value = provider.apiKey,
-        onValueChange = { onEdit(provider.copy(apiKey = it.trim())) },
+        onValueChange = { onEdit(provider.copy(apiKey = it)) },
         label = { Text(stringResource(R.string.setting_provider_page_api_key)) },
+        keyboardOptions = KeyboardOptions(imeAction = ImeAction.None),
         modifier = Modifier.fillMaxWidth(),
         maxLines = 3,
         visualTransformation = if (keyVisible) VisualTransformation.None else PasswordVisualTransformation(),
@@ -763,8 +777,9 @@ private fun ProviderConfigureClaude(
 
     OutlinedTextField(
         value = provider.baseUrl,
-        onValueChange = { onEdit(provider.copy(baseUrl = it.trim())) },
+        onValueChange = { onEdit(provider.copy(baseUrl = it)) },
         label = { Text(stringResource(R.string.setting_provider_page_api_base_url)) },
+        keyboardOptions = KeyboardOptions(imeAction = ImeAction.None),
         modifier = Modifier.fillMaxWidth(),
         maxLines = 4,
         isError = provider.baseUrl.isNotBlank() && !provider.baseUrl.isValidBaseUrl(),
@@ -866,8 +881,9 @@ private fun ProviderConfigureGoogle(
         var keyVisible by remember { mutableStateOf(false) }
         OutlinedTextField(
             value = provider.apiKey,
-            onValueChange = { onEdit(provider.copy(apiKey = it.trim())) },
+            onValueChange = { onEdit(provider.copy(apiKey = it)) },
             label = { Text(stringResource(R.string.setting_provider_page_api_key)) },
+        keyboardOptions = KeyboardOptions(imeAction = ImeAction.None),
             modifier = Modifier.fillMaxWidth(),
             maxLines = 3,
             visualTransformation = if (keyVisible) VisualTransformation.None else PasswordVisualTransformation(),
@@ -884,8 +900,9 @@ private fun ProviderConfigureGoogle(
         val missingV1Beta = baseUrlEntries.any { !it.endsWith("/v1beta") }
         OutlinedTextField(
             value = provider.baseUrl,
-            onValueChange = { onEdit(provider.copy(baseUrl = it.trim())) },
+            onValueChange = { onEdit(provider.copy(baseUrl = it)) },
             label = { Text(stringResource(R.string.setting_provider_page_api_base_url)) },
+        keyboardOptions = KeyboardOptions(imeAction = ImeAction.None),
             modifier = Modifier.fillMaxWidth(),
             maxLines = 4,
             isError = provider.baseUrl.isNotBlank() && (

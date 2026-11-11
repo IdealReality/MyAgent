@@ -7,7 +7,7 @@
       "type": "shell",
       "command": "${workspaceFolder}\\gradlew.bat",
       "args": ["assemblePure","--no-daemon","--console=plain","-x",":web:installWebUiDeps","-x",":web:buildWebUi"],
-      "options": {"cwd": "${workspaceFolder}", "env": {"JAVA_HOME": "C:\\Program Files\\Java\\jdk-17.0.12", "ANDROID_HOME": "C:\\Users\\ZhouX\\AppData\\Local\\Android\\Sdk"}},
+      "options": {"cwd": "${workspaceFolder}", "env": {"JAVA_HOME": "C:\\Program Files\\Java\\jdk-17.0.12", "ANDROID_HOME": "C:\\Users\\guest\\AppData\\Local\\Android\\Sdk"}},
       "group": {"kind": "build", "isDefault": true},
       "problemMatcher": []
     },
@@ -17,7 +17,7 @@
       "type": "shell",
       "command": "${workspaceFolder}\\gradlew.bat",
       "args": [":app:testPureDebugUnitTest","--tests","me.rerere.rikkahub.data.memory.*","--no-daemon","--console=plain","-x",":web:installWebUiDeps","-x",":web:buildWebUi"],
-      "options": {"cwd": "${workspaceFolder}", "env": {"JAVA_HOME": "C:\\Program Files\\Java\\jdk-17.0.12", "ANDROID_HOME": "C:\\Users\\ZhouX\\AppData\\Local\\Android\\Sdk"}},
+      "options": {"cwd": "${workspaceFolder}", "env": {"JAVA_HOME": "C:\\Program Files\\Java\\jdk-17.0.12", "ANDROID_HOME": "C:\\Users\\guest\\AppData\\Local\\Android\\Sdk"}},
       "group": "test",
       "problemMatcher": []
     },
@@ -27,7 +27,7 @@
       "type": "shell",
       "command": "${workspaceFolder}\\gradlew.bat",
       "args": [":app:compilePureKotlin","--no-daemon","--console=plain","-x",":web:installWebUiDeps","-x",":web:buildWebUi"],
-      "options": {"cwd": "${workspaceFolder}", "env": {"JAVA_HOME": "C:\\Program Files\\Java\\jdk-17.0.12", "ANDROID_HOME": "C:\\Users\\ZhouX\\AppData\\Local\\Android\\Sdk"}},
+      "options": {"cwd": "${workspaceFolder}", "env": {"JAVA_HOME": "C:\\Program Files\\Java\\jdk-17.0.12", "ANDROID_HOME": "C:\\Users\\guest\\AppData\\Local\\Android\\Sdk"}},
       "problemMatcher": []
     }
   ]

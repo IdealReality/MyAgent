@@ -76,6 +76,7 @@ import me.rerere.hugeicons.stroke.ArrowRight01
 import me.rerere.hugeicons.stroke.ArrowTurnBackward
 import me.rerere.hugeicons.stroke.Bash
 import me.rerere.hugeicons.stroke.ComputerTerminal01
+import me.rerere.hugeicons.stroke.MonitorDot
 import me.rerere.hugeicons.stroke.Delete01
 import me.rerere.hugeicons.stroke.File02
 import me.rerere.hugeicons.stroke.FileImport
@@ -204,6 +205,9 @@ fun WorkspaceDetailPage(id: String) {
                     if (state.workspace?.shellStatus != WorkspaceShellStatus.DISABLED.name) {
                         IconButton(onClick = { navController.navigate(Screen.WorkspaceTerminal(id)) }) {
                             Icon(HugeIcons.ComputerTerminal01, contentDescription = stringResource(R.string.accessibility_open_terminal))
+                        }
+                        IconButton(onClick = { navController.navigate(Screen.VmEnvironment(id)) }) {
+                            Icon(HugeIcons.MonitorDot, contentDescription = "Virtual environments")
                         }
                     }
                 },

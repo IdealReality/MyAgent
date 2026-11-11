@@ -111,6 +111,22 @@ class EndpointRacerTest {
     }
 
     @Test
+    fun `trailing newline left in the editor never leaks into addresses`() {
+        val raw = "https://a.example.com/v1\nhttps://b.example.com/v1\n\n"
+
+        assertEquals(
+            listOf("https://a.example.com/v1", "https://b.example.com/v1"),
+            EndpointRacer.splitValues(raw),
+        )
+        // 单地址末尾多按了回车也要落成干净的单端点，否则它会进到请求 URL / 去重键里。
+        assertEquals(
+            listOf("https://only.example.com/v1"),
+            EndpointRacer.endpoints("https://only.example.com/v1\n").map { it.baseUrl },
+        )
+        assertEquals("https://a.example.com/v1", raw.firstEndpointUrl())
+    }
+
+    @Test
     fun `fastest reachable endpoint wins and the rest is dropped`() = runBlocking {
         val slow = startServer(delayMs = 900)
         val fast = startServer()
@@ -225,6 +241,51 @@ class EndpointRacerTest {
 
         EndpointRacer.invalidate("winner")
         assertNull(EndpointRacer.currentWinner("winner", both))
+    }
+
+    @Test
+    fun `unreachable endpoints are pushed behind unknown ones`() {
+        val endpoints = listOf(
+            ProviderEndpoint("https://a.example.com/v1"),
+            ProviderEndpoint("https://b.example.com/v1"),
+            ProviderEndpoint("https://c.example.com/v1"),
+        )
+
+        val ordered = EndpointRacer.orderCandidates(
+            endpoints = endpoints,
+            winner = endpoints[1],
+            unreachable = setOf("https://a.example.com/v1"),
+        )
+
+        assertEquals(
+            listOf("https://b.example.com/v1", "https://c.example.com/v1", "https://a.example.com/v1"),
+            ordered.map { it.baseUrl },
+        )
+    }
+
+    @Test
+    fun `order keeper when nothing is known`() {
+        val endpoints = listOf(
+            ProviderEndpoint("https://a.example.com/v1"),
+            ProviderEndpoint("https://b.example.com/v1"),
+        )
+
+        assertEquals(endpoints, EndpointRacer.orderCandidates(endpoints, null))
+        assertEquals(endpoints, EndpointRacer.orderCandidates(endpoints, endpoints[0]))
+    }
+
+    @Test
+    fun `probe failures are classified`() = runBlocking {
+        val dead = deadUrl()
+        val slow = startServer(delayMs = 2_000)
+
+        val outcomes = EndpointRacer.probeAll(client, "$dead\nnot-a-url\n$slow", timeoutMs = 300)
+
+        assertEquals(3, outcomes.size)
+        assertEquals("refused", outcomes[0].error)
+        assertEquals("bad url", outcomes[1].error)
+        assertEquals("timeout", outcomes[2].error)
+        assertTrue(outcomes.none { it.reachable })
     }
 
     @Test

@@ -229,22 +229,29 @@ class WorkspaceManager(
     ): WorkspaceCommandResult {
         require(command.isNotBlank()) { "Command is required" }
         val workingDir = resolveCommandWorkingDir(root, cwd)
+        // 每次调用独立 PROOT_TMP_DIR：两个并发 proot 共用同一个临时目录时，后一个会把前一个
+        // 的 loader 临时文件删掉，表现为 guest 内普通命令报 "cannot execute: required file not found"。
+        val runTempDir = createRunTempDir(root, "run")
 
-        return shellRunner.execute(
-            WorkspaceShellContext(
-                root = root,
-                command = command,
-                cwd = cwd,
-                filesDir = filesDir(root),
-                linuxDir = linuxDir(root),
-                tempDir = tempDir(root),
-                workingDir = workingDir,
-                timeoutMillis = timeoutMillis,
-                stdin = stdin,
-                bindMounts = bindMounts,
-                shellCompatibilityMode = shellCompatibilityMode,
+        try {
+            return shellRunner.execute(
+                WorkspaceShellContext(
+                    root = root,
+                    command = command,
+                    cwd = cwd,
+                    filesDir = filesDir(root),
+                    linuxDir = linuxDir(root),
+                    tempDir = runTempDir,
+                    workingDir = workingDir,
+                    timeoutMillis = timeoutMillis,
+                    stdin = stdin,
+                    bindMounts = bindMounts,
+                    shellCompatibilityMode = shellCompatibilityMode,
+                )
             )
-        )
+        } finally {
+            runTempDir.deleteRecursively()
+        }
     }
 
     /**
@@ -265,7 +272,8 @@ class WorkspaceManager(
                     cwd = cwd,
                     filesDir = filesDir(root),
                     linuxDir = linuxDir(root),
-                    tempDir = tempDir(root),
+                    // 后台进程存活期间不能删临时目录，单独一个，交给 cleanupAllTempDirs 回收
+                    tempDir = createRunTempDir(root, "bg"),
                     workingDir = workingDir,
                     timeoutMillis = 0L,
                 )
@@ -286,6 +294,12 @@ class WorkspaceManager(
         require(workingDir.exists()) { "Working directory does not exist: $cwd" }
         require(workingDir.isDirectory) { "Working path is not a directory: $cwd" }
         return workingDir
+    }
+
+    private fun createRunTempDir(root: String, prefix: String): File {
+        val base = tempDir(root)
+        base.mkdirs()
+        return File(base, "$prefix-${java.util.UUID.randomUUID()}").apply { mkdirs() }
     }
 
     private fun requireValidRoot(root: String) {

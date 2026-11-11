@@ -81,6 +81,20 @@ class OpenAIProvider(
     private val chatCompletionsAPI = ChatCompletionsAPI(client = client, keyRoulette = keyRoulette)
     private val responseAPI = ResponseAPI(client = client, keyRoulette = keyRoulette)
 
+    /**
+     * 已确认「这个网关/模型没有 `/images/generations`」的条目，值是 true。
+     *
+     * 聚合网关（new-api、one-api、各种自建反代）常常只有 chat 形式的图片能力；第一次 404 后
+     * 记住结论，后续请求直接走 chat，不再每次先撞一次错误路径。键里带 baseUrl 与模型 id：
+     * 同一个 provider 换了入口地址或换了模型，都要重新判断。
+     */
+    private val gatewayChatImageFallbacks = java.util.concurrent.ConcurrentHashMap<String, Boolean>()
+
+    private fun gatewayChatImageKey(
+        providerSetting: ProviderSetting.OpenAI,
+        modelId: String,
+    ): String = "${providerSetting.id}|${providerSetting.baseUrl}|$modelId"
+
 
     override suspend fun listModels(providerSetting: ProviderSetting.OpenAI): List<Model> =
         withEndpointFailover(providerSetting.endpointCandidates(client), providerSetting.id.toString()) { endpoint ->
@@ -144,10 +158,10 @@ class OpenAIProvider(
                     openRouterModelFromJson(modelObj)
                 } else {
                     val id = modelObj["id"]?.jsonPrimitive?.contentOrNull ?: return@mapNotNull null
-                    Model(
-                        modelId = id,
-                        displayName = id,
-                    )
+                    // Aggregating gateways (new-api / agent2api / one-api) publish one flat id list
+                    // that also contains image and video models. Tagging from the id here is what
+                    // makes them show up in the image/video pickers instead of only in chat.
+                    gatewayModelFromId(id)
                 }
             }
         }
@@ -316,6 +330,19 @@ class OpenAIProvider(
 
         Log.i(TAG, "generateImage: $requestBody")
 
+        val fallbackKey = gatewayChatImageKey(providerSetting, params.model.modelId)
+
+        // 已知这个模型只能走 chat 生图：不再先撞一次缺失的路径。
+        if (gatewayChatImageFallbacks[fallbackKey] == true) {
+            val items = withContext(Dispatchers.IO) {
+                collectSequentialImages(params.numOfImages.coerceAtLeast(1)) {
+                    generateImageViaChatCompletions(providerSetting, params, key)
+                }
+            }
+            items.forEach { emit(it) }
+            return@flow
+        }
+
         val request = Request.Builder()
             .url("${providerSetting.baseUrl}/images/generations")
             .headers(providerSetting.mergeCustomHeaders(params.customHeaders))
@@ -327,10 +354,24 @@ class OpenAIProvider(
 
         val items = withContext(Dispatchers.IO) {
             val response = client.newCall(request).await()
-            if (!response.isSuccessful) {
-                error("Failed to generate image: ${response.code} ${response.body?.string()}")
+            val bodyStr = response.body.string()
+            // A gateway without the dedicated image endpoint (404/405) still often speaks the
+            // older chat-completions image surface. Learn that once instead of on every call.
+            if (!response.isSuccessful && shouldFallbackToChatImageEndpoint(response.code, bodyStr)) {
+                Log.i(
+                    TAG,
+                    "no /images/generations on this gateway (${response.code}); " +
+                        "falling back to chat-completions image: $bodyStr",
+                )
+                gatewayChatImageFallbacks[fallbackKey] = true
+                return@withContext collectSequentialImages(params.numOfImages.coerceAtLeast(1)) {
+                    generateImageViaChatCompletions(providerSetting, params, key)
+                }
             }
-            parseImageResponse(response.body.string())
+            if (!response.isSuccessful) {
+                error("Failed to generate image: ${response.code} $bodyStr")
+            }
+            parseImageResponse(bodyStr)
         }
 
         items.forEach { emit(it) }
@@ -654,6 +695,28 @@ class OpenAIProvider(
             return@flow
         }
 
+        val fallbackKey = gatewayChatImageKey(providerSetting, params.model.modelId)
+
+        // Source images as data URIs, computed only when the chat surface is actually used.
+        suspend fun chatEditFallback(): List<ImageGenerationItem> {
+            val inputReferences = withContext(Dispatchers.IO) {
+                params.images.map { path ->
+                    val file = File(path)
+                    require(file.exists()) { "Image file does not exist: $path" }
+                    file.toDataUri()
+                }
+            }
+            return collectSequentialImages(params.numOfImages.coerceAtLeast(1)) {
+                editImageViaChatCompletions(providerSetting, params, key, inputReferences)
+            }
+        }
+
+        if (gatewayChatImageFallbacks[fallbackKey] == true) {
+            val items = withContext(Dispatchers.IO) { chatEditFallback() }
+            items.forEach { emit(it) }
+            return@flow
+        }
+
         val bodyBuilder = MultipartBody.Builder()
             .setType(MultipartBody.FORM)
             .addFormDataPart("model", params.model.modelId)
@@ -773,11 +836,10 @@ class OpenAIProvider(
         isSiliconFlowBaseUrl(providerSetting.baseUrl) ->
             generateVideoViaSiliconFlow(providerSetting, params, key)
 
-        else -> error(
-            "Video generation is not supported for this provider yet " +
-                "(${providerSetting.baseUrl}). Configure a DashScope (Wan), Volcengine Ark " +
-                "(Seedance), MiniMax (Hailuo), Zhipu (CogVideoX) or SiliconFlow provider.",
-        )
+        // Everything else — a self-hosted gateway, new-api / agent2api, or any OpenAI-compatible
+        // proxy that implements the OpenAI video surface — goes through the standard async task
+        // protocol: POST /videos -> GET /videos/{id} -> GET /videos/{id}/content.
+        else -> generateVideoViaOpenAiVideos(providerSetting, params, key)
     }
 
     /**
@@ -1169,6 +1231,127 @@ class OpenAIProvider(
             }
         }
         return listOf(downloadVideoAsBase64(videoUrl))
+    }
+
+    /**
+     * The generic OpenAI video surface, used by every host that is not one of the five natively
+     * wired vendors: a self-hosted gateway (new-api / agent2api) or any OpenAI-compatible proxy
+     * that implements the Sora task API.
+     *
+     * `POST /videos` returns a task object (`id`/`task_id` + `status`); `GET /videos/{id}` is
+     * polled until a terminal status; the finished clip is either referenced by a URL in the task
+     * body or fetched from `GET /videos/{id}/content` (what OpenAI and new-api both do).
+     *
+     * Two request dialects exist for that endpoint and they are mutually exclusive: OpenAI's own
+     * (`seconds`, `size`) rejects unknown fields, while new-api's `dto.VideoRequest` reads
+     * `duration` and takes the first frame as `image`. Submit in the gateway dialect first and
+     * retry in the OpenAI one only when the gateway rejects the *fields* themselves — a
+     * validation rejection happens before any upstream call, so the retry cannot bill twice.
+     */
+    private suspend fun generateVideoViaOpenAiVideos(
+        providerSetting: ProviderSetting.OpenAI,
+        params: VideoGenerationParams,
+        key: String,
+    ): List<VideoGenerationItem> {
+        val base = providerSetting.baseUrl.trimEnd('/')
+        val submitUrl = "$base$OPENAI_VIDEO_SUBMIT_PATH"
+        val firstFrame = firstFrameDataUri(params)
+
+        fun submitRequest(flavor: VideoSubmitFlavor): Request =
+            authorizedJsonRequest(submitUrl, key)
+                .headers(providerSetting.mergeCustomHeaders(params.customHeaders))
+                .post(
+                    json.encodeToString(
+                        buildGatewayVideoCreateBody(
+                            modelId = params.model.modelId,
+                            prompt = params.prompt,
+                            aspectRatio = params.aspectRatio,
+                            durationSeconds = params.durationSeconds,
+                            firstFrameDataUri = firstFrame,
+                            flavor = flavor,
+                        ).mergeCustomBody(params.customBody)
+                    ).toRequestBody("application/json".toMediaType())
+                )
+                .configureReferHeaders(providerSetting.baseUrl)
+                .build()
+
+        var response = client.newCall(submitRequest(VideoSubmitFlavor.GATEWAY)).await()
+        var submitText = response.body.string()
+        if (!response.isSuccessful && isUnknownParameterRejection(response.code, submitText)) {
+            Log.i(TAG, "video submit rejected gateway fields, retrying OpenAI dialect: $submitText")
+            response = client.newCall(submitRequest(VideoSubmitFlavor.OPENAI)).await()
+            submitText = response.body.string()
+        }
+        if (!response.isSuccessful) {
+            error("Failed to submit video task: ${response.code} $submitText")
+        }
+        val taskId = parseVideoTaskEnvelope(submitText).id
+            ?: error("Video submit response has no task id: $submitText")
+
+        val videoUrl = awaitVideoTask(
+            label = "OpenAI video task $taskId",
+            attempts = OPENAI_VIDEO_POLL_ATTEMPTS,
+            intervalMs = OPENAI_VIDEO_POLL_INTERVAL_MS,
+            pollRequest = {
+                Request.Builder()
+                    .url("$base${openAiVideoStatusPath(taskId)}")
+                    .headers(providerSetting.mergeCustomHeaders(params.customHeaders))
+                    .addHeader("Authorization", "Bearer $key")
+                    .get()
+                    .build()
+            },
+        ) { pollText ->
+            val envelope = parseVideoTaskEnvelope(pollText)
+            when (videoTaskState(envelope.status)) {
+                VideoTaskState.SUCCEEDED -> VideoTaskPoll.Done(envelope.url.orEmpty())
+
+                VideoTaskState.FAILED, VideoTaskState.CANCELLED, VideoTaskState.EXPIRED ->
+                    VideoTaskPoll.Failed(envelope.error ?: videoTaskFailurePhrase(envelope.status))
+
+                VideoTaskState.RUNNING, VideoTaskState.UNKNOWN ->
+                    VideoTaskPoll.Pending(envelope.status)
+            }
+        }
+
+        // OpenAI and new-api never put the clip bytes in the task body; only some third-party
+        // gateways add a `url`. Prefer it when present, otherwise fetch /content with the key.
+        return listOf(
+            if (videoUrl.isNotBlank()) {
+                downloadVideoAsBase64(videoUrl)
+            } else {
+                downloadVideoContent(
+                    url = "$base${openAiVideoContentPath(taskId)}",
+                    providerSetting = providerSetting,
+                    params = params,
+                    key = key,
+                )
+            }
+        )
+    }
+
+    /** `GET /videos/{id}/content` — binary download that needs the same bearer as the task. */
+    @OptIn(ExperimentalEncodingApi::class)
+    private suspend fun downloadVideoContent(
+        url: String,
+        providerSetting: ProviderSetting.OpenAI,
+        params: VideoGenerationParams,
+        key: String,
+    ): VideoGenerationItem {
+        val request = Request.Builder()
+            .url(url)
+            .headers(providerSetting.mergeCustomHeaders(params.customHeaders))
+            .addHeader("Authorization", "Bearer $key")
+            .get()
+            .build()
+        val response = client.newCall(request).await()
+        if (!response.isSuccessful) {
+            error("Failed to download generated video: ${response.code} ${response.body.string().take(300)}")
+        }
+        val body = response.body
+        return VideoGenerationItem(
+            data = Base64.encode(body.bytes()),
+            mimeType = body.contentType()?.toString() ?: "video/mp4",
+        )
     }
 
     /**

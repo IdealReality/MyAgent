@@ -170,6 +170,30 @@ internal fun inputSchemaJson(schema: InputSchema?): JsonObject? = when (schema) 
     }
 }
 
+/** ssh_stdio 的四个参数；http 传输时为默认值。 */
+private data class SshParams(
+    val host: String = "",
+    val command: String = "",
+    val root: String? = null,
+    val windowsShell: Boolean = false,
+)
+
+private fun parseSshParams(params: kotlinx.serialization.json.JsonObject): SshParams = SshParams(
+    host = params["ssh_host"]?.jsonPrimitive?.contentOrNull?.trim().orEmpty(),
+    command = params["command"]?.jsonPrimitive?.contentOrNull?.trim().orEmpty(),
+    root = params["root"]?.jsonPrimitive?.contentOrNull?.trim()?.takeIf { it.isNotEmpty() },
+    windowsShell = params["windows_shell"]?.jsonPrimitive?.booleanOrNull ?: false,
+)
+
+/** ssh_stdio 的参数校验：返回错误码与说明，null 表示通过。 */
+private fun validateSshParams(ssh: SshParams): Pair<String, String>? = when {
+    ssh.host.isBlank() -> "invalid_ssh_host" to
+        "ssh_host is required for ssh_stdio (a saved host name, see ssh_exec_saved)"
+    ssh.command.isBlank() -> "invalid_command" to
+        "command is required for ssh_stdio: the remote process that speaks MCP on stdin/stdout"
+    else -> null
+}
+
 private fun buildConfig(
     id: Uuid,
     transport: String,
@@ -177,6 +201,7 @@ private fun buildConfig(
     url: String,
     enabled: Boolean,
     headers: List<Pair<String, String>>,
+    ssh: SshParams = SshParams(),
     existingTools: List<McpTool> = emptyList(),
 ): McpServerConfig {
     val common = McpCommonOptions(
@@ -188,6 +213,14 @@ private fun buildConfig(
     return when (transport) {
         "sse" -> McpServerConfig.SseTransportServer(id = id, commonOptions = common, url = url)
         "streamable_http" -> McpServerConfig.StreamableHTTPServer(id = id, commonOptions = common, url = url)
+        "ssh_stdio" -> McpServerConfig.SshStdioServer(
+            id = id,
+            commonOptions = common,
+            sshHost = ssh.host,
+            command = ssh.command,
+            root = ssh.root,
+            windowsShell = ssh.windowsShell,
+        )
         else -> error("unsupported transport (validation should have caught this earlier): $transport")
     }
 }
@@ -377,7 +410,12 @@ fun mcpAddTool(settingsStore: SettingsStore, manager: McpManager): Tool = Tool(
             properties = buildJsonObject {
                 put("transport", buildJsonObject {
                     put("type", "string")
-                    put("description", "Either 'sse' or 'streamable_http'. Stdio is intentionally unsupported.")
+                    put(
+                        "description",
+                        "'sse' | 'streamable_http' | 'ssh_stdio'. ssh_stdio runs the server on a " +
+                            "saved SSH host and speaks MCP on its stdin/stdout — no token, no port, " +
+                            "no shared LAN. Requires ssh_host + command.",
+                    )
                 })
                 put("name", buildJsonObject {
                     put("type", "string")
@@ -385,7 +423,11 @@ fun mcpAddTool(settingsStore: SettingsStore, manager: McpManager): Tool = Tool(
                 })
                 put("url", buildJsonObject {
                     put("type", "string")
-                    put("description", "http:// or https:// URL of the MCP endpoint. Other schemes are rejected.")
+                    put(
+                        "description",
+                        "http:// or https:// URL of the MCP endpoint (required for sse / " +
+                            "streamable_http, ignored for ssh_stdio). Other schemes are rejected.",
+                    )
                 })
                 put("enabled", buildJsonObject {
                     put("type", "boolean")
@@ -403,24 +445,55 @@ fun mcpAddTool(settingsStore: SettingsStore, manager: McpManager): Tool = Tool(
                         put("required", buildJsonArray { add("name"); add("value") })
                     })
                 })
+                put("ssh_host", buildJsonObject {
+                    put("type", "string")
+                    put(
+                        "description",
+                        "ssh_stdio only: saved host name (ssh_hosts.name, same key ssh_exec_saved uses).",
+                    )
+                })
+                put("command", buildJsonObject {
+                    put("type", "string")
+                    put(
+                        "description",
+                        "ssh_stdio only: command line run on that host; it must speak MCP on " +
+                            "stdin/stdout (e.g. node /path/stdio.mjs --prefix omp --agent omp).",
+                    )
+                })
+                put("root", buildJsonObject {
+                    put("type", "string")
+                    put("description", "ssh_stdio only: optional remote working directory.")
+                })
+                put("windows_shell", buildJsonObject {
+                    put("type", "boolean")
+                    put(
+                        "description",
+                        "ssh_stdio only: true when the host is Windows (sshd runs the command " +
+                            "through cmd/pwsh verbatim instead of a POSIX sh wrapper).",
+                    )
+                })
                 put("connect_timeout_seconds", buildJsonObject {
                     put("type", "integer")
                     put("description", "How long to wait for the first sync. Default 15, max 60.")
                 })
             },
-            required = listOf("transport", "name", "url"),
+            required = listOf("transport", "name"),
         )
     },
     needsApproval = { true },
     execute = { args ->
         val params = args.jsonObject
         val transport = params["transport"]?.jsonPrimitive?.contentOrNull?.trim()?.lowercase()
-            ?: return@Tool errEnv("invalid_transport", "transport is required and must be 'sse' or 'streamable_http'")
-        if (transport != "sse" && transport != "streamable_http") {
+            ?: return@Tool errEnv("invalid_transport", "transport is required")
+        if (transport !in setOf("sse", "streamable_http", "ssh_stdio")) {
             return@Tool errEnv(
                 "unsupported_transport",
-                "unsupported transport: $transport. Supported: sse, streamable_http"
+                "unsupported transport: $transport. Supported: sse, streamable_http, ssh_stdio"
             )
+        }
+        val ssh = parseSshParams(params)
+        if (transport == "ssh_stdio") {
+            validateSshParams(ssh)?.let { (code, detail) -> return@Tool errEnv(code, detail) }
         }
         val rawName = params["name"]?.jsonPrimitive?.contentOrNull ?: ""
         val rawUrl = params["url"]?.jsonPrimitive?.contentOrNull ?: ""
@@ -431,9 +504,11 @@ fun mcpAddTool(settingsStore: SettingsStore, manager: McpManager): Tool = Tool(
         val timeoutSec = (params["connect_timeout_seconds"]?.jsonPrimitive?.intOrNull ?: DEFAULT_CONNECT_TIMEOUT_SECONDS)
             .coerceIn(1, MAX_CONNECT_TIMEOUT_SECONDS)
 
-        val urlCheck = McpUrlGuard.check(rawUrl, headless = McpUrlGuard.currentlyHeadless())
-        if (urlCheck is McpUrlGuard.Result.Reject) {
-            return@Tool errEnv(urlCheck.error, urlCheck.detail)
+        if (transport != "ssh_stdio") {
+            val urlCheck = McpUrlGuard.check(rawUrl, headless = McpUrlGuard.currentlyHeadless())
+            if (urlCheck is McpUrlGuard.Result.Reject) {
+                return@Tool errEnv(urlCheck.error, urlCheck.detail)
+            }
         }
         val existing = settingsStore.settingsFlow.value.mcpServers
         val nameCheck = McpControlValidation.validateName(rawName, existing, excludingId = null)
@@ -453,6 +528,7 @@ fun mcpAddTool(settingsStore: SettingsStore, manager: McpManager): Tool = Tool(
             url = rawUrl.trim(),
             enabled = enabled,
             headers = headers,
+            ssh = ssh,
         )
         settingsStore.update { old ->
             // #88: without this the server connects and lists tools but is invisible to
@@ -519,9 +595,15 @@ fun mcpUpdateTool(settingsStore: SettingsStore, manager: McpManager): Tool = Too
         InputSchema.Obj(
             properties = buildJsonObject {
                 put("id", buildJsonObject { put("type", "string") })
-                put("transport", buildJsonObject { put("type", "string") })
+                put("transport", buildJsonObject {
+                    put("type", "string")
+                    put("description", "'sse' | 'streamable_http' | 'ssh_stdio'.")
+                })
                 put("name", buildJsonObject { put("type", "string") })
-                put("url", buildJsonObject { put("type", "string") })
+                put("url", buildJsonObject {
+                    put("type", "string")
+                    put("description", "http(s) endpoint; required for the http transports, ignored for ssh_stdio.")
+                })
                 put("enabled", buildJsonObject {
                     put("type", "boolean")
                     put(
@@ -541,9 +623,25 @@ fun mcpUpdateTool(settingsStore: SettingsStore, manager: McpManager): Tool = Too
                         put("required", buildJsonArray { add("name"); add("value") })
                     })
                 })
+                put("ssh_host", buildJsonObject {
+                    put("type", "string")
+                    put("description", "ssh_stdio only: saved host name (ssh_hosts.name).")
+                })
+                put("command", buildJsonObject {
+                    put("type", "string")
+                    put("description", "ssh_stdio only: command line that speaks MCP on stdin/stdout.")
+                })
+                put("root", buildJsonObject {
+                    put("type", "string")
+                    put("description", "ssh_stdio only: optional remote working directory.")
+                })
+                put("windows_shell", buildJsonObject {
+                    put("type", "boolean")
+                    put("description", "ssh_stdio only: true when the remote host is Windows.")
+                })
                 put("connect_timeout_seconds", buildJsonObject { put("type", "integer") })
             },
-            required = listOf("id", "transport", "name", "url"),
+            required = listOf("id", "transport", "name"),
         )
     },
     needsApproval = { true },
@@ -554,8 +652,15 @@ fun mcpUpdateTool(settingsStore: SettingsStore, manager: McpManager): Tool = Too
             ?: return@Tool errEnv("invalid_id", "id is required and must be a valid UUID; got '$rawId'")
         val transport = params["transport"]?.jsonPrimitive?.contentOrNull?.trim()?.lowercase()
             ?: return@Tool errEnv("invalid_transport", "transport is required")
-        if (transport != "sse" && transport != "streamable_http") {
-            return@Tool errEnv("unsupported_transport", "unsupported transport: $transport")
+        if (transport !in setOf("sse", "streamable_http", "ssh_stdio")) {
+            return@Tool errEnv(
+                "unsupported_transport",
+                "unsupported transport: $transport. Supported: sse, streamable_http, ssh_stdio",
+            )
+        }
+        val ssh = parseSshParams(params)
+        if (transport == "ssh_stdio") {
+            validateSshParams(ssh)?.let { (code, detail) -> return@Tool errEnv(code, detail) }
         }
         val rawName = params["name"]?.jsonPrimitive?.contentOrNull ?: ""
         val rawUrl = params["url"]?.jsonPrimitive?.contentOrNull ?: ""
@@ -569,9 +674,11 @@ fun mcpUpdateTool(settingsStore: SettingsStore, manager: McpManager): Tool = Too
         // D5 - an update is not an install. When `enabled` is omitted, keep the server's
         // current state instead of flipping it back on; an explicit value still wins.
         val enabled = params["enabled"]?.jsonPrimitive?.booleanOrNull ?: old.commonOptions.enable
-        val urlCheck = McpUrlGuard.check(rawUrl, headless = McpUrlGuard.currentlyHeadless())
-        if (urlCheck is McpUrlGuard.Result.Reject) {
-            return@Tool errEnv(urlCheck.error, urlCheck.detail)
+        if (transport != "ssh_stdio") {
+            val urlCheck = McpUrlGuard.check(rawUrl, headless = McpUrlGuard.currentlyHeadless())
+            if (urlCheck is McpUrlGuard.Result.Reject) {
+                return@Tool errEnv(urlCheck.error, urlCheck.detail)
+            }
         }
         val nameCheck = McpControlValidation.validateName(rawName, all, excludingId = serverId.toString())
         if (nameCheck is McpControlValidation.Result.Reject) {
@@ -589,6 +696,7 @@ fun mcpUpdateTool(settingsStore: SettingsStore, manager: McpManager): Tool = Too
             url = rawUrl.trim(),
             enabled = enabled,
             headers = headers,
+            ssh = ssh,
             existingTools = old.commonOptions.tools, // preserve known tools across update
         )
         manager.removeClient(old)

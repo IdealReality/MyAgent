@@ -32,10 +32,10 @@ class TerminalStreamReplayTest {
                 // Captured while the client still submitted Enter as CRLF; PowerShell answers the
                 // extra LF with a continuation prompt. Kept because the emulator must survive it
                 // either way — the client-side fix lives in `terminalInputBytes`.
-                "PS C:\\Users\\ZhouX> Write-Host \"中文测试 ok\"",
+                "PS C:\\Users\\guest> Write-Host \"中文测试 ok\"",
                 ">>",
                 "中文测试 ok",
-                "PS C:\\Users\\ZhouX> Get-Process | Select-Object -First 2 | Format-Table -AutoSize",
+                "PS C:\\Users\\guest> Get-Process | Select-Object -First 2 | Format-Table -AutoSize",
                 ">>",
                 "",
                 "NPM(K) PM(M) WS(M) CPU(s)     Id SI ProcessName",
@@ -43,7 +43,7 @@ class TerminalStreamReplayTest {
                 "    20  3.96 20.19  11.92 100252  1 2345PicWorker",
                 "    11  1.73 11.91   0.06  17756  0 Aac3572DramHal_x86",
                 "",
-                "PS C:\\Users\\ZhouX>",
+                "PS C:\\Users\\guest>",
                 ">>                 exit",
                 ">>",
                 "",
@@ -63,7 +63,7 @@ class TerminalStreamReplayTest {
             listOf(
                 "                 > Write-Host \"after clear\"",
                 "after clear",
-                "PS C:\\Users\\ZhouX> exit",
+                "PS C:\\Users\\guest> exit",
                 "",
             ),
             update.screen.map { it.text.trimEnd() },
