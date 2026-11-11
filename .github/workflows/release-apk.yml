@@ -1,0 +1,143 @@
+name: release-apk
+
+# 手动触发：构建签名版 pure APK，并直接挂到指定 release 上。
+# 放在 CI 里做是为了绕开本机上行带宽——GitHub 内部上传不走本机代理。
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: '已存在的 release tag（例如 v0.1.0）'
+        required: true
+        default: 'v0.1.0'
+      skip_lint:
+        description: '跳过 lintVital 以加速'
+        type: boolean
+        default: true
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-apk-${{ inputs.tag }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: assemblePure + upload release asset
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    env:
+      ANDROID_USE_CCACHE: '1'
+      CCACHE_DIR: ${{ github.workspace }}/.ccache
+    steps:
+      - name: Checkout with submodules
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          packages: 'platform-tools'
+          accept-android-sdk-licenses: true
+
+      - name: Install ccache
+        run: |
+          sudo apt-get install -y -qq ccache > /dev/null 2>&1 || {
+            sudo apt-get update -qq
+            sudo apt-get install -y -qq ccache
+          }
+          ccache --version | head -1
+
+      - name: Cache ccache (native build)
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.CCACHE_DIR }}
+          key: ccache-${{ runner.os }}-${{ hashFiles('llama-cpp/native/llama.cpp/**', 'llama-cpp/src/main/cpp/**', 'workspace/src/main/cpp/**') }}
+          restore-keys: |
+            ccache-${{ runner.os }}-
+
+      - name: Cache web-ui node_modules
+        uses: actions/cache@v4
+        with:
+          path: web-ui/node_modules
+          key: webui-${{ runner.os }}-${{ hashFiles('web-ui/bun.lock', 'web-ui/pnpm-lock.yaml') }}
+          restore-keys: |
+            webui-${{ runner.os }}-
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Bootstrap web-ui lockfile
+        working-directory: web-ui
+        run: |
+          if [ -f bun.lock ]; then
+            echo "bun.lock present"
+          else
+            echo "bun.lock missing -> generating from pnpm-lock.yaml pins"
+            bun install
+          fi
+
+      # 签名密钥只存在于 Secrets 里；运行期写入 local.properties（该文件本就被 gitignore）。
+      - name: Restore signing key
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          STORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          if [ -z "$KEYSTORE_BASE64" ]; then
+            echo "::error::KEYSTORE_BASE64 secret is missing — 产物会变成 unsigned"
+            exit 1
+          fi
+          mkdir -p "$RUNNER_TEMP/signing"
+          echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/signing/myagent.jks"
+          {
+            echo "storeFile=$RUNNER_TEMP/signing/myagent.jks"
+            echo "storePassword=$STORE_PASSWORD"
+            echo "keyAlias=$KEY_ALIAS"
+            echo "keyPassword=$KEY_PASSWORD"
+          } > local.properties
+          ls -l "$RUNNER_TEMP/signing/myagent.jks"
+
+      - name: Assemble pure APK
+        run: |
+          FLAGS=""
+          if [ "${{ inputs.skip_lint }}" = "true" ]; then
+            echo "fast lane: -PskipLintVital"
+            FLAGS="-PskipLintVital"
+          fi
+          ./gradlew :app:assemblePure $FLAGS --stacktrace
+
+      - name: Verify signature
+        run: |
+          BT=$(ls -d "$ANDROID_HOME/build-tools"/* | tail -1)
+          "$BT/apksigner" verify --print-certs app/build/outputs/apk/pure/app-universal-pure.apk
+          ls -la app/build/outputs/apk/pure/*.apk
+
+      - name: Upload APK to release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release upload "${{ inputs.tag }}" \
+            app/build/outputs/apk/pure/app-universal-pure.apk \
+            --clobber
+
+      - name: Show asset list
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release view "${{ inputs.tag }}" --json assets --jq '.assets[] | "\(.name) \(.size)"'
