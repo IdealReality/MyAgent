@@ -71,7 +71,7 @@ only per *group* — you could not turn off one tool inside a group you wanted.
 **What it does**
 
 - **Tool palette** — search the local tool directory and see which group a tool belongs to
-  before enabling it. **59 tool groups, ~180 individual tools.**
+  before enabling it. **62 tool groups, ~180 individual tools.**
 - **Per-tool switches** — `Assistant.disabledLocalTools` narrows the granularity from a
   *group* to an *individual tool*.
 - **Progressive exposure** — an opt-in tool-surface mode replaces the MCP tools in each
