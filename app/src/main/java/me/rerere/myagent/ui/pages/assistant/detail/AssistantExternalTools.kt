@@ -80,7 +80,7 @@ val ExternalToolTemplates: List<ExternalToolTemplate> = listOf(
         description = "文件读写、Shell、正则检索，以及把整台机器交给 omp 的 agent 循环。",
         url = "http://192.168.0.10:8933/omp/mcp",
         toolPreview = "omp_run · omp_bash · omp_read · omp_write · omp_edit · omp_grep · omp_glob",
-        sshCommand = "node C:/Users/guest/bin/agent-bridge/stdio.mjs --prefix omp --agent omp --root C:/Users/guest",
+        sshCommand = "node \"\$env:USERPROFILE\\bin\\agent-bridge\\stdio.mjs\" --prefix omp --agent omp --root \$env:USERPROFILE",
         sshRoot = null,
         windowsShell = true,
     ),
@@ -91,10 +91,10 @@ val ExternalToolTemplates: List<ExternalToolTemplate> = listOf(
         description = "同一套工具面，落在 arch 上：容器、服务、部署相关的活交给它。",
         url = "http://192.168.0.10:8933/dsh/mcp",
         toolPreview = "dsh_run · dsh_bash · dsh_read · dsh_write · dsh_edit · dsh_grep · dsh_glob",
-        sshCommand = "node /home/user/agent-bridge/stdio.mjs --prefix dsh --agent dsh " +
-            "--agent-cmd /home/user/agent-bridge/dsh-headless.sh " +
+        sshCommand = "node \"\$HOME/agent-bridge/stdio.mjs\" --prefix dsh --agent dsh " +
+            "--agent-cmd \"\$HOME/agent-bridge/dsh-headless.sh\" " +
             "--agent-args '[\"headless\",\"--patch\",\"/home/dsh/plugins/dsh_bot/dsh-model.yml\"]' " +
-            "--root /home/user",
+            "--root \"\$HOME\"",
         sshRoot = null,
         windowsShell = false,
     ),
