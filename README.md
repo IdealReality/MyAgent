@@ -96,7 +96,7 @@ flowchart LR
 git clone --recursive https://github.com/IdealReality/MyAgent.git
 cd MyAgent
 
-./gradlew :app:assemblePure       # app/build/outputs/apk/pure/app-*-pure-unsigned.apk
+./gradlew :app:assemblePure       # app/build/outputs/apk/pure/app-*.apk（未配签名时为 -unsigned）
 ./gradlew :app:testPureUnitTest :ai:testDebugUnitTest
 ```
 
