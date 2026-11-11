@@ -171,7 +171,7 @@ internal fun inputSchemaJson(schema: InputSchema?): JsonObject? = when (schema) 
 }
 
 /** ssh_stdio 的四个参数；http 传输时为默认值。 */
-private data class SshParams(
+internal data class SshParams(
     val host: String = "",
     val command: String = "",
     val root: String? = null,
@@ -186,7 +186,7 @@ private fun parseSshParams(params: kotlinx.serialization.json.JsonObject): SshPa
 )
 
 /** ssh_stdio 的参数校验：返回错误码与说明，null 表示通过。 */
-private fun validateSshParams(ssh: SshParams): Pair<String, String>? = when {
+internal fun validateSshParams(ssh: SshParams): Pair<String, String>? = when {
     ssh.host.isBlank() -> "invalid_ssh_host" to
         "ssh_host is required for ssh_stdio (a saved host name, see ssh_exec_saved)"
     ssh.command.isBlank() -> "invalid_command" to
