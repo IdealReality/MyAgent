@@ -97,7 +97,27 @@ internal class RemoteExecChannel private constructor(
         ): RemoteExecChannel {
             val script = scriptFor(rootPath, commandLine)
             val sshCommand = sshCommandFor(script)
+            return open(session, sshCommand, connectTimeoutMs)
+        }
 
+        /**
+         * Same as [start], but the command line is handed to sshd verbatim.
+         *
+         * A Windows OpenSSH host runs exec requests through `cmd.exe`, where the POSIX
+         * `sh -c '<base64>'` wrapper in [sshCommandFor] does not exist. Callers that know the
+         * far side is Windows use this instead.
+         */
+        fun startRaw(
+            session: Session,
+            commandLine: String,
+            connectTimeoutMs: Int = 15_000,
+        ): RemoteExecChannel = open(session, commandLine, connectTimeoutMs)
+
+        private fun open(
+            session: Session,
+            sshCommand: String,
+            connectTimeoutMs: Int,
+        ): RemoteExecChannel {
             val channel = session.openChannel("exec") as ChannelExec
             channel.setPty(false)
             channel.setCommand(sshCommand)
@@ -180,7 +200,10 @@ internal object RemoteExec {
         // Blocking read, not `available()` polling: JSch delivers channel data from its own
         // pump thread, so right after the remote process exits `available()` can be 0 with bytes
         // still in flight — a poll loop would return an empty stdout for a command that printed
-        // plenty. A watchdog closes the channel at the deadline, which is what unblocks `read`.
+        // plenty. A watchdog releases the pipe at the deadline, which is what unblocks `read`.
+        // The stream reference is captured once: after `disconnect()` the getter itself can
+        // throw, and a watchdog that cannot reach the stream cannot unblock anything.
+        val stdoutStream = channel.inputStream
         val watchdog = Thread({
             try {
                 Thread.sleep(timeoutMs.toLong())
@@ -191,7 +214,7 @@ internal object RemoteExec {
             // caller is blocked on is released by closing the stream. Skipping this when the
             // channel already reported closed is exactly how a "finished" command hangs forever.
             runCatching { channel.disconnect() }
-            runCatching { channel.inputStream.close() }
+            runCatching { stdoutStream.close() }
         }, "myagent-exec-probe-timeout").apply {
             isDaemon = true
             start()
@@ -199,10 +222,9 @@ internal object RemoteExec {
 
         try {
             val chunk = ByteArray(8 * 1024)
-            val stdout = channel.inputStream
             while (true) {
                 val n = try {
-                    stdout.read(chunk)
+                    stdoutStream.read(chunk)
                 } catch (_: Throwable) {
                     break
                 }
@@ -216,7 +238,7 @@ internal object RemoteExec {
             return Result(exit, out.text(), err.text())
         } finally {
             watchdog.interrupt()
-            runCatching { channel.inputStream.close() }
+            runCatching { stdoutStream.close() }
             runCatching { channel.disconnect() }
             stderrThread.interrupt()
         }

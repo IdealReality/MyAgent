@@ -98,11 +98,13 @@ private fun serverViewEnvelope(
 private fun transportLabel(config: McpServerConfig): String = when (config) {
     is McpServerConfig.SseTransportServer -> "sse"
     is McpServerConfig.StreamableHTTPServer -> "streamable_http"
+    is McpServerConfig.SshStdioServer -> "ssh_stdio"
 }
 
 private fun urlOf(config: McpServerConfig): String = when (config) {
     is McpServerConfig.SseTransportServer -> config.url
     is McpServerConfig.StreamableHTTPServer -> config.url
+    is McpServerConfig.SshStdioServer -> "ssh://${config.sshHost}"
 }
 
 private fun renderStatus(enabled: Boolean, status: McpStatus?): Pair<String, String?> {

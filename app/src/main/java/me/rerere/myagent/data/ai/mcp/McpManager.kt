@@ -26,6 +26,7 @@ import me.rerere.myagent.AppScope
 import me.rerere.myagent.data.datastore.SettingsStore
 import me.rerere.myagent.data.datastore.getCurrentAssistant
 import me.rerere.myagent.data.model.Assistant
+import me.rerere.myagent.data.repository.SshHostRepository
 import me.rerere.myagent.data.files.FilesManager
 import me.rerere.myagent.data.files.saveUploadFromBytes
 import me.rerere.myagent.utils.JsonInstant
@@ -44,6 +45,8 @@ class McpManager(
     private val settingsStore: SettingsStore,
     private val appScope: AppScope,
     private val filesManager: FilesManager,
+    private val context: Context,
+    private val sshHosts: SshHostRepository,
 ) {
     private val okHttpClient = OkHttpClient.Builder()
         .connectTimeout(20, TimeUnit.SECONDS)
@@ -86,6 +89,8 @@ class McpManager(
         httpClient = httpClient,
         oauthCoordinator = oauthCoordinator,
         statusStore = statusStore,
+        context = context,
+        sshHosts = sshHosts,
     )
 
     init {

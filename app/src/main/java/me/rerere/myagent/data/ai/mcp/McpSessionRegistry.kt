@@ -1,5 +1,6 @@
 package me.rerere.myagent.data.ai.mcp
 
+import android.content.Context
 import android.util.Log
 import io.ktor.client.HttpClient
 import io.ktor.client.request.HttpRequestBuilder
@@ -35,6 +36,7 @@ import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.JsonObject
 import me.rerere.myagent.AppScope
 import me.rerere.myagent.data.datastore.SettingsStore
+import me.rerere.myagent.data.repository.SshHostRepository
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.time.Duration.Companion.seconds
 import kotlin.uuid.Uuid
@@ -54,6 +56,10 @@ private class McpSession(initialConfig: McpServerConfig) {
 
     @Volatile
     var connectedConfig: McpServerConfig? = null
+
+    /** 仅 ssh_stdio 传输使用：SSH 会话与 exec 通道，随 session 一起释放。 */
+    @Volatile
+    var sshConnection: SshMcpConnection? = null
 
     val lifecycleMutex = Mutex()
     var reconnectJob: Job? = null
@@ -97,6 +103,8 @@ internal class McpSessionRegistry(
     private val httpClient: HttpClient,
     private val oauthCoordinator: McpOAuthCoordinator,
     private val statusStore: McpStatusStore,
+    private val context: Context,
+    private val sshHosts: SshHostRepository,
 ) {
     private val sessions = ConcurrentHashMap<Uuid, McpSession>()
 
@@ -276,18 +284,20 @@ internal class McpSessionRegistry(
             session.client = null
             session.connectedConfig = null
             oldClient?.let { closeClient(it, config.commonOptions.name) }
+            closeSsh(session)
 
             val sdkClient = createSdkClient(config)
-            val transport = createTransport(config)
-            installTransportCallbacks(config, sdkClient, transport)
 
             try {
+                val transport = createTransport(config, session)
+                installTransportCallbacks(config, sdkClient, transport)
                 sdkClient.connect(transport)
                 val syncedConfig = syncTools(session, sdkClient, config)
                 if (sessions[config.id] !== session ||
                     !hasSameConnectionParameters(config, syncedConfig)
                 ) {
                     closeClient(sdkClient, config.commonOptions.name)
+                    closeSsh(session)
                     return@withLock ConnectResult.Stale
                 }
 
@@ -300,9 +310,11 @@ internal class McpSessionRegistry(
                 ConnectResult.Success
             } catch (e: CancellationException) {
                 closeClient(sdkClient, config.commonOptions.name)
+                closeSsh(session)
                 throw e
             } catch (e: Exception) {
                 closeClient(sdkClient, config.commonOptions.name)
+                closeSsh(session)
                 Log.e(TAG, "Failed to connect MCP server ${config.id}", e)
                 if (oauthCoordinator.needsAuthorization(config, e)) {
                     statusStore.update(config.id, McpStatus.NeedsAuthorization)
@@ -462,6 +474,18 @@ internal class McpSessionRegistry(
             session.client = null
             session.connectedConfig = null
             sdkClient?.let { closeClient(it, session.config.commonOptions.name) }
+            closeSsh(session)
+        }
+    }
+
+    /** 释放 ssh_stdio 的 SSH 会话与 exec 通道；对 HTTP 传输是 no-op。 */
+    private suspend fun closeSsh(session: McpSession) {
+        val connection = session.sshConnection ?: return
+        session.sshConnection = null
+        try {
+            connection.close()
+        } catch (t: Throwable) {
+            Log.w(TAG, "Failed to close SSH MCP channel", t)
         }
     }
 
@@ -474,7 +498,10 @@ internal class McpSessionRegistry(
         clientInfo = Implementation(name = config.commonOptions.name, version = "1.0")
     )
 
-    private fun createTransport(config: McpServerConfig): AbstractTransport = when (config) {
+    private suspend fun createTransport(
+        config: McpServerConfig,
+        session: McpSession,
+    ): AbstractTransport = when (config) {
         is McpServerConfig.SseTransportServer -> SseClientTransport(
             urlString = config.url,
             client = httpClient,
@@ -486,6 +513,14 @@ internal class McpSessionRegistry(
             client = httpClient,
             requestBuilder = { appendResolvedHeaders(config) },
         )
+
+        is McpServerConfig.SshStdioServer -> {
+            val host = sshHosts.getByName(config.sshHost)
+                ?: error("ssh_stdio: 未找到已保存的 SSH 主机「${config.sshHost}」（先在设置 → SSH 主机里添加）")
+            val connection = openSshMcpConnection(context, host, config)
+            session.sshConnection = connection
+            connection.transport
+        }
     }
 
     private fun HttpRequestBuilder.appendResolvedHeaders(config: McpServerConfig) {
@@ -513,16 +548,28 @@ internal data class McpConnectionKey(
     val serverUrl: String,
     val clientName: String,
     val headers: List<Pair<String, String>>,
+    /** 传输特有的连接参数（目前只有 ssh_stdio 的命令行/工作目录/远端 shell）。 */
+    val extra: String = "",
 )
 
 internal fun McpServerConfig.connectionKey(): McpConnectionKey = McpConnectionKey(
     transportType = when (this) {
         is McpServerConfig.SseTransportServer -> "sse"
         is McpServerConfig.StreamableHTTPServer -> "streamable_http"
+        is McpServerConfig.SshStdioServer -> "ssh_stdio"
     },
     serverUrl = serverUrl,
     clientName = commonOptions.name,
     headers = resolvedHeaders(),
+    extra = when (this) {
+        is McpServerConfig.SshStdioServer -> listOf(
+            sshHost,
+            command,
+            root.orEmpty(),
+            windowsShell.toString(),
+        ).joinToString("\u0000")
+        else -> ""
+    },
 )
 
 private fun hasSameConnectionParameters(

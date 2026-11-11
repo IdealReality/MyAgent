@@ -387,6 +387,7 @@ private fun McpServerItem(
                             when (item) {
                                 is McpServerConfig.SseTransportServer -> Text("SSE")
                                 is McpServerConfig.StreamableHTTPServer -> Text("Streamable HTTP")
+                                is McpServerConfig.SshStdioServer -> Text("SSH stdio")
                             }
                         }
                     }
@@ -571,6 +572,10 @@ private fun McpCommonOptionsConfigure(
                                 is McpServerConfig.StreamableHTTPServer -> config.copy(
                                     commonOptions = config.commonOptions.copy(enable = enabled)
                                 )
+
+                                is McpServerConfig.SshStdioServer -> config.copy(
+                                    commonOptions = config.commonOptions.copy(enable = enabled)
+                                )
                             }
                         )
                     }
@@ -602,6 +607,10 @@ private fun McpCommonOptionsConfigure(
                             is McpServerConfig.StreamableHTTPServer -> config.copy(
                                 commonOptions = config.commonOptions.copy(name = name)
                             )
+
+                            is McpServerConfig.SshStdioServer -> config.copy(
+                                commonOptions = config.commonOptions.copy(name = name)
+                            )
                         }
                     )
                 },
@@ -626,13 +635,18 @@ private fun McpCommonOptionsConfigure(
                 Text(stringResource(R.string.setting_mcp_page_transport_type_desc))
             }
         ) {
-            val transportTypes = listOf(
-                "Streamable HTTP",
-                "SSE"
-            )
+            // ssh_stdio 不是 URL+header 的传输：编辑页把它显示为单独一项，避免用户在
+            // 类型切换里把 host/command 丢掉。它不参与下面的来回切换。
+            val isSshTransport = config is McpServerConfig.SshStdioServer
+            val transportTypes = if (isSshTransport) {
+                listOf("SSH stdio")
+            } else {
+                listOf("Streamable HTTP", "SSE")
+            }
             val currentTypeIndex = when (config) {
                 is McpServerConfig.StreamableHTTPServer -> 0
                 is McpServerConfig.SseTransportServer -> 1
+                is McpServerConfig.SshStdioServer -> 0
             }
 
             SingleChoiceSegmentedButtonRow(
@@ -650,6 +664,7 @@ private fun McpCommonOptionsConfigure(
                                         url = when (config) {
                                             is McpServerConfig.SseTransportServer -> config.url
                                             is McpServerConfig.StreamableHTTPServer -> config.url
+                                            is McpServerConfig.SshStdioServer -> ""
                                         }
                                     )
 
@@ -659,6 +674,7 @@ private fun McpCommonOptionsConfigure(
                                         url = when (config) {
                                             is McpServerConfig.SseTransportServer -> config.url
                                             is McpServerConfig.StreamableHTTPServer -> config.url
+                                            is McpServerConfig.SshStdioServer -> ""
                                         }
                                     )
 
@@ -687,6 +703,8 @@ private fun McpCommonOptionsConfigure(
                     when (config) {
                         is McpServerConfig.SseTransportServer -> stringResource(R.string.setting_mcp_page_sse_url_desc)
                         is McpServerConfig.StreamableHTTPServer -> stringResource(R.string.setting_mcp_page_streamable_http_url_desc)
+                        is McpServerConfig.SshStdioServer ->
+                            "SSH 模式：远端进程在 stdin/stdout 上说 MCP，不需要令牌。"
                     }
                 )
             }
@@ -695,12 +713,15 @@ private fun McpCommonOptionsConfigure(
                 value = when (config) {
                     is McpServerConfig.SseTransportServer -> config.url
                     is McpServerConfig.StreamableHTTPServer -> config.url
+                    is McpServerConfig.SshStdioServer -> "ssh://${config.sshHost}"
                 },
+                readOnly = config is McpServerConfig.SshStdioServer,
                 onValueChange = { url ->
                     update(
                         when (config) {
                             is McpServerConfig.SseTransportServer -> config.copy(url = url)
                             is McpServerConfig.StreamableHTTPServer -> config.copy(url = url)
+                            is McpServerConfig.SshStdioServer -> config
                         }
                     )
                 },
@@ -711,10 +732,64 @@ private fun McpCommonOptionsConfigure(
                         when (config) {
                             is McpServerConfig.SseTransportServer -> stringResource(R.string.setting_mcp_page_sse_url_placeholder)
                             is McpServerConfig.StreamableHTTPServer -> stringResource(R.string.setting_mcp_page_streamable_http_url_placeholder)
+                            is McpServerConfig.SshStdioServer -> "ssh://已保存主机名"
                         }
                     )
                 }
             )
+        }
+
+        if (config is McpServerConfig.SshStdioServer) {
+            HorizontalDivider()
+
+            FormItem(
+                label = { Text("SSH 主机") },
+                description = { Text("填「设置 → SSH 主机」里保存的名字；认证走该主机的密钥/密码。") },
+            ) {
+                OutlinedTextField(
+                    value = config.sshHost,
+                    onValueChange = { update(config.copy(sshHost = it.trim())) },
+                    label = { Text("已保存主机名") },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+
+            FormItem(
+                label = { Text("远端命令") },
+                description = { Text("远端进程必须在标准 stdin/stdout 上说 MCP，例如 node .../stdio.mjs --prefix omp --agent omp。") },
+            ) {
+                OutlinedTextField(
+                    value = config.command,
+                    onValueChange = { update(config.copy(command = it)) },
+                    label = { Text("command") },
+                    minLines = 2,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+
+            FormItem(
+                label = { Text("远端工作目录") },
+                description = { Text("可选。posix 远端会先 cd 进去；Windows 远端忽略此项。") },
+            ) {
+                OutlinedTextField(
+                    value = config.root.orEmpty(),
+                    onValueChange = { update(config.copy(root = it.trim().ifBlank { null })) },
+                    label = { Text("root") },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text("远端是 Windows（按 cmd.exe 语义下发命令）")
+                Spacer(Modifier.weight(1f))
+                Switch(
+                    checked = config.windowsShell,
+                    onCheckedChange = { update(config.copy(windowsShell = it)) }
+                )
+            }
         }
 
         HorizontalDivider()
@@ -758,6 +833,10 @@ private fun McpCommonOptionsConfigure(
                                             is McpServerConfig.StreamableHTTPServer -> config.copy(
                                                 commonOptions = config.commonOptions.copy(headers = updatedHeaders)
                                             )
+
+                                            is McpServerConfig.SshStdioServer -> config.copy(
+                                                commonOptions = config.commonOptions.copy(headers = updatedHeaders)
+                                            )
                                         }
                                     )
                                 },
@@ -780,6 +859,10 @@ private fun McpCommonOptionsConfigure(
                                             )
 
                                             is McpServerConfig.StreamableHTTPServer -> config.copy(
+                                                commonOptions = config.commonOptions.copy(headers = updatedHeaders)
+                                            )
+
+                                            is McpServerConfig.SshStdioServer -> config.copy(
                                                 commonOptions = config.commonOptions.copy(headers = updatedHeaders)
                                             )
                                         }
@@ -811,6 +894,10 @@ private fun McpCommonOptionsConfigure(
                                     is McpServerConfig.StreamableHTTPServer -> config.copy(
                                         commonOptions = config.commonOptions.copy(headers = updatedHeaders)
                                     )
+
+                                    is McpServerConfig.SshStdioServer -> config.copy(
+                                        commonOptions = config.commonOptions.copy(headers = updatedHeaders)
+                                    )
                                 }
                             )
                         }) {
@@ -833,6 +920,10 @@ private fun McpCommonOptionsConfigure(
                                 )
 
                                 is McpServerConfig.StreamableHTTPServer -> config.copy(
+                                    commonOptions = config.commonOptions.copy(headers = updatedHeaders)
+                                )
+
+                                is McpServerConfig.SshStdioServer -> config.copy(
                                     commonOptions = config.commonOptions.copy(headers = updatedHeaders)
                                 )
                             }

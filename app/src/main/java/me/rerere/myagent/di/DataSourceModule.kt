@@ -138,6 +138,10 @@ val dataSourceModule = module {
     }
 
     single {
+        get<AppDatabase>().vmInstanceDao()
+    }
+
+    single {
         MessageFtsManager(get())
     }
 
@@ -154,7 +158,15 @@ val dataSourceModule = module {
         )
     }
 
-    single { McpManager(settingsStore = get(), appScope = get(), filesManager = get()) }
+    single {
+        McpManager(
+            settingsStore = get(),
+            appScope = get(),
+            filesManager = get(),
+            context = get(),
+            sshHosts = get(),
+        )
+    }
 
     single { me.rerere.myagent.data.memory.AssistantMemoryEngine(context = get()) }
 
