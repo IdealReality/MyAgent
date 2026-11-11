@@ -72,7 +72,7 @@ flowchart LR
 
 | | |
 |---|---|
-| **Provider** | OpenAI 兼容（OpenRouter 路由、Ollama、任意自建端点）、Anthropic、Google（含 Vertex）、Codex / Grok（OAuth 登录，无需 key）、AICore（Pixel）、本地模型（LiteRT / llama.cpp GGUF） |
+| **Provider** | OpenAI 兼容（OpenRouter 路由、任意自建端点）、Anthropic、Google（含 Vertex）、Codex / Grok（OAuth 登录，无需 key）、AICore（Pixel）、本地模型（LiteRT / llama.cpp GGUF） |
 | **生成** | `generate_image` / `edit_image`；`generate_video`（5 家厂商原生异步任务 API + 通用 `/videos`，见 [docs/VIDEO-GENERATION.md](docs/VIDEO-GENERATION.md)）；TTS / STT |
 | **工具面** | 62 个工具组，可按组也可按**单个工具**关闭；工具多时改用按需加载，见下一节 |
 
@@ -192,9 +192,9 @@ cd MyAgent
 | [RikkaHub](https://github.com/rikkahub/rikkahub) | 上游聊天客户端、provider 抽象与 UI |
 | [ExTV/rikkahub-agent](https://github.com/ExTV/rikkahub-agent) | 直接上游：设备工具、工作流、子 agent |
 | [JSch (mwiede fork)](https://github.com/mwiede/jsch) | SSH 客户端 |
-| [Termux](https://github.com/termux/termux-app) · [whisper.cpp](https://github.com/ggerganov/whisper.cpp) | Shell 环境与设备端语音转写 |
+| [Termux terminal-view](https://github.com/termux/termux-app) | SSH 终端的终端渲染组件（仅 `terminal-view`，不引入 Termux 应用 / shell / 包管理） |
+| Android `MediaExtractor` · `MediaCodec` | `transcribe_audio_file` 的进程内音频解码（→ 16 kHz mono PCM，交给系统识别器） |
 | [cron-utils](https://github.com/jmrozanec/cron-utils) | 定时表达式解析 |
-| [FlorisBoard](https://github.com/florisboard/florisboard) | 配套 [agent-keyboard](https://github.com/ExTV/agent-keyboard) 的基础 |
 
 本项目与上游 RikkaHub、ExTV 维护者无隶属关系；聊天客户端、provider 抽象与 UI 设计的功劳归他们。
 以 GNU AGPL-3.0 发布（继承自上游），见 [LICENSE](LICENSE)。
