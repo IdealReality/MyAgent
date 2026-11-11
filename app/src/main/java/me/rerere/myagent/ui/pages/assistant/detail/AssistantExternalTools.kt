@@ -37,6 +37,7 @@ import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.launch
+import me.rerere.myagent.BuildConfig
 import me.rerere.myagent.data.ai.mcp.McpCommonOptions
 import me.rerere.myagent.data.ai.mcp.McpServerConfig
 import me.rerere.myagent.data.datastore.SettingsStore
@@ -78,7 +79,7 @@ val ExternalToolTemplates: List<ExternalToolTemplate> = listOf(
         name = "omp",
         host = "Windows 工作站",
         description = "文件读写、Shell、正则检索，以及把整台机器交给 omp 的 agent 循环。",
-        url = "http://192.168.0.10:8933/omp/mcp",
+        url = "http://${BuildConfig.MCP_HOST}:${BuildConfig.MCP_PORT}/omp/mcp",
         toolPreview = "omp_run · omp_bash · omp_read · omp_write · omp_edit · omp_grep · omp_glob",
         sshCommand = "node \"\$env:USERPROFILE\\bin\\agent-bridge\\stdio.mjs\" --prefix omp --agent omp --root \$env:USERPROFILE",
         sshRoot = null,
@@ -89,7 +90,7 @@ val ExternalToolTemplates: List<ExternalToolTemplate> = listOf(
         name = "dsh",
         host = "Arch Linux",
         description = "同一套工具面，落在 arch 上：容器、服务、部署相关的活交给它。",
-        url = "http://192.168.0.10:8933/dsh/mcp",
+        url = "http://${BuildConfig.MCP_HOST}:${BuildConfig.MCP_PORT}/dsh/mcp",
         toolPreview = "dsh_run · dsh_bash · dsh_read · dsh_write · dsh_edit · dsh_grep · dsh_glob",
         sshCommand = "node \"\$HOME/agent-bridge/stdio.mjs\" --prefix dsh --agent dsh " +
             "--agent-cmd \"\$HOME/agent-bridge/dsh-headless.sh\" " +

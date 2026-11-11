@@ -21,6 +21,15 @@ plugins {
 // runs the full report locally.
 val skipLintVital = providers.gradleProperty("skipLintVital").isPresent
 
+// 部署真值不进仓库：写在 local.properties（已 gitignore）。
+// 未配置时退到文档里的示例地址；App 内仍可逐条编辑端点。
+val localProps = Properties().apply {
+    val f = rootProject.file("local.properties")
+    if (f.exists()) FileInputStream(f).use { load(it) }
+}
+val mcpHost = localProps.getProperty("myagent.mcpHost")?.takeIf { it.isNotBlank() } ?: "192.168.0.10"
+val mcpPort = localProps.getProperty("myagent.mcpPort")?.takeIf { it.isNotBlank() } ?: "8933"
+
 android {
     namespace = "me.rerere.myagent"
     compileSdk = 37
@@ -37,6 +46,9 @@ android {
         ndk {
             abiFilters += listOf("arm64-v8a", "x86_64")
         }
+
+        buildConfigField("String", "MCP_HOST", "\"$mcpHost\"")
+        buildConfigField("String", "MCP_PORT", "\"$mcpPort\"")
     }
 
     splits {
