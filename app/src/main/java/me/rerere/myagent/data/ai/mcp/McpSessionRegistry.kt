@@ -328,13 +328,19 @@ internal class McpSessionRegistry(
                     statusStore.update(config.id, McpStatus.NeedsAuthorization)
                     ConnectResult.NeedsAuthorization
                 } else {
-                    val lanHint = if (config is McpServerConfig.SshStdioServer) {
+                    val base = McpStatus.Error.from(e)
+                    // 只在「网络层够不到」时才提局域网权限：认证失败、host key 变了、远端命令
+                    // 不存在（stderr 有内容）都有各自明确的原因，再补一句权限只会误导。
+                    val looksLikeNetwork = listOf("no transport could reach", "SocketException", "timed out", "timeout")
+                        .any { base.message.contains(it, ignoreCase = true) }
+                    val lanHint = if (config is McpServerConfig.SshStdioServer &&
+                        remoteStderr == null && looksLikeNetwork
+                    ) {
                         "；若目标是私网地址（192.168/10./172.16-31/100.64-127），先确认已授予" +
                             "「局域网访问」权限，或改用 TailNET 主机名"
                     } else {
                         ""
                     }
-                    val base = McpStatus.Error.from(e)
                     val message = buildString {
                         append(base.message)
                         if (remoteStderr != null) append(" — ").append(remoteStderr.take(300))

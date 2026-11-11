@@ -388,9 +388,11 @@ fun mcpGetTool(settingsStore: SettingsStore, manager: McpManager): Tool = Tool(
 fun mcpAddTool(settingsStore: SettingsStore, manager: McpManager): Tool = Tool(
     name = "mcp_add",
     description = """
-        Add a new MCP server. Pass transport="sse" or "streamable_http", a unique name (≤60
-        chars), an http(s) url, optional enabled (default false), and optional headers as a
-        list of {name, value} pairs (max 32 entries; sensitive values like Authorization or
+        Add a new MCP server. Pass transport="sse" | "streamable_http" | "ssh_stdio" and a
+        unique name (≤60 chars). The http transports need an http(s) url; ssh_stdio needs
+        ssh_host (a saved host name) + command (the remote process speaking MCP on its
+        stdin/stdout), plus optional root and windows_shell. Optional enabled (default false)
+        and headers as {name, value} pairs (max 32; sensitive values like Authorization or
         X-Api-Key are redacted in display layers but stored verbatim).
 
         After registering, the tool waits up to connect_timeout_seconds (default 15, max 60)

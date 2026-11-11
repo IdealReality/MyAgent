@@ -473,7 +473,8 @@ private fun AssistantCreationSheet(
                         }
                         AssistantExternalToolsContent(
                             assistant = assistant,
-                            onUpdateAssistant = { update(it) },
+                            // 新建助手是一份草稿，没有并发写入；用当前草稿套 transform 即可。
+                            onUpdateAssistantTransform = { transform -> update(transform(assistant)) },
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .weight(1f, fill = false),

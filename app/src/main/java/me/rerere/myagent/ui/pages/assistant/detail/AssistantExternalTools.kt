@@ -106,7 +106,12 @@ val ExternalToolTemplates: List<ExternalToolTemplate> = listOf(
 @Composable
 fun AssistantExternalToolsContent(
     assistant: Assistant,
-    onUpdateAssistant: (Assistant) -> Unit,
+    /**
+     * Atomic update. Both entry points (template install and the per-server switches) must
+     * run against the *current* assistant, otherwise two quick taps write from the same
+     * stale snapshot and the later one wins (see AssistantDetailVM.updateAssistant).
+     */
+    onUpdateAssistantTransform: ((Assistant) -> Assistant) -> Unit,
     modifier: Modifier = Modifier,
     contentPadding: PaddingValues = PaddingValues(0.dp),
 ) {
@@ -167,7 +172,8 @@ fun AssistantExternalToolsContent(
                     .weight(1f, fill = false)
                     .heightIn(max = 320.dp),
                 contentPadding = contentPadding,
-                onUpdateAssistant = onUpdateAssistant,
+                onUpdateAssistant = { updated -> onUpdateAssistantTransform { updated } },
+                onUpdateAssistantTransform = onUpdateAssistantTransform,
             )
         }
 
@@ -216,9 +222,9 @@ fun AssistantExternalToolsContent(
                 val server = config
                 scope.launch {
                     settingsStore.update { s -> s.copy(mcpServers = s.mcpServers + server) }
-                    onUpdateAssistant(
-                        assistant.copy(mcpServers = assistant.mcpServers + server.id)
-                    )
+                    onUpdateAssistantTransform { current ->
+                        current.copy(mcpServers = current.mcpServers + server.id)
+                    }
                 }
                 pendingTemplate = null
             },

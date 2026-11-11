@@ -119,7 +119,8 @@ fun AssistantMcpPage(id: String) {
                     )
                     AssistantExternalToolsContent(
                         assistant = assistant,
-                        onUpdateAssistant = { vm.update(it) },
+                        // 已有助手走原子 transform：连点两个开关不会丢掉前一次。
+                        onUpdateAssistantTransform = vm::updateAssistant,
                         modifier = Modifier.fillMaxWidth(),
                     )
                     Row(

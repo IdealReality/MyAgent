@@ -278,7 +278,16 @@ fun McpPicker(
     servers: List<McpServerConfig>,
     modifier: Modifier = Modifier,
     contentPadding: PaddingValues = PaddingValues(0.dp),
-    onUpdateAssistant: (Assistant) -> Unit
+    onUpdateAssistant: (Assistant) -> Unit,
+    /**
+     * Atomic variant. Two switches tapped in quick succession would otherwise both write
+     * from the same stale [Assistant] snapshot and drop the earlier toggle (see
+     * AssistantDetailVM.updateAssistant). Defaults to the value-based callback so existing
+     * draft-editing call sites keep working.
+     */
+    onUpdateAssistantTransform: ((Assistant) -> Assistant) -> Unit = { transform ->
+        onUpdateAssistant(transform(assistant))
+    },
 ) {
     val mcpManager = koinInject<McpManager>()
     LazyColumn(
@@ -348,24 +357,14 @@ fun McpPicker(
                     }
                     Switch(
                         checked = server.id in assistant.mcpServers,
-                        onCheckedChange = {
-                            if (it) {
-                                val newServers = assistant.mcpServers.toMutableSet()
-                                newServers.add(server.id)
-                                newServers.removeIf { id -> servers.none { s -> s.id == id } } // remove invalid servers
-                                onUpdateAssistant(
-                                    assistant.copy(
-                                        mcpServers = newServers.toSet()
-                                    )
-                                )
-                            } else {
-                                val newServers = assistant.mcpServers.toMutableSet()
-                                newServers.remove(server.id)
-                                newServers.removeIf { id -> servers.none { s -> s.id == id } } //  remove invalid servers
-                                onUpdateAssistant(
-                                    assistant.copy(
-                                        mcpServers = newServers.toSet()
-                                    )
+                        onCheckedChange = { enable ->
+                            // Transform-based: the second tap of a rapid pair must see the
+                            // first tap's result, not the stale snapshot this row was drawn from.
+                            onUpdateAssistantTransform { current ->
+                                current.applyMcpToggle(
+                                    serverId = server.id,
+                                    enable = enable,
+                                    knownServerIds = servers.map { it.id }.toSet(),
                                 )
                             }
                         }
