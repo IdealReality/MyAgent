@@ -176,11 +176,6 @@ cd MyAgent
 - 视频生成的下载链接会过期，App 会立即落盘（见 `docs/VIDEO-GENERATION.md`）。
 - SSH 终端仍未实现：sixel / kitty 图形协议、鼠标上报、DEC 字符集。
 
-## 社区
-
-- **QQ 群**：`1030362371` —— 安装、使用、功能建议。
-- **Issues**：<https://github.com/IdealReality/MyAgent/issues>
-
 ## 致谢与许可
 
 | 项目 | 作用 |
