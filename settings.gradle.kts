@@ -19,13 +19,22 @@ plugins {
 dependencyResolutionManagement {
     repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
     repositories {
-        maven("https://mirrors.cloud.tencent.com/nexus/repository/maven-public/")
+        maven("https://mirrors.cloud.tencent.com/nexus/repository/maven-public/") {
+            // 腾讯镜像对 jitpack 组只镜像了 POM、缺 AAR（实测 hugeicons-compose-1.4.aar 404）。
+            // Gradle 一旦在该仓库命中 POM 就锁定它，不会再查 jitpack.io 取 AAR，
+            // 于是新环境（CI/新机器）必然失败。把这两个组排除出去，交给下面的 jitpack 源。
+            content {
+                excludeGroupByRegex("com\\.github\\.(rikkahub|yalantis).*")
+            }
+        }
         google()
         mavenCentral()
-        maven("https://mirrors.cloud.tencent.com/nexus/repository/jitpack/")
-        // 腾讯的 jitpack 镜像缺 com.github.rikkahub:* 的部分 artifact
-        // （hugeicons-compose-1.4.aar 等，实测 404），镜像失败时回落到官方源。
-        maven("https://jitpack.io")
+        maven("https://mirrors.cloud.tencent.com/nexus/repository/jitpack/") {
+            content { includeGroupByRegex("com\\.github\\.(rikkahub|yalantis).*") }
+        }
+        maven("https://jitpack.io") {
+            content { includeGroupByRegex("com\\.github\\.(rikkahub|yalantis).*") }
+        }
     }
 }
 
