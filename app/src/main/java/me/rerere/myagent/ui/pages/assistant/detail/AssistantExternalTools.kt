@@ -241,6 +241,7 @@ private fun AddExternalToolDialog(
     onConfirm: (McpServerConfig) -> Unit,
 ) {
     var token by remember { mutableStateOf("") }
+    var endpoint by remember { mutableStateOf(template.url) }
     var sshMode by remember { mutableStateOf(false) }
     var selectedHost by remember { mutableStateOf(savedHosts.firstOrNull()?.name) }
     var command by remember { mutableStateOf(template.sshCommand) }
@@ -248,7 +249,7 @@ private fun AddExternalToolDialog(
     val canConfirm = if (sshMode) {
         !selectedHost.isNullOrBlank() && command.isNotBlank()
     } else {
-        token.isNotBlank()
+        token.isNotBlank() && endpoint.isNotBlank()
     }
 
     AlertDialog(
@@ -280,10 +281,10 @@ private fun AddExternalToolDialog(
                         style = androidx.compose.material3.MaterialTheme.typography.bodySmall,
                     )
                     OutlinedTextField(
-                        value = template.url,
-                        onValueChange = {},
-                        readOnly = true,
-                        label = { Text("MCP 端点") },
+                        value = endpoint,
+                        onValueChange = { endpoint = it.trim() },
+                        label = { Text("MCP 端点（可修改）") },
+                        singleLine = true,
                         modifier = Modifier.fillMaxWidth(),
                     )
                     OutlinedTextField(
@@ -354,7 +355,7 @@ private fun AddExternalToolDialog(
                                 name = template.name,
                                 headers = listOf("authorization" to "Bearer $token"),
                             ),
-                            url = template.url,
+                            url = endpoint,
                         )
                     }
                     onConfirm(config)
