@@ -106,7 +106,9 @@ cd MyAgent
 
 ### 安装
 
-仓库目前**不提供预编译 APK**（Releases 页只有版本标记）。两条路：
+已签名的安装包**直接在 [Releases](https://github.com/IdealReality/MyAgent/releases) 页提供**：真机下 `app-arm64-v8a-pure.apk`，模拟器下 `app-x86_64-pure.apk`，拿不准 ABI 就下 `app-universal-pure.apk`（体积最大），点开安装即可。
+
+也可以自己构建、自己签名：
 
 1. 本地构建并签名，`adb install`；
 2. 在 Actions 里手动触发 `build` workflow（`workflow_dispatch`），下载 `apk-pure` artifact。
@@ -170,7 +172,6 @@ cd MyAgent
 
 ## 已知限制
 
-- 仓库不提供预编译 APK：Release 页只有版本标记，见「安装」。
 - Pure 层所有开关默认关，不打开就看不到效果。
 - 短信、联系人、通知监听、无障碍、Shizuku 等工具需要系统授权并在设备上显式启用。
 - 视频生成的下载链接会过期，App 会立即落盘（见 `docs/VIDEO-GENERATION.md`）。
@@ -208,4 +209,4 @@ cd MyAgent
 ./gradlew :app:assemblePure
 ```
 
-No prebuilt APK is published; build and sign locally, or run the `build` workflow manually and grab the `apk-pure` artifact. Licensed under AGPL-3.0. Docs: [PURE-FEATURES](docs/PURE-FEATURES.md), [SSH](docs/SSH.md), [VIDEO-GENERATION](docs/VIDEO-GENERATION.md), [VIRTUAL-MACHINES](docs/VIRTUAL-MACHINES.md), [TRPG](docs/TRPG.md).
+Signed builds are attached to [Releases](https://github.com/IdealReality/MyAgent/releases) — pick `app-arm64-v8a-pure.apk` for a phone, `app-x86_64-pure.apk` for an emulator, or `app-universal-pure.apk` if unsure. To build yourself, run the command above or trigger the `build` workflow manually and grab the `apk-pure` artifact. Licensed under AGPL-3.0. Docs: [PURE-FEATURES](docs/PURE-FEATURES.md), [SSH](docs/SSH.md), [VIDEO-GENERATION](docs/VIDEO-GENERATION.md), [VIRTUAL-MACHINES](docs/VIRTUAL-MACHINES.md), [TRPG](docs/TRPG.md).
