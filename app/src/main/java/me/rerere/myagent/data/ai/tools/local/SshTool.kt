@@ -428,7 +428,15 @@ internal class NetworkRaceSocketFactory(
                 try { s.close() } catch (_: Throwable) {}
             }
         }
-        throw java.net.SocketException("no transport could reach $host:$port")
+        // Keep the per-transport reasons: a bare "no transport could reach" tells the user
+        // nothing about *why* (VPN blackhole, permission denial, wrong interface), and the
+        // failures are the only place that detail exists.
+        val reasons = _failures.joinToString("; ") { (label, reason) -> "$label: $reason" }
+            .take(400)
+        throw java.net.SocketException(
+            if (reasons.isEmpty()) "no transport could reach $host:$port"
+            else "no transport could reach $host:$port [$reasons]",
+        )
     }
 
     override fun getInputStream(socket: java.net.Socket): java.io.InputStream =

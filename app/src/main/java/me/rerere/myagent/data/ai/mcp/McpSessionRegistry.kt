@@ -276,7 +276,17 @@ internal class McpSessionRegistry(
             }
 
             statusStore.update(config.id, McpStatus.Connecting)
-            localNetworkGate(config)?.let { reason ->
+            // ssh_stdio 的 serverUrl 是 "ssh://<保存的主机名>"，闸门拿不到真实 IP，所以这里
+            // 先按主机表解析出地址再判私网。否则 Android 17 上未授权时用户只会看到 30 秒
+            // 超时，而不是「去授予局域网权限」。
+            val lanReason = when (config) {
+                is McpServerConfig.SshStdioServer ->
+                    sshHosts.getByName(config.sshHost)
+                        ?.let { mcpLocalNetworkBlockReason(context, "ssh://${it.host}") }
+
+                else -> localNetworkGate(config)
+            }
+            lanReason?.let { reason ->
                 statusStore.update(config.id, McpStatus.Error(reason))
                 return@withLock ConnectResult.Failed
             }
@@ -314,13 +324,21 @@ internal class McpSessionRegistry(
                 throw e
             } catch (e: Exception) {
                 closeClient(sdkClient, config.commonOptions.name)
+                // 在断开通道之前取远端 stderr：命令写错 / node 不在 PATH 时，握手异常本身
+                // 没有信息量，stderr 说明才是唯一线索。
+                val remoteStderr = session.sshConnection?.stderrTail?.trim()?.takeIf { it.isNotEmpty() }
                 closeSsh(session)
                 Log.e(TAG, "Failed to connect MCP server ${config.id}", e)
                 if (oauthCoordinator.needsAuthorization(config, e)) {
                     statusStore.update(config.id, McpStatus.NeedsAuthorization)
                     ConnectResult.NeedsAuthorization
                 } else {
-                    statusStore.update(config.id, McpStatus.Error.from(e))
+                    val error = McpStatus.Error.from(e)
+                    statusStore.update(
+                        config.id,
+                        if (remoteStderr == null) error
+                        else error.copy(message = error.message + " — " + remoteStderr.take(300)),
+                    )
                     ConnectResult.Failed
                 }
             }

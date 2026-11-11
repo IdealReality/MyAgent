@@ -141,7 +141,7 @@ fun AssistantExternalToolsContent(
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text("需要「局域网访问」权限", style = androidx.compose.material3.MaterialTheme.typography.titleMedium)
                     Text(
-                        "外部工具跑在你的局域网主机上。Android 17 起，没有该权限时连接会一直超时。SSH 模式不需要这个权限。",
+                        "外部工具跑在你的局域网主机上。Android 17 起，没有该权限时连接会一直超时 —— HTTP 端点和经 SSH 连私网主机（RFC1918 / Tailscale CGNAT）都一样需要它。",
                         style = androidx.compose.material3.MaterialTheme.typography.bodySmall,
                         color = androidx.compose.material3.MaterialTheme.colorScheme.onSurfaceVariant,
                     )
