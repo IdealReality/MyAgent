@@ -1223,6 +1223,11 @@
   <string name="setting_provider_page_add_provider_override">Add Provider Override</string>
   <string name="setting_provider_page_advanced_settings">Advanced Settings</string>
   <string name="setting_provider_page_api_base_url">API Base Url</string>
+  <string name="setting_provider_page_api_base_url_multi_hint">Multiple addresses allowed (one per line or comma separated). They are probed in parallel before each request; the first one that actually reaches the API wins and the other probes are disconnected immediately, and the winner is reused for 60 s. When the number of keys matches the number of addresses, they pair up in order.</string>
+  <string name="setting_provider_page_endpoint_probe">Endpoint probe</string>
+  <string name="setting_provider_page_endpoint_probe_again">Probe again</string>
+  <string name="setting_provider_page_endpoint_active">Active</string>
+  <string name="setting_provider_page_endpoint_unreachable">unreachable</string>
   <string name="setting_provider_page_api_key">API Key</string>
   <string name="setting_provider_page_api_path">API Path</string>
   <string name="setting_provider_page_avaliable_models">Avaliable Models</string>

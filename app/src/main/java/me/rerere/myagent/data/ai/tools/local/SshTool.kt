@@ -141,7 +141,7 @@ internal class BoundedOutputStream(private val cap: Int) : java.io.OutputStream(
  * into a wrapper without a quoting injection.
  */
 internal fun shellSingleQuote(s: String): String =
-    "'" + s.replace("'", "'\\''") + "'"
+    me.rerere.myagent.data.ssh.posixShellQuote(s)
 
 /**
  * Wrap [command] so it runs fully detached from the SSH exec channel and returns immediately.

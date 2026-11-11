@@ -5,6 +5,9 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.FlowRow
@@ -19,6 +22,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -41,6 +45,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.foundation.background
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -58,12 +63,16 @@ import me.rerere.ai.provider.Model
 import me.rerere.ai.provider.OpenRouterRouting
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Cancel01
+import me.rerere.hugeicons.stroke.Refresh01
 import me.rerere.hugeicons.stroke.Delete01
 import me.rerere.hugeicons.stroke.Edit01
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.dokar.sonner.ToastType
 import me.rerere.ai.provider.ClaudePromptCacheTtl
 import me.rerere.ai.provider.ProviderSetting
+import me.rerere.ai.util.EndpointRacer
+import me.rerere.ai.util.ProbeOutcome
+import me.rerere.ai.util.firstEndpointUrl
 import me.rerere.llamacpp.LlamaCppCatalog
 import me.rerere.llamacpp.LlamaCppCatalogEntry
 import me.rerere.locallm.LocalRuntime
@@ -83,6 +92,10 @@ import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import org.koin.androidx.compose.koinViewModel
+import org.koin.compose.koinInject
+import okhttp3.OkHttpClient
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import org.koin.core.parameter.parametersOf
 import kotlin.reflect.KClass
 
@@ -295,7 +308,110 @@ private fun String.normalizePath(): String {
     return path.trimEnd('/')
 }
 
-private fun String.isValidBaseUrl(): Boolean = this.toHttpUrlOrNull() != null
+/** 允许多个地址：每个地址都必须是合法 URL，空行忽略。 */
+private fun String.isValidBaseUrl(): Boolean {
+    val urls = EndpointRacer.splitValues(this)
+    return urls.isNotEmpty() && urls.all { it.toHttpUrlOrNull() != null }
+}
+
+/**
+ * 多地址时的入口体检：打开配置页就并发探测一遍，列出每条地址的通断与耗时，
+ * 并标出当前请求实际命中的那条（与请求链共享胜者缓存）。
+ *
+ * 只有一个地址时不显示——单地址没有可比较的东西。
+ */
+@Composable
+private fun EndpointProbeSection(providerId: String, baseUrl: String) {
+    val httpClient = koinInject<OkHttpClient>()
+    val urls = remember(baseUrl) { EndpointRacer.splitValues(baseUrl) }
+    if (urls.size < 2) return
+
+    var outcomes by remember(baseUrl) { mutableStateOf<List<ProbeOutcome>>(emptyList()) }
+    var probing by remember(baseUrl) { mutableStateOf(true) }
+    var refreshCount by remember(baseUrl) { mutableStateOf(0) }
+
+    LaunchedEffect(baseUrl, refreshCount) {
+        probing = true
+        outcomes = withContext(Dispatchers.IO) { EndpointRacer.probeAll(httpClient, baseUrl) }
+        probing = false
+    }
+
+    val active = EndpointRacer.currentWinner(providerId, baseUrl)
+
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = stringResource(R.string.setting_provider_page_endpoint_probe),
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(Modifier.weight(1f))
+            if (probing) {
+                CircularProgressIndicator(modifier = Modifier.size(14.dp), strokeWidth = 2.dp)
+            } else {
+                IconButton(onClick = { refreshCount++ }, modifier = Modifier.size(28.dp)) {
+                    Icon(
+                        imageVector = HugeIcons.Refresh01,
+                        contentDescription = stringResource(R.string.setting_provider_page_endpoint_probe_again),
+                        modifier = Modifier.size(16.dp),
+                    )
+                }
+            }
+        }
+
+        urls.forEachIndexed { index, url ->
+            val outcome = outcomes.getOrNull(index)
+            val dotColor = when {
+                outcome == null -> MaterialTheme.colorScheme.outlineVariant
+                outcome.tier == EndpointRacer.TIER_TRUSTED -> MaterialTheme.colorScheme.primary
+                outcome.tier == EndpointRacer.TIER_SUSPICIOUS -> MaterialTheme.colorScheme.tertiary
+                else -> MaterialTheme.colorScheme.error
+            }
+            val status = when {
+                outcome == null -> ""
+                !outcome.reachable -> stringResource(R.string.setting_provider_page_endpoint_unreachable)
+                else -> buildString {
+                    append(outcome.elapsedMs).append(" ms")
+                    outcome.statusCode?.let { append(" · HTTP ").append(it) }
+                }
+            }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(7.dp)
+                        .clip(CircleShape)
+                        .background(dotColor)
+                )
+                Text(
+                    text = url,
+                    style = MaterialTheme.typography.bodySmall,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f),
+                )
+                if (url == active) {
+                    Text(
+                        text = stringResource(R.string.setting_provider_page_endpoint_active),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                }
+                Text(
+                    text = status,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+    }
+}
 
 private const val OPENAI_OFFICIAL_HOST = "api.openai.com"
 private const val GOOGLE_OFFICIAL_HOST = "generativelanguage.googleapis.com"
@@ -343,8 +459,14 @@ private fun ProviderConfigureOpenAI(
         onValueChange = { onEdit(provider.copy(baseUrl = it.trim())) },
         label = { Text(stringResource(R.string.setting_provider_page_api_base_url)) },
         modifier = Modifier.fillMaxWidth(),
+        maxLines = 4,
         isError = provider.baseUrl.isNotBlank() && !provider.baseUrl.isValidBaseUrl(),
+        supportingText = {
+            Text(stringResource(R.string.setting_provider_page_api_base_url_multi_hint))
+        },
     )
+
+    EndpointProbeSection(providerId = provider.id.toString(), baseUrl = provider.baseUrl)
 
     OutlinedTextField(
         value = if (provider.useResponseApi) provider.responsesPath else provider.chatCompletionsPath,
@@ -385,7 +507,7 @@ private fun ProviderConfigureOpenAI(
             checked = provider.useResponseApi,
             onCheckedChange = {
                 onEdit(provider.copy(useResponseApi = it))
-                if (it && provider.baseUrl.toHttpUrlOrNull()?.host != "api.openai.com") {
+                if (it && provider.baseUrl.firstEndpointUrl().toHttpUrlOrNull()?.host != "api.openai.com") {
                     toaster.show(message = responseAPIWarning, type = ToastType.Warning)
                 }
             }
@@ -395,7 +517,7 @@ private fun ProviderConfigureOpenAI(
     // OpenRouter is the only OpenAI-compatible host where this does anything: it gates
     // the cache_control breakpoints required by Anthropic/Gemini/Qwen models routed
     // through it. Other models on OpenRouter cache automatically regardless.
-    if (provider.baseUrl.toHttpUrlOrNull()?.host == "openrouter.ai") {
+    if (provider.baseUrl.firstEndpointUrl().toHttpUrlOrNull()?.host == "openrouter.ai") {
         Row(
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -644,8 +766,14 @@ private fun ProviderConfigureClaude(
         onValueChange = { onEdit(provider.copy(baseUrl = it.trim())) },
         label = { Text(stringResource(R.string.setting_provider_page_api_base_url)) },
         modifier = Modifier.fillMaxWidth(),
+        maxLines = 4,
         isError = provider.baseUrl.isNotBlank() && !provider.baseUrl.isValidBaseUrl(),
+        supportingText = {
+            Text(stringResource(R.string.setting_provider_page_api_base_url_multi_hint))
+        },
     )
+
+    EndpointProbeSection(providerId = provider.id.toString(), baseUrl = provider.baseUrl)
 
     Row(
         modifier = Modifier.fillMaxWidth(),
@@ -752,18 +880,26 @@ private fun ProviderConfigureGoogle(
     }
 
     if (!provider.vertexAI) {
+        val baseUrlEntries = EndpointRacer.splitValues(provider.baseUrl)
+        val missingV1Beta = baseUrlEntries.any { !it.endsWith("/v1beta") }
         OutlinedTextField(
             value = provider.baseUrl,
             onValueChange = { onEdit(provider.copy(baseUrl = it.trim())) },
             label = { Text(stringResource(R.string.setting_provider_page_api_base_url)) },
             modifier = Modifier.fillMaxWidth(),
+            maxLines = 4,
             isError = provider.baseUrl.isNotBlank() && (
-                !provider.baseUrl.isValidBaseUrl() || !provider.baseUrl.endsWith("/v1beta")
+                !provider.baseUrl.isValidBaseUrl() || missingV1Beta
                 ),
-            supportingText = if (!provider.baseUrl.endsWith("/v1beta")) {
-                { Text("The base URL usually ends with `/v1beta`") }
-            } else null,
+            supportingText = {
+                if (missingV1Beta) {
+                    Text("The base URL usually ends with `/v1beta`")
+                } else {
+                    Text(stringResource(R.string.setting_provider_page_api_base_url_multi_hint))
+                }
+            },
         )
+        EndpointProbeSection(providerId = provider.id.toString(), baseUrl = provider.baseUrl)
     }
 
     Row(

@@ -17,6 +17,7 @@ import me.rerere.ai.core.Tool
 import me.rerere.ai.provider.Model
 import me.rerere.ai.provider.ProviderSetting
 import me.rerere.ai.ui.UIMessagePart
+import me.rerere.ai.util.EndpointRacer
 import me.rerere.myagent.data.ai.ReviewStateBus
 import me.rerere.myagent.data.datastore.SettingsStore
 import okhttp3.MediaType.Companion.toMediaType
@@ -48,14 +49,21 @@ private fun pickOpenAiProvider(providers: List<ProviderSetting>): Pair<ProviderS
     return null
 }
 
-private fun callSideChannel(
+private suspend fun callSideChannel(
     provider: ProviderSetting.OpenAI,
     model: Model,
     content: String,
     focus: String?,
 ): String {
-    val base = provider.baseUrl.trimEnd('/')
+    // 走和多地址主链路同一套赛跑：共享胜者缓存，不会再选到一个已经不通的入口。
+    val endpoint = EndpointRacer
+        .orderedCandidates(SIDE_REVIEW_CLIENT, provider.baseUrl, provider.apiKey, provider.id.toString())
+        .first()
+    val base = endpoint.baseUrl.trimEnd('/')
     if (base.isEmpty()) return "ERROR: provider baseUrl empty"
+    val apiKey = endpoint.apiKey
+        ?: EndpointRacer.splitValues(provider.apiKey).firstOrNull()
+        ?: provider.apiKey
     val path = provider.chatCompletionsPath.ifBlank { "/chat/completions" }
     val url = base + path
 
@@ -85,7 +93,7 @@ private fun callSideChannel(
 
     val request = Request.Builder()
         .url(url)
-        .header("Authorization", "Bearer " + provider.apiKey)
+        .header("Authorization", "Bearer " + apiKey)
         .post(payload.toString().toRequestBody("application/json".toMediaType()))
         .build()
 

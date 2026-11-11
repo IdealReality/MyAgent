@@ -61,6 +61,10 @@ import me.rerere.ai.ui.UIMessagePart
 import me.rerere.ai.ui.metadataAs
 import me.rerere.ai.ui.toMetadata
 import me.rerere.ai.util.KeyRoulette
+import me.rerere.ai.util.atEndpoint
+import me.rerere.ai.util.endpointCandidates
+import me.rerere.ai.util.flowWithEndpointFailover
+import me.rerere.ai.util.withEndpointFailover
 import me.rerere.ai.util.configureReferHeaders
 import me.rerere.ai.util.configureSessionHeaders
 import me.rerere.ai.util.encodeBase64
@@ -152,6 +156,11 @@ class GoogleProvider(private val client: OkHttpClient, context: Context? = null)
     }
 
     override suspend fun listModels(providerSetting: ProviderSetting.Google): List<Model> =
+        withEndpointFailover(providerSetting.endpointCandidates(client), providerSetting.id.toString()) { endpoint ->
+            listModelsAt(providerSetting.atEndpoint(endpoint))
+        }
+
+    private suspend fun listModelsAt(providerSetting: ProviderSetting.Google): List<Model> =
         withContext(Dispatchers.IO) {
             val url = buildUrl(providerSetting = providerSetting, path = "models?pageSize=100")
             val request = transformRequest(
@@ -194,11 +203,24 @@ class GoogleProvider(private val client: OkHttpClient, context: Context? = null)
                     )
                 }
             } else {
-                emptyList()
+                // 非 2xx 必须抛异常而不是返回空列表：多地址选路靠异常判断这个地址不可用，
+                // 静默的空列表会让"主地址挂了"看起来像"这个供应商没有模型"。
+                error("Failed to get models: ${response.code} ${response.body.string()}")
             }
         }
 
     override suspend fun generateText(
+        providerSetting: ProviderSetting.Google,
+        messages: List<UIMessage>,
+        params: TextGenerationParams,
+    ): TextGenerationResult = withEndpointFailover(
+        providerSetting.endpointCandidates(client),
+        providerSetting.id.toString(),
+    ) { endpoint ->
+        generateTextAt(providerSetting.atEndpoint(endpoint), messages, params)
+    }
+
+    private suspend fun generateTextAt(
         providerSetting: ProviderSetting.Google,
         messages: List<UIMessage>,
         params: TextGenerationParams,
@@ -247,6 +269,17 @@ class GoogleProvider(private val client: OkHttpClient, context: Context? = null)
     }
 
     override suspend fun streamText(
+        providerSetting: ProviderSetting.Google,
+        messages: List<UIMessage>,
+        params: TextGenerationParams,
+    ): Flow<StreamChunk> = flowWithEndpointFailover(
+        providerSetting.endpointCandidates(client),
+        providerSetting.id.toString(),
+    ) { endpoint ->
+        streamTextAt(providerSetting.atEndpoint(endpoint), messages, params)
+    }
+
+    private fun streamTextAt(
         providerSetting: ProviderSetting.Google,
         messages: List<UIMessage>,
         params: TextGenerationParams,

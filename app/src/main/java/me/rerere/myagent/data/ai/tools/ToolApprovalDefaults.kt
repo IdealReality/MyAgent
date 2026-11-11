@@ -67,6 +67,11 @@ object ToolApprovalDefaults {
         "ssh_forget_host_key",
         "save_ssh_host",
         "delete_ssh_host",
+        // Remote code intelligence: starts long-lived processes on the host and can rewrite
+        // files there (rename / code actions), so it belongs next to the SSH writes.
+        "remote_lsp",
+        // Remote debugging: starts a debuggee and can resume/step it, i.e. arbitrary code runs.
+        "remote_debug",
         // Agent vault mutations (request_secret is a human-input pause, not listed here)
         "secret_delete",
 
@@ -77,6 +82,9 @@ object ToolApprovalDefaults {
         "write_text_file",
         "download_file",
         "scan_media",
+        // Skill authoring: writes SKILL.md plus ancillary files under skills/<name>/, and a
+        // skill body is prompt text the assistant will load on later turns.
+        "skill_write",
 
         // Cron mutations (read is free; mutate asks)
         "schedule_job",

@@ -26,6 +26,7 @@ import me.rerere.myagent.data.model.Assistant
 import me.rerere.myagent.data.model.InjectionPosition
 import me.rerere.myagent.data.model.Lorebook
 import me.rerere.myagent.data.model.PromptInjection
+import me.rerere.myagent.skills.SkillWritePlanner
 import kotlin.uuid.Uuid
 
 /**
@@ -327,6 +328,177 @@ object AssistantConfigTools {
                     "detail" to JsonPrimitive("skill '$name' ${if (enabled) "enabled" else "disabled"}"),
                     "enabled_skills" to JsonArray(next.enabledSkills.sorted().map { JsonPrimitive(it) }),
                 )
+            },
+            // --------------------------------------------------------- skill_write
+            // Hermes Agent's closed learning loop, ported: the model may author and revise its
+            // own skills. Without this, `list_skills` was honest about the dead end ("skill files
+            // are read-only here") and every non-obvious procedure died with the conversation.
+            tool(
+                name = "skill_write",
+                description = """
+                    Author or revise one of your own skills on disk — the step that turns a finished
+                    task into a reusable procedure. A skill is `SKILL.md` (YAML frontmatter: name +
+                    description, then markdown instructions) plus optional files in the same directory.
+
+                    mode:
+                      create  — new skill; description + content required, fails if it already exists
+                      replace — rewrite the whole body (frontmatter fields are preserved)
+                      append  — add a section at the end of the existing body
+                      patch   — replace ONE uniquely occurring passage (old_text -> new_text)
+
+                    Write a skill when you just solved something you would otherwise re-derive next
+                    time: the exact tool sequence, the pitfall that cost a retry, the check that
+                    proved it worked. Do NOT write one for a one-off fact (use memory_write) or for
+                    something the user asked once. Keep SKILL.md short; put long references in files.
+                """,
+                properties = {
+                    putJsonObject("name") {
+                        put("type", "string")
+                        put(
+                            "description",
+                            "Skill name == directory name: lowercase letters, digits, single hyphens, 1..64 chars."
+                        )
+                    }
+                    putJsonObject("mode") {
+                        put("type", "string")
+                        putJsonArray("enum") {
+                            add("create"); add("replace"); add("append"); add("patch")
+                        }
+                        put("description", "Edit verb; see the tool description.")
+                    }
+                    putJsonObject("description") {
+                        put("type", "string")
+                        put(
+                            "description",
+                            "One-line description (≤200 chars). Required for create; omit to keep the existing one."
+                        )
+                    }
+                    putJsonObject("content") {
+                        put("type", "string")
+                        put("description", "Markdown body for create / replace / append.")
+                    }
+                    putJsonObject("old_text") {
+                        put("type", "string")
+                        put("description", "mode=patch: the exact passage to replace; must occur exactly once in the body.")
+                    }
+                    putJsonObject("new_text") {
+                        put("type", "string")
+                        put("description", "mode=patch: replacement text; omit to delete the passage.")
+                    }
+                    putJsonObject("files") {
+                        put("type", "object")
+                        put(
+                            "description",
+                            "Optional extra files as {relative path: text content}, e.g. {\"scripts/run.sh\": \"...\"}. SKILL.md is reserved."
+                        )
+                        put("additionalProperties", JsonPrimitive(true))
+                    }
+                    putJsonObject("enable") {
+                        put("type", "boolean")
+                        put(
+                            "description",
+                            "Enable the skill for this assistant after writing. Default false: like any newly installed skill, it stays off until you ask for it. Pass true when you wrote it for a concrete follow-up."
+                        )
+                    }
+                },
+                required = listOf("name", "mode"),
+            ) { args ->
+                val name = strArg(args, "name")?.trim().orEmpty()
+                if (name.isEmpty()) return@tool err("missing_argument", "name is required.")
+                val mode = SkillWritePlanner.Mode.parse(strArg(args, "mode"))
+                    ?: return@tool err(
+                        "unknown_mode",
+                        "mode must be one of create | replace | append | patch."
+                    )
+                val extraFiles = (args["files"] as? JsonObject)
+                    ?.mapNotNull { (key, value) ->
+                        (value as? JsonPrimitive)?.contentOrNull?.let { key to it }
+                    }
+                    ?.toMap()
+                    .orEmpty()
+
+                // Read before planning so CREATE can refuse an existing skill and the edit
+                // verbs can carry the frontmatter forward. SkillPaths refuses traversal, so a
+                // hostile name simply reads as "absent" and the planner refuses it by rules.
+                val existing = runCatching { skillManager.readSkillContent(name) }.getOrNull()
+                val outcome = SkillWritePlanner.plan(
+                    request = SkillWritePlanner.Request(
+                        name = name,
+                        mode = mode,
+                        description = strArg(args, "description"),
+                        content = strArg(args, "content"),
+                        oldText = strArg(args, "old_text"),
+                        newText = strArg(args, "new_text"),
+                        extraFiles = extraFiles,
+                    ),
+                    existingSkillMd = existing,
+                )
+
+                when (outcome) {
+                    is SkillWritePlanner.Outcome.Err -> buildJsonObject {
+                        put("ok", false)
+                        put("error", outcome.code)
+                        put("detail", outcome.detail)
+                        outcome.hint?.let { put("hint", it) }
+                    }
+
+                    is SkillWritePlanner.Outcome.Ok -> {
+                        val payload = LinkedHashMap<String, String>()
+                        payload["SKILL.md"] = outcome.skillMd
+                        payload.putAll(outcome.extraFiles)
+                        val written = runCatching {
+                            skillManager.saveSkillFilesAtomically(outcome.name, payload)
+                        }.getOrDefault(false)
+                        if (!written) {
+                            return@tool err(
+                                "write_failed",
+                                "Could not write skills/${outcome.name}/ — check free space and that the skill directory is writable."
+                            )
+                        }
+                        val enable = (args["enable"] as? JsonPrimitive)?.booleanOrNull ?: false
+                        var enabledNow = false
+                        if (enable) {
+                            val assistant = refreshAssistant()
+                            if (assistant != null) {
+                                if (outcome.name in assistant.enabledSkills) {
+                                    enabledNow = true
+                                } else {
+                                    val next = assistant.copy(
+                                        enabledSkills = assistant.enabledSkills + outcome.name
+                                    )
+                                    settingsStore.update { s ->
+                                        s.copy(
+                                            assistants = s.assistants.map { a ->
+                                                if (a.id == next.id) next else a
+                                            }
+                                        )
+                                    }
+                                    enabledNow = true
+                                }
+                            }
+                        }
+                        ok(
+                            "skill" to JsonPrimitive(outcome.name),
+                            "mode" to JsonPrimitive(outcome.mode.name.lowercase()),
+                            "created" to JsonPrimitive(outcome.created),
+                            "path" to JsonPrimitive("skills/${outcome.name}/SKILL.md"),
+                            "description" to JsonPrimitive(outcome.description),
+                            "files_written" to JsonArray(payload.keys.sorted().map { JsonPrimitive(it) }),
+                            "bytes" to JsonPrimitive(
+                                outcome.skillMd.toByteArray(Charsets.UTF_8).size
+                            ),
+                            "body_chars" to JsonPrimitive(outcome.bodyChars),
+                            "enabled" to JsonPrimitive(enabledNow),
+                            "note" to JsonPrimitive(
+                                if (enabledNow) {
+                                    "Enabled for this assistant; it becomes callable via use_skill from the NEXT turn."
+                                } else {
+                                    "Saved but not enabled — call toggle_skill(name, true) to make it usable."
+                                }
+                            ),
+                        )
+                    }
+                }
             },
             // ----------------------------------------------------- upsert_lorebook
             tool(

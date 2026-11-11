@@ -34,8 +34,12 @@ import me.rerere.ai.ui.StreamChunk
 import me.rerere.ai.ui.UIMessage
 import me.rerere.ai.ui.VideoGenerationItem
 import me.rerere.ai.util.KeyRoulette
+import me.rerere.ai.util.atEndpoint
 import me.rerere.ai.util.configureReferHeaders
+import me.rerere.ai.util.endpointCandidates
+import me.rerere.ai.util.flowWithEndpointFailover
 import me.rerere.ai.util.json
+import me.rerere.ai.util.withEndpointFailover
 import me.rerere.ai.util.mergeCustomBody
 import me.rerere.ai.util.mergeCustomHeaders
 import me.rerere.ai.util.toHeaders
@@ -79,6 +83,11 @@ class OpenAIProvider(
 
 
     override suspend fun listModels(providerSetting: ProviderSetting.OpenAI): List<Model> =
+        withEndpointFailover(providerSetting.endpointCandidates(client), providerSetting.id.toString()) { endpoint ->
+            listModelsAt(providerSetting.atEndpoint(endpoint))
+        }
+
+    private suspend fun listModelsAt(providerSetting: ProviderSetting.OpenAI): List<Model> =
         withContext(Dispatchers.IO) {
             val key = keyRoulette.next(providerSetting.apiKey, providerSetting.id.toString())
             // OpenRouter's /models returns text-output models only by default, which hides the
@@ -143,7 +152,12 @@ class OpenAIProvider(
             }
         }
 
-    override suspend fun getBalance(providerSetting: ProviderSetting.OpenAI): String = withContext(Dispatchers.IO) {
+    override suspend fun getBalance(providerSetting: ProviderSetting.OpenAI): String =
+        withEndpointFailover(providerSetting.endpointCandidates(client), providerSetting.id.toString()) { endpoint ->
+            getBalanceAt(providerSetting.atEndpoint(endpoint))
+        }
+
+    private suspend fun getBalanceAt(providerSetting: ProviderSetting.OpenAI): String = withContext(Dispatchers.IO) {
         val key = keyRoulette.next(providerSetting.apiKey, providerSetting.id.toString())
         val url = if (providerSetting.balanceOption.apiPath.startsWith("http")) {
             providerSetting.balanceOption.apiPath
@@ -176,46 +190,69 @@ class OpenAIProvider(
         providerSetting: ProviderSetting.OpenAI,
         messages: List<UIMessage>,
         params: TextGenerationParams
-    ): Flow<StreamChunk> = if (providerSetting.useResponseApi) {
-        responseAPI.streamText(
-            providerSetting = providerSetting,
-            messages = messages,
-            params = params
-        )
-    } else {
-        chatCompletionsAPI.streamText(
-            providerSetting = providerSetting,
-            messages = messages,
-            params = params
-        )
+    ): Flow<StreamChunk> = flowWithEndpointFailover(
+        providerSetting.endpointCandidates(client),
+        providerSetting.id.toString(),
+    ) { endpoint ->
+        val effective = providerSetting.atEndpoint(endpoint)
+        if (effective.useResponseApi) {
+            responseAPI.streamText(
+                providerSetting = effective,
+                messages = messages,
+                params = params
+            )
+        } else {
+            chatCompletionsAPI.streamText(
+                providerSetting = effective,
+                messages = messages,
+                params = params
+            )
+        }
     }
 
     override suspend fun generateText(
         providerSetting: ProviderSetting.OpenAI,
         messages: List<UIMessage>,
         params: TextGenerationParams
-    ): TextGenerationResult = if (providerSetting.useResponseApi) {
-        responseAPI.generateText(
-            providerSetting = providerSetting,
-            messages = messages,
-            params = params
-        )
-    } else {
-        chatCompletionsAPI.generateText(
-            providerSetting = providerSetting,
-            messages = messages,
-            params = params
-        )
+    ): TextGenerationResult = withEndpointFailover(
+        providerSetting.endpointCandidates(client),
+        providerSetting.id.toString(),
+    ) { endpoint ->
+        val effective = providerSetting.atEndpoint(endpoint)
+        if (effective.useResponseApi) {
+            responseAPI.generateText(
+                providerSetting = effective,
+                messages = messages,
+                params = params
+            )
+        } else {
+            chatCompletionsAPI.generateText(
+                providerSetting = effective,
+                messages = messages,
+                params = params
+            )
+        }
     }
 
     override suspend fun generateImage(
         providerSetting: ProviderSetting,
         params: ImageGenerationParams
-    ): Flow<ImageGenerationItem> = flow {
+    ): Flow<ImageGenerationItem> {
         require(providerSetting is ProviderSetting.OpenAI) {
             "Expected OpenAI provider setting"
         }
+        return flowWithEndpointFailover(
+            providerSetting.endpointCandidates(client),
+            providerSetting.id.toString(),
+        ) { endpoint ->
+            generateImageAt(providerSetting.atEndpoint(endpoint), params)
+        }
+    }
 
+    private fun generateImageAt(
+        providerSetting: ProviderSetting.OpenAI,
+        params: ImageGenerationParams
+    ): Flow<ImageGenerationItem> = flow {
         val key = keyRoulette.next(providerSetting.apiKey, providerSetting.id.toString())
 
         // OpenRouter has a dedicated Images API for image-only models (FLUX.2, Recraft,
@@ -548,10 +585,22 @@ class OpenAIProvider(
     override suspend fun editImage(
         providerSetting: ProviderSetting,
         params: ImageEditParams
-    ): Flow<ImageGenerationItem> = flow {
+    ): Flow<ImageGenerationItem> {
         require(providerSetting is ProviderSetting.OpenAI) {
             "Expected OpenAI provider setting"
         }
+        return flowWithEndpointFailover(
+            providerSetting.endpointCandidates(client),
+            providerSetting.id.toString(),
+        ) { endpoint ->
+            editImageAt(providerSetting.atEndpoint(endpoint), params)
+        }
+    }
+
+    private fun editImageAt(
+        providerSetting: ProviderSetting.OpenAI,
+        params: ImageEditParams
+    ): Flow<ImageGenerationItem> = flow {
         require(params.images.isNotEmpty()) {
             "At least one image is required"
         }
@@ -673,11 +722,22 @@ class OpenAIProvider(
     override suspend fun generateVideo(
         providerSetting: ProviderSetting,
         params: VideoGenerationParams
-    ): Flow<VideoGenerationItem> = flow {
+    ): Flow<VideoGenerationItem> {
         require(providerSetting is ProviderSetting.OpenAI) {
             "Expected OpenAI provider setting"
         }
+        return flowWithEndpointFailover(
+            providerSetting.endpointCandidates(client),
+            providerSetting.id.toString(),
+        ) { endpoint ->
+            generateVideoAt(providerSetting.atEndpoint(endpoint), params)
+        }
+    }
 
+    private fun generateVideoAt(
+        providerSetting: ProviderSetting.OpenAI,
+        params: VideoGenerationParams
+    ): Flow<VideoGenerationItem> = flow {
         val key = keyRoulette.next(providerSetting.apiKey, providerSetting.id.toString())
 
         // Neither vendor takes an `n` for video, so a count > 1 is N sequential jobs (each of which

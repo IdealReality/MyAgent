@@ -100,6 +100,8 @@ import me.rerere.myagent.data.ai.tools.local.telegramSetDefaultChatTool
 import me.rerere.myagent.data.ai.tools.local.telegramSetTokenTool
 import me.rerere.myagent.data.ai.tools.local.telegramStatusTool
 import me.rerere.myagent.data.ai.tools.local.requestSecretTool
+import me.rerere.myagent.data.ai.tools.local.remoteDebugTool
+import me.rerere.myagent.data.ai.tools.local.remoteLspTool
 import me.rerere.myagent.data.ai.tools.local.saveSshHostTool
 import me.rerere.myagent.data.ai.tools.local.secretDeleteTool
 import me.rerere.myagent.data.ai.tools.local.secretListTool
@@ -896,6 +898,11 @@ class LocalTools(
             tools.add(sshUploadTool(context, sshHostRepository))
             tools.add(sshDownloadTool(context, sshHostRepository))
             tools.add(forgetSshHostKeyTool(context))
+            // Code intelligence and debugging on the same saved hosts. These are the tools that
+            // answer semantic questions (diagnostics, definitions, references, safe renames) and
+            // drive a real debugger remotely; text search and ssh_exec cannot.
+            tools.add(remoteLspTool(context, sshHostRepository))
+            tools.add(remoteDebugTool(context, sshHostRepository))
         }
         if (options.contains(LocalToolOption.Shizuku)) {
             tools.add(me.rerere.myagent.data.ai.tools.local.shizukuExecTool(context))

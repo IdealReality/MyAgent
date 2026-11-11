@@ -1149,6 +1149,11 @@ mDNS 地址：使用 .local 主机名，同一网络中的其他设备可通过�
   <string name="setting_provider_page_add_provider_override">添加提供商重写</string>
   <string name="setting_provider_page_advanced_settings">高级设置</string>
   <string name="setting_provider_page_api_base_url">API Base Url</string>
+  <string name="setting_provider_page_api_base_url_multi_hint">可填多个地址（换行或逗号分隔）。请求前并发探测各入口，谁先真正连通 API 就用谁，其余探测立即断开；胜出地址复用 60 秒。Key 与地址数量相同时按顺序一一对应。</string>
+  <string name="setting_provider_page_endpoint_probe">入口探测</string>
+  <string name="setting_provider_page_endpoint_probe_again">重新探测</string>
+  <string name="setting_provider_page_endpoint_active">当前</string>
+  <string name="setting_provider_page_endpoint_unreachable">不可达</string>
   <string name="setting_provider_page_api_key">API Key</string>
   <string name="setting_provider_page_api_path">API 路径</string>
   <string name="setting_provider_page_avaliable_models">可用模型</string>

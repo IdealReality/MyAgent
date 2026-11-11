@@ -59,6 +59,10 @@ import me.rerere.ai.ui.metadataAs
 import me.rerere.ai.ui.toMetadata
 import me.rerere.ai.util.HttpException
 import me.rerere.ai.util.KeyRoulette
+import me.rerere.ai.util.atEndpoint
+import me.rerere.ai.util.endpointCandidates
+import me.rerere.ai.util.flowWithEndpointFailover
+import me.rerere.ai.util.withEndpointFailover
 import me.rerere.ai.util.configureReferHeaders
 import me.rerere.ai.util.configureSessionHeaders
 import me.rerere.ai.util.encodeBase64
@@ -281,6 +285,11 @@ class ClaudeProvider(private val client: OkHttpClient, context: Context? = null)
     private val keyRoulette = if (context != null) KeyRoulette.lru(context) else KeyRoulette.default()
 
     override suspend fun listModels(providerSetting: ProviderSetting.Claude): List<Model> =
+        withEndpointFailover(providerSetting.endpointCandidates(client), providerSetting.id.toString()) { endpoint ->
+            listModelsAt(providerSetting.atEndpoint(endpoint))
+        }
+
+    private suspend fun listModelsAt(providerSetting: ProviderSetting.Claude): List<Model> =
         withContext(Dispatchers.IO) {
             val request = Request.Builder()
                 .url("${providerSetting.baseUrl}/models")
@@ -345,6 +354,17 @@ class ClaudeProvider(private val client: OkHttpClient, context: Context? = null)
         providerSetting: ProviderSetting.Claude,
         messages: List<UIMessage>,
         params: TextGenerationParams
+    ): TextGenerationResult = withEndpointFailover(
+        providerSetting.endpointCandidates(client),
+        providerSetting.id.toString(),
+    ) { endpoint ->
+        generateTextAt(providerSetting.atEndpoint(endpoint), messages, params)
+    }
+
+    private suspend fun generateTextAt(
+        providerSetting: ProviderSetting.Claude,
+        messages: List<UIMessage>,
+        params: TextGenerationParams
     ): TextGenerationResult = withContext(Dispatchers.IO) {
         generateClaudeWithPauseTurn(messages, params.model) { requestMessages ->
             generateTextOnce(providerSetting, requestMessages, params)
@@ -399,6 +419,17 @@ class ClaudeProvider(private val client: OkHttpClient, context: Context? = null)
         providerSetting: ProviderSetting.Claude,
         messages: List<UIMessage>,
         params: TextGenerationParams
+    ): Flow<StreamChunk> = flowWithEndpointFailover(
+        providerSetting.endpointCandidates(client),
+        providerSetting.id.toString(),
+    ) { endpoint ->
+        streamTextAt(providerSetting.atEndpoint(endpoint), messages, params)
+    }
+
+    private fun streamTextAt(
+        providerSetting: ProviderSetting.Claude,
+        messages: List<UIMessage>,
+        params: TextGenerationParams,
     ): Flow<StreamChunk> = streamClaudeWithPauseTurn(messages, params.model) { requestMessages ->
         streamTextOnce(providerSetting, requestMessages, params)
     }
